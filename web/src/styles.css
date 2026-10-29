@@ -1,0 +1,70 @@
+:root {
+  --bg: #060709;
+  --ink: #eef0f2;
+  --ink-dim: #9097a0;
+  --ink-faint: #5b616a;
+  --accent: #02dac9; /* TypeDB green: reserved for the semantic layer and primary actions */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  font-family: "Inter Variable", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(--bg); }
+
+.app { position: relative; height: 100%; }
+.canvas { position: absolute; inset: 0; }
+
+.brand {
+  position: absolute; top: 28px; left: 36px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; letter-spacing: 0.04em; color: var(--ink-dim);
+  pointer-events: none;
+}
+.brand-mark { width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+.brand-sep { color: var(--ink-faint); }
+.brand-sub { color: var(--ink-faint); }
+
+.intro {
+  position: absolute; left: 36px; bottom: 96px; max-width: 520px;
+  transition: opacity 0.9s var(--ease), transform 0.9s var(--ease);
+}
+.intro h1 {
+  margin: 0 0 14px; font-weight: 300; font-size: clamp(30px, 3.4vw, 46px);
+  line-height: 1.08; letter-spacing: -0.02em;
+}
+.intro p { margin: 0 0 30px; font-size: 16px; line-height: 1.5; color: var(--ink-dim); }
+.intro button {
+  font: inherit; font-size: 14px; letter-spacing: 0.02em; color: var(--ink);
+  padding: 12px 22px; border-radius: 999px; cursor: pointer;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: border-color 0.3s var(--ease), background 0.3s var(--ease);
+}
+.intro button:hover, .intro button:focus-visible { border-color: var(--accent); background: rgba(2, 218, 201, 0.06); outline: none; }
+
+.exploring .intro { opacity: 0; transform: translateY(12px); pointer-events: none; }
+
+.hint {
+  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
+  font-size: 12px; color: var(--ink-faint); letter-spacing: 0.03em;
+  opacity: 0; transition: opacity 0.9s var(--ease) 0.4s; pointer-events: none;
+}
+.exploring .hint { opacity: 1; }
+
+.disclaimer {
+  position: absolute; right: 36px; bottom: 28px; margin: 0;
+  font-size: 11px; color: var(--ink-faint); pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .brand { top: 18px; left: 16px; }
+  .intro { left: 16px; right: 16px; bottom: 72px; }
+  .disclaimer { left: 16px; right: 16px; bottom: 16px; }
+  .hint { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro, .hint { transition: none; }
+}

@@ -1,0 +1,20 @@
+# Docker Compose file for the Vehicle Explorer.
+# Phase 2 (visual prototype) only needs the web dev server:
+#   docker compose up web-dev        then open http://127.0.0.1:5180
+# Node.js runs inside the container, so nothing needs installing on this computer.
+# Published ports are bound to 127.0.0.1, so only this computer can connect.
+
+services:
+  web-dev:
+    image: node:24.22.1-alpine
+    container_name: vx-web-dev
+    working_dir: /web
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5180"]
+    ports:
+      - "127.0.0.1:5180:5180"
+    volumes:
+      - ./web:/web
+      - vx-node-modules:/web/node_modules   # dependencies live in the container, not in the project folder
+
+volumes:
+  vx-node-modules:
