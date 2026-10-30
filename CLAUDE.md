@@ -28,18 +28,30 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
 - TypeDB is 3.x only (3.14.1). See the TypeDB notes in ../typedb-cyber-intel/CLAUDE.md; log TypeDB
   friction in ../typedb-cyber-intel/notes/typedb-feedback.md.
 
-## Git workflow
-- `main` holds reviewed, working states only. Every commit on `main` passes the tests and the production
-  build: `docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`.
+## Git workflow (permanent)
+Every piece of work follows this loop:
+1. Complete one meaningful, clearly scoped step.
+2. Run the checks: `docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`
+   (plus the TypeDB integration tests once they exist).
+3. Commit with a conventional commit message: `type(scope): imperative summary`, where type is one of
+   feat, fix, docs, test, refactor, perf, build, chore (e.g. `feat(typedb): add component schema`).
+   Then a body saying what changed and why, ending with the co-author line.
+4. Push the commit to GitHub.
+5. Report the commit hash and the check results. Only call a push successful after confirming it
+   (`git ls-remote origin` shows the same hash).
+
+Branches:
+- `main` holds reviewed, working states only; every commit on it passes the checks.
 - In-progress and experimental work lives on a feature branch (`feature/<milestone>-<topic>`, e.g.
-  `feature/m2.2-mechanical`). Commit each completed, tested step there and push it; merge into `main`
-  only after the owner has reviewed it (normally at a phase checkpoint).
-- Commit messages: a short imperative summary, then a body saying what changed and why, ending with the
-  co-author line. Never commit secrets (`.env`) or review screenshots (`web/shots/`).
+  `feature/m2.2-mechanical`). Merge into `main` only after the owner approves (normally at a phase review).
+
+Also:
+- Never commit secrets (`.env`) or review screenshots (`web/shots/`).
 - Generated 3D assets (`web/public/assets/*.glb`) are committed because the app needs them (no Git LFS
   here); keep them compressed and regenerate rather than hand-edit.
-- Remote: private GitHub repository `Calhem/typedb-noodlelab-visual-explorer`. There is no `gh` CLI: use the
-  GitHub website in the browser pane; pushes use the macOS keychain credential helper.
+- Remote: **public** GitHub repository https://github.com/Calhem/typedb-noodlelab-visual-explorer (the owner
+  chose to keep it public, so never commit anything confidential). There is no `gh` CLI: use the GitHub
+  website in the browser pane; pushes use the macOS keychain credential helper.
 
 ## Blender pipeline (approved for mechanical systems; full rebuild follows docs/mechanical-upgrade-plan.md once approved)
 - `blender/` holds Python scripts that model parts with Blender's `bpy` (5.2.3, isolated uv env in
