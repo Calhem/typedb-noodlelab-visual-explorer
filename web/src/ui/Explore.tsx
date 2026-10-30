@@ -2,7 +2,7 @@
 // Every list and detail here is a TypeDB answer; choosing an item highlights it in 3D (a "focus"), and every
 // part named here opens its component panel. The TypeQL behind each view is one click away.
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { semantic, type AssemblyNode, type QuestionMeta, type SystemSummary, type TypeNode } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
@@ -24,6 +24,11 @@ interface Props {
 const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"], ["types", "Types"], ["questions", "Questions"]];
 
 export function Explore({ pending, tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
+  // A newly chosen system, assembly or type shows its detail at the top: scroll there.
+  const body = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focus && focus.kind !== "question") body.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [focus]);
   return (
     <aside className="explore" aria-label="Explore the vehicle's structure in TypeDB">
       <div className="explore-head">
@@ -35,7 +40,7 @@ export function Explore({ pending, tab, onTab, focus, onFocus, onSelect, onClose
         </nav>
         <button type="button" className="panel-close" onClick={onClose} aria-label="Close the explorer">×</button>
       </div>
-      <div className="explore-body">
+      <div className="explore-body" ref={body}>
         {tab === "systems" && <Systems focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "assemblies" && <Assemblies focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "types" && <Types focus={focus} onFocus={onFocus} onSelect={onSelect} />}

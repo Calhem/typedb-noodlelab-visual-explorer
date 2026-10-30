@@ -63,7 +63,8 @@ export function App() {
     <main className={exploring ? "app exploring" : "app"}>
       <div className="canvas">
         <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
-          highlight={focus?.ids ?? null} onSelect={setSelectedId} />
+          highlight={focus?.ids ?? null} onSelect={setSelectedId}
+          insets={{ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0 }} />
       </div>
 
       <header className="brand">

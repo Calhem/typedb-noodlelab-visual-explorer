@@ -25,18 +25,30 @@ function Turntable({ spinning, children }: { spinning: boolean; children: React.
   );
 }
 
-/** While the intro text is showing, shift the picture so the vehicle sits right of the headline
- * (a lens "film offset", so the camera itself doesn't move). Eases back to centre when exploring. */
-function Framing({ exploring }: { exploring: boolean }) {
+/** Screen space taken by the side panels (CSS pixels), so the vehicle can be centred in what is left. */
+export interface Insets { left: number; right: number }
+
+/** While the intro text is showing, shift the picture so the vehicle sits right of the headline; while exploring,
+ * centre it between the side panels. A lens "film offset", so the camera itself doesn't move. */
+function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) {
   const { camera, size } = useThree();
   useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
-    const target = exploring || size.width < 900 ? 0 : -3.2;
+    // Film offset that moves the image right by dx pixels (negative offset = content moves right).
+    const aspect0 = size.width / size.height;
+    const filmWidth = cam.filmGauge * Math.min(aspect0, 1);
+    const shift = (dx: number) => -(dx / size.width) * filmWidth * 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * aspect0;
+    const target = size.width < 900 ? 0 : exploring ? shift((insets.left - insets.right) / 2) : -3.2;
     const next = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
     // On narrow (portrait) screens, widen the lens so the whole car still fits across.
     const aspect = size.width / size.height;
-    const fov = aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect);
-    if (Math.abs(next - cam.filmOffset) > 1e-4 || cam.fov !== fov) {
+    const baseFov = aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect);
+    // With side panels open, widen the lens so the vehicle fits the space between them (at most 1.8x).
+    const free = Math.max(size.width - insets.left - insets.right, size.width * 0.45);
+    const fit = exploring && size.width >= 900 ? Math.min(size.width / free, 1.8) : 1;
+    const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));
+    const fov = Math.abs(wanted - cam.fov) < 0.01 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
+    if (Math.abs(next - cam.filmOffset) > 1e-4 || Math.abs(cam.fov - fov) > 1e-4) {
       cam.filmOffset = next;
       cam.fov = fov;
       cam.updateProjectionMatrix();
@@ -63,7 +75,7 @@ function explodedDistance(aspect: number, fovDeg: number) {
 function Controls({ exploring }: { exploring: boolean }) {
   const ref = useRef<React.ComponentRef<typeof CameraControls>>(null);
   const framed = useRef(0);
-  const { size, camera } = useThree();
+  const { size } = useThree();
   useEffect(() => {
     ref.current?.setTarget(0, ASSEMBLED_VIEW.targetY, 0, false); // look at the middle of the car, not the ground
   }, []);
@@ -73,7 +85,9 @@ function Controls({ exploring }: { exploring: boolean }) {
     if (!c || Math.abs(p - framed.current) < 1e-4) return;
     framed.current = p;
     const e = 1 - Math.pow(1 - p, 2.5); // pull back early: the assembly opens up fast at the start
-    const far = explodedDistance(size.width / size.height, (camera as THREE.PerspectiveCamera).fov);
+    // The base lens (before any widening for the side panels, which Framing applies on top).
+    const aspect = size.width / size.height;
+    const far = explodedDistance(aspect, aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect));
     c.setTarget(0, THREE.MathUtils.lerp(ASSEMBLED_VIEW.targetY, explodedVolume.centreY, e), 0, true);
     c.dollyTo(THREE.MathUtils.lerp(ASSEMBLED_VIEW.distance, far, e), true);
   });
@@ -156,11 +170,12 @@ function Effects({ tier }: { tier: Tier }) {
   );
 }
 
-export function Stage({ exploring, reducedMotion, selectedId, highlight, onSelect }: {
+export function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect }: {
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
   highlight: Map<string, "primary" | "secondary"> | null;
+  insets: Insets;
   onSelect: (id: string | null) => void;
 }) {
   const tier = useQualityTier();
@@ -177,7 +192,7 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, onSelec
       <color attach="background" args={["#060709"]} />
       <fog attach="fog" args={["#060709", 34, 70]} />
       <Studio />
-      <Framing exploring={exploring} />
+      <Framing exploring={exploring} insets={insets} />
       <directionalLight position={[3, 8, 2]} intensity={0.6} />
       <hemisphereLight args={["#cfd8e2", "#0b0c0f", 0.45]} />
       <CameraLights />
