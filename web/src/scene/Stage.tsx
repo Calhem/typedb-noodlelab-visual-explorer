@@ -156,10 +156,11 @@ function Effects({ tier }: { tier: Tier }) {
   );
 }
 
-export function Stage({ exploring, reducedMotion, selectedId, onSelect }: {
+export function Stage({ exploring, reducedMotion, selectedId, highlight, onSelect }: {
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
+  highlight: Set<string> | null;
   onSelect: (id: string | null) => void;
 }) {
   const tier = useQualityTier();
@@ -183,7 +184,7 @@ export function Stage({ exploring, reducedMotion, selectedId, onSelect }: {
       <Turntable spinning={!exploring && !reducedMotion}>
         <Suspense fallback={null}>
           <group position={[0.04, 0, 0]}>
-            <Vehicle selectedId={selectedId} onSelect={exploring ? onSelect : () => {}} />
+            <Vehicle selectedId={selectedId} highlight={highlight} onSelect={exploring ? onSelect : () => {}} />
           </group>
           {/* Soft shadow under the car. Captured once (after the car has loaded) and turned with it. */}
           <ContactShadows position={[0, 0.001, 0]} opacity={0.8} scale={[6.5, 3.2]} blur={2.4} far={1.2} resolution={512} frames={1} color="#000000" />

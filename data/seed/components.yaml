@@ -74,28 +74,28 @@ components:
   - {id: tyre-fl, type: tyre, assembly: corner-fl, name: "Front left tyre"}
   - {id: wheel-fl, type: wheel, assembly: corner-fl, name: "Front left wheel"}
   - {id: brake-disc-fl, type: brake-disc, assembly: corner-fl, name: "Front left brake disc"}
-  - {id: caliper-fl, type: brake-caliper, assembly: corner-fl, name: "Front left brake caliper"}
+  - {id: caliper-fl, type: brake-caliper, assembly: corner-fl, name: "Front left brake calliper"}
   - {id: knuckle-fl, type: wheel-end-component, assembly: corner-fl, name: "Front left steering knuckle"}
   - {id: wheel-speed-sensor-fl, type: wheel-speed-sensor, assembly: corner-fl, name: "Front left wheel-speed sensor"}
   # corner-fr
   - {id: tyre-fr, type: tyre, assembly: corner-fr, name: "Front right tyre"}
   - {id: wheel-fr, type: wheel, assembly: corner-fr, name: "Front right wheel"}
   - {id: brake-disc-fr, type: brake-disc, assembly: corner-fr, name: "Front right brake disc"}
-  - {id: caliper-fr, type: brake-caliper, assembly: corner-fr, name: "Front right brake caliper"}
+  - {id: caliper-fr, type: brake-caliper, assembly: corner-fr, name: "Front right brake calliper"}
   - {id: knuckle-fr, type: wheel-end-component, assembly: corner-fr, name: "Front right steering knuckle"}
   - {id: wheel-speed-sensor-fr, type: wheel-speed-sensor, assembly: corner-fr, name: "Front right wheel-speed sensor"}
   # corner-rl
   - {id: tyre-rl, type: tyre, assembly: corner-rl, name: "Rear left tyre"}
   - {id: wheel-rl, type: wheel, assembly: corner-rl, name: "Rear left wheel"}
   - {id: brake-disc-rl, type: brake-disc, assembly: corner-rl, name: "Rear left brake disc"}
-  - {id: caliper-rl, type: brake-caliper, assembly: corner-rl, name: "Rear left brake caliper"}
+  - {id: caliper-rl, type: brake-caliper, assembly: corner-rl, name: "Rear left brake calliper"}
   - {id: knuckle-rl, type: wheel-end-component, assembly: corner-rl, name: "Rear left steering knuckle"}
   - {id: wheel-speed-sensor-rl, type: wheel-speed-sensor, assembly: corner-rl, name: "Rear left wheel-speed sensor"}
   # corner-rr
   - {id: tyre-rr, type: tyre, assembly: corner-rr, name: "Rear right tyre"}
   - {id: wheel-rr, type: wheel, assembly: corner-rr, name: "Rear right wheel"}
   - {id: brake-disc-rr, type: brake-disc, assembly: corner-rr, name: "Rear right brake disc"}
-  - {id: caliper-rr, type: brake-caliper, assembly: corner-rr, name: "Rear right brake caliper"}
+  - {id: caliper-rr, type: brake-caliper, assembly: corner-rr, name: "Rear right brake calliper"}
   - {id: knuckle-rr, type: wheel-end-component, assembly: corner-rr, name: "Rear right steering knuckle"}
   - {id: wheel-speed-sensor-rr, type: wheel-speed-sensor, assembly: corner-rr, name: "Rear right wheel-speed sensor"}
   # front-suspension

@@ -26,7 +26,7 @@ def test_1_component_metadata_comes_from_typedb(driver, scratch_database):
     """Change a name and a property in TypeDB only: the API must return the new values at once."""
     client = TestClient(create_app(Database(database=scratch_database)))
     before = get(client, "/api/components/caliper-fr")["data"]
-    assert before["name"] == "Front right brake caliper"
+    assert before["name"] == "Front right brake calliper"
     with driver.transaction(scratch_database, WRITE) as tx:
         tx.query('match $c isa brake-caliper, has component-id "caliper-fr", has name $n, has piston-count $p; delete has $n of $c; has $p of $c;').resolve()
         tx.query('match $c isa brake-caliper, has component-id "caliper-fr"; insert $c has name "Renamed only in TypeDB", has piston-count 8;').resolve()

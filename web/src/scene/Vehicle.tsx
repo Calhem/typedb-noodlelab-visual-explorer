@@ -14,7 +14,12 @@ import { vehicleState } from "./vehicleState";
 
 const ACCENT = new THREE.Color("#02dac9");
 
-export function Vehicle({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
+export function Vehicle({ selectedId, highlight, onSelect }: {
+  selectedId: string | null;
+  /** component ids to bring forward (a semantic focus); the rest is ghosted. null = no focus */
+  highlight: Set<string> | null;
+  onSelect: (id: string | null) => void;
+}) {
   const loaded = use(externalParts);
   const built = useMemo(() => buildVehicle(loaded.parts), [loaded]);
   const plan = useMemo(() => {
@@ -36,7 +41,7 @@ export function Vehicle({ selectedId, onSelect }: { selectedId: string | null; o
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
           geometries.add(mesh.geometry);
-          for (const m of [mesh.material].flat()) materials.add(m);
+          for (const m of [mesh.userData.baseMaterial ?? mesh.material].flat()) materials.add(m);
         });
       }
       for (const g of geometries) g.dispose();
@@ -45,32 +50,39 @@ export function Vehicle({ selectedId, onSelect }: { selectedId: string | null; o
     [built],
   );
 
-  // Selection highlight: every mesh of the selected part gets a copy of its material with a faint accent glow.
+  // Highlighting, in one place so the layers never undo each other. Each mesh keeps its own material as its
+  // base; the selected part glows; with a semantic focus (an assembly, a system, a failure's impact) the
+  // focused parts get a faint glow and everything else is ghosted. Variants are made once per base material.
+  const variants = useMemo(() => new Map<string, THREE.Material>(), [built]);
+  useEffect(() => () => { for (const m of variants.values()) m.dispose(); variants.clear(); }, [variants]);
   useEffect(() => {
-    const part = built.find((b) => b.id === selectedId);
-    if (!part) return;
-    const restore: [THREE.Mesh, THREE.Material | THREE.Material[]][] = [];
-    const lit: THREE.Material[] = [];
-    const glow = (m: THREE.Material) => {
-      const copy = m.clone() as THREE.MeshPhysicalMaterial;
-      if ("emissive" in copy) {
-        copy.emissive = ACCENT.clone();
-        copy.emissiveIntensity = 0.35;
+    const variant = (base: THREE.Material, kind: "selected" | "focused" | "ghost") => {
+      const key = `${base.uuid}:${kind}`;
+      let m = variants.get(key);
+      if (!m) {
+        const copy = base.clone() as THREE.MeshPhysicalMaterial;
+        if (kind === "ghost") {
+          copy.transparent = true;
+          copy.opacity = 0.07;
+          copy.depthWrite = false;
+        } else if ("emissive" in copy) {
+          copy.emissive = ACCENT.clone();
+          copy.emissiveIntensity = kind === "selected" ? 0.35 : 0.12;
+        }
+        variants.set(key, (m = copy));
       }
-      lit.push(copy);
-      return copy;
+      return m;
     };
-    part.object.traverse((o) => {
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      restore.push([mesh, mesh.material]);
-      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(glow) : glow(mesh.material);
-    });
-    return () => {
-      for (const [mesh, m] of restore) mesh.material = m;
-      for (const m of lit) m.dispose();
-    };
-  }, [selectedId, built]);
+    for (const b of built) {
+      const kind = b.id === selectedId ? "selected" : highlight ? (highlight.has(b.id) ? "focused" : "ghost") : null;
+      b.object.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const base = (mesh.userData.baseMaterial ??= mesh.material) as THREE.Material | THREE.Material[];
+        mesh.material = kind === null ? base : Array.isArray(base) ? base.map((m) => variant(m, kind)) : variant(base, kind);
+      });
+    }
+  }, [selectedId, highlight, built, variants]);
 
   useFrame((_, dt) => {
     progress.tick(Math.min(dt, 0.1));

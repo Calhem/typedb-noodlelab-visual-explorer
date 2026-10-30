@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Stage } from "./scene/Stage";
-import { PartLabel } from "./ui/PartLabel";
+import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
+import { ComponentPanel } from "./ui/ComponentPanel";
+import { useFocus } from "./ui/focus";
 import { Scrubber } from "./ui/Scrubber";
 
 function usePrefersReducedMotion() {
@@ -15,21 +17,50 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
+/** Whether the semantic layer (API and TypeDB) answers: checked on load, every 20 seconds and with every answer. */
+function useTypeDBStatus() {
+  const [status, setStatus] = useState<"checking" | "available" | "unavailable">("checking");
+  useEffect(() => {
+    let live = true;
+    const check = () => semantic.health().then((ok) => live && setStatus(ok ? "available" : "unavailable"));
+    check();
+    const timer = setInterval(check, 20_000);
+    const onAnswer = (e: Event) => setStatus((e as CustomEvent<boolean>).detail ? "available" : "unavailable");
+    window.addEventListener(TYPEDB_STATUS_EVENT, onAnswer);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      window.removeEventListener(TYPEDB_STATUS_EVENT, onAnswer);
+    };
+  }, []);
+  return status;
+}
+
 export function App() {
   const [exploring, setExploring] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const typedb = useTypeDBStatus();
+  const { focus, error: focusError, request, clear } = useFocus();
+  // Development only: select a part from the console, for repeatable checks (see CLAUDE.md).
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); } });
+  }, []);
+
   return (
     <main className={exploring ? "app exploring" : "app"}>
       <div className="canvas">
-        <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId} onSelect={setSelectedId} />
+        <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
+          highlight={focus?.ids ?? null} onSelect={setSelectedId} />
       </div>
 
       <header className="brand">
         <span className="brand-mark" aria-hidden />
         <span>Noodlelab Visual Explorer</span>
         <span className="brand-sep">·</span>
-        <span className="brand-sub">TypeDB</span>
+        <span className={`typedb-status ${typedb}`} role="status">
+          TypeDB {typedb === "available" ? "connected" : typedb === "unavailable" ? "unavailable" : "…"}
+        </span>
       </header>
 
       <section className="intro" aria-hidden={exploring}>
@@ -40,6 +71,13 @@ export function App() {
         </button>
       </section>
 
+      {exploring && (focus || focusError) && (
+        <div className={focusError ? "focus-bar error" : "focus-bar"} role="status">
+          <span>{focusError ? focusError.message : focus!.title}</span>
+          <button type="button" className="link" onClick={clear}>{focusError ? "Dismiss" : "Clear"}</button>
+        </div>
+      )}
+
       {exploring && (
         <footer className="controls">
           <Scrubber reducedMotion={reducedMotion} />
@@ -47,7 +85,10 @@ export function App() {
         </footer>
       )}
 
-      {exploring && selectedId && <PartLabel id={selectedId} onClose={() => setSelectedId(null)} />}
+      {exploring && selectedId && (
+        <ComponentPanel id={selectedId} focus={focus} onSelect={setSelectedId} onFocus={request}
+          onClose={() => setSelectedId(null)} />
+      )}
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

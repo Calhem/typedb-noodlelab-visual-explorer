@@ -28,5 +28,10 @@ function saveShots(): Plugin {
 
 export default defineConfig({
   plugins: [react(), saveShots()],
-  server: { strictPort: true, watch: { usePolling: true, ignored: ["**/shots/**"] } }, // polling: file changes from a Mac bind mount
+  server: {
+    strictPort: true,
+    watch: { usePolling: true, ignored: ["**/shots/**"] }, // polling: file changes from a Mac bind mount
+    // The semantic API (TypeDB behind it) is reached through this server, so the browser needs no other address.
+    proxy: { "/api": { target: process.env.API_URL ?? "http://127.0.0.1:8000" } },
+  },
 });
