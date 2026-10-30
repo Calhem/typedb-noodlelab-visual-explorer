@@ -53,3 +53,11 @@ housing. 32 new ids (16 per unit):
 | `{key}-drive-unit-mount-1` … `-3` | mount | Motor-end mount, gearbox mount, torque rod |
 | `front-disconnect` | axle-disconnect | Front dog clutch, so the front motor can stop |
 | `rear-park-lock` | park-lock | Park pawl on the rear intermediate shaft |
+
+## Added for C3c (mechanical completion, 30 October 2026)
+
+| Id | Type | Why |
+|---|---|---|
+| `epb-actuator-rl`, `epb-actuator-rr` | actuator | Electric parking brake on each rear calliper: a separate mechanism from the park lock (driveline) and from service braking |
+
+All four wheel corners are now Blender models; their existing ids are unchanged.
