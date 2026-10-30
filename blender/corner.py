@@ -1,14 +1,18 @@
-"""Front-right wheel corner, modelled for close inspection, exported to web/public/assets/corner-fr.glb.
+"""Front-right wheel corner, modelled for close inspection.
 
-Run from the project root:  uv run --project blender python -I blender/corner.py
+Build it with scripts/build-assets.sh (runs this script, then compresses the result). This script writes
+the uncompressed source model to web/assets-src/corner-fr.glb and the visual mapping to
+web/public/assets/corner-fr.map.json.
 
-Each object is named by its stable component id from web/src/vehicle/manifest.ts. Positions are the
-real assembled positions, in the app's coordinates (x forward, y up, z to the right). Dimensions follow
-web/src/vehicle/dimensions.ts.
+Nodes are named by neutral visual keys (for example "caliper"); the mapping file says which component
+id each node draws, so Blender names never become database identifiers (decision 0001). Positions are
+the real assembled positions, in the app's coordinates (x forward, y up, z to the right). Dimensions
+follow web/src/vehicle/dimensions.ts.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import sys
 from pathlib import Path
@@ -21,7 +25,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 import kit  # noqa: E402
 from kit import TAU, box, cylinder, lathe, merge_into, new_object, polar_array, rod, sector, transform  # noqa: E402
 
-OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "assets" / "corner-fr.glb"
+ROOT = Path(__file__).resolve().parent.parent
+ASSET = "corner-fr"
+OUT = ROOT / "web" / "assets-src" / f"{ASSET}.glb"
+MAP = ROOT / "web" / "public" / "assets" / f"{ASSET}.map.json"
 
 AXLE = Vector((1.437, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF)
 CALIPER_ANGLE = 2.2  # calliper sits behind and above the axle (radians, in the wheel plane)
@@ -165,16 +172,23 @@ def wheel():
     return at_axle(obj)
 
 
-def wheel_nut(n: int):
-    a = math.pi / 2 + TAU * (n - 1) / 5
+def wheel_nuts():
+    """Five nuts sharing one geometry (drawn from one mesh, placed five times)."""
     hexa = new_object("hex", cylinder(0.0108, 0.017, 6), "steel-chrome")
     hexa = kit.bevel(hexa, 0.0012, 2, 40)
     seat = new_object("seat", transform(cylinder(0.0098, 0.007, 32, r2=0.0072), Matrix.Translation((0, 0, -0.012))), "steel-chrome")
     dome = new_object("dome", transform(kit.sphere(0.0092, 3), Matrix.Translation((0, 0, 0.0085)) @ Matrix.Diagonal((1, 1, 0.75, 1))), "steel-chrome")
-    obj = kit.join("nut", [kit.shade(hexa, 30), kit.shade(seat, 30), kit.shade(dome, 60)])
-    obj.data.transform(Matrix.Translation((PCD * math.cos(a), PCD * math.sin(a), 0.0905 + 0.0155)))
-    kit.box_uv(obj)
-    return at_axle(obj)
+    first = kit.join("nut", [kit.shade(hexa, 30), kit.shade(seat, 30), kit.shade(dome, 60)])
+    kit.box_uv(first)
+    nuts = []
+    for n in range(1, 6):
+        a = math.pi / 2 + TAU * (n - 1) / 5
+        obj = first if n == 1 else bpy.data.objects.new(f"nut{n}", first.data)
+        if n > 1:
+            bpy.context.scene.collection.objects.link(obj)
+        obj.location = AXLE + Vector((PCD * math.cos(a), PCD * math.sin(a), 0.0905 + 0.0155))
+        nuts.append(obj)
+    return nuts
 
 
 # ---- brakes -------------------------------------------------------------------------------------------
@@ -575,7 +589,7 @@ def build():
     parts = {
         "tyre-fr": tyre(),
         "wheel-fr": wheel(),
-        **{f"wheel-nut-fr-{n}": wheel_nut(n) for n in range(1, 6)},
+        **{f"wheel-nut-fr-{n}": nut for n, nut in enumerate(wheel_nuts(), start=1)},
         "brake-disc-fr": brake_disc(),
         "caliper-fr": caliper(),
         "brake-pad-inner-fr": brake_pad("inner"),
@@ -598,10 +612,15 @@ def build():
     for o in list(bpy.data.objects):
         if o.name not in keep:
             bpy.data.objects.remove(o)
+    nodes = {}
     for pid, obj in parts.items():
-        kit.finish(obj, pid)
+        key = pid.replace("-fr", "")  # neutral visual key, e.g. "caliper", "wheel-nut-3"
+        kit.finish(obj, key)
+        nodes[key] = pid
     OUT.parent.mkdir(parents=True, exist_ok=True)
     kit.export_glb(str(OUT))
+    MAP.parent.mkdir(parents=True, exist_ok=True)
+    MAP.write_text(json.dumps({"asset": ASSET, "nodes": nodes}, indent=2) + "\n")
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in parts.values())
     print(f"exported {len(parts)} parts, {tris:,} triangles -> {OUT} ({OUT.stat().st_size / 1e6:.1f} MB)")
     for pid, obj in parts.items():

@@ -1,6 +1,7 @@
-// Checks the Blender-modelled corner (public/assets/corner-fr.glb) against the component manifest:
-// every top-level node is named by a manifest id, nothing is missing, and positions are sensible.
-// Reads the GLB's JSON chunk directly, so it needs no browser.
+// Checks the Blender-modelled corner (web/public/assets/corner-fr.*) against the component manifest:
+// the mapping file links every node to a real component id, both detail levels have the same nodes,
+// positions are sensible, and every material name is one the app renders. Reads the GLB's JSON chunk
+// directly, so it needs no browser.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -9,7 +10,7 @@ import * as THREE from "three";
 import { PART_BY_ID } from "../vehicle/manifest";
 import { createStudioMaterials } from "../vehicle/studioMaterials";
 
-const file = fileURLToPath(new URL("../../public/assets/corner-fr.glb", import.meta.url));
+const asset = (name: string) => fileURLToPath(new URL(`../../public/assets/${name}`, import.meta.url));
 
 function gltfJson(path: string) {
   const buf = readFileSync(path);
@@ -27,16 +28,28 @@ const EXPECTED = [
 ];
 
 describe("Blender front-right corner", () => {
-  const json = gltfJson(file);
-  const roots: number[] = json.scenes[json.scene ?? 0].nodes;
-  const nodes = roots.map((i) => json.nodes[i]);
+  const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset("corner-fr.map.json"), "utf8"));
+  const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>
+    json.scenes[json.scene ?? 0].nodes.map((i) => json.nodes[i]);
+  const full = gltfJson(asset("corner-fr.glb"));
+  const light = gltfJson(asset("corner-fr.lod1.glb"));
+  const nodes = roots(full) as { name: string; translation: number[]; rotation?: number[] }[];
 
-  it("names every top-level node by a component id from the manifest", () => {
-    for (const n of nodes) expect(PART_BY_ID.has(n.name), n.name).toBe(true);
+  it("maps every node to a component id from the manifest (node names are not ids)", () => {
+    for (const n of nodes) {
+      const id = map.nodes[n.name];
+      expect(id, n.name).toBeDefined();
+      expect(PART_BY_ID.has(id), id).toBe(true);
+    }
   });
 
-  it("contains exactly the corner's parts, once each", () => {
-    expect(nodes.map((n) => n.name).sort()).toEqual([...EXPECTED].sort());
+  it("draws exactly the corner's parts, once each", () => {
+    expect(nodes.map((n) => map.nodes[n.name]).sort()).toEqual([...EXPECTED].sort());
+    expect(Object.keys(map.nodes).sort()).toEqual(nodes.map((n) => n.name).sort());
+  });
+
+  it("has the same nodes in the light detail level", () => {
+    expect(roots(light).map((n) => n.name).sort()).toEqual(nodes.map((n) => n.name).sort());
   });
 
   it("places every part near the front-right wheel, with no rotation baked into the node", () => {
@@ -53,6 +66,11 @@ describe("Blender front-right corner", () => {
   it("uses only material names the web app knows how to render", () => {
     const t = new THREE.Texture();
     const known = createStudioMaterials({ ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
-    for (const m of json.materials) expect(known.has(m.name), m.name).toBe(true);
+    for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
+  });
+
+  it("is compressed (Meshopt) and small enough to download quickly", () => {
+    expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
+    expect(readFileSync(asset("corner-fr.glb")).byteLength).toBeLessThan(4_000_000);
   });
 });

@@ -23,3 +23,6 @@ blender/.venv/
 
 # Python caches
 __pycache__/
+
+# Uncompressed Blender output (scripts/build-assets.sh compresses it into web/public/assets)
+web/assets-src/

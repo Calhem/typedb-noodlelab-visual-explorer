@@ -305,10 +305,13 @@ def box_uv(obj, scale: float = 4.0) -> None:
 
 
 def finish(obj, name: str) -> bpy.types.Object:
-    """Name the part by its stable component id and move its origin to its bounding-box centre."""
+    """Name the node (its visual key) and move its origin to its bounding-box centre.
+    Shared meshes (repeated parts) are already centred and placed by their object location."""
     obj.name = name
-    obj.data.name = name
     mesh = obj.data
+    if mesh.users > 1:
+        return obj
+    mesh.name = name
     lo = Vector((min(v.co[k] for v in mesh.vertices) for k in range(3)))
     hi = Vector((max(v.co[k] for v in mesh.vertices) for k in range(3)))
     c = (lo + hi) / 2

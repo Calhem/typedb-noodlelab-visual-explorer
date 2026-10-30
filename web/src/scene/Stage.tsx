@@ -2,7 +2,7 @@
 // Lighting imitates automotive product photography: a large soft box overhead, long strip
 // lights either side that draw clean reflections along the body, and a dim rim light behind.
 
-import { CameraControls, ContactShadows, Environment, Lightformer } from "@react-three/drei";
+import { CameraControls, ContactShadows, Environment, Lightformer, PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -10,7 +10,7 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { explodedVolume } from "./framing";
 import { progress } from "./progress";
-import { settings } from "./settings";
+import { quality, settings, useQualityTier, type Tier } from "./settings";
 import { Vehicle } from "./Vehicle";
 
 function Turntable({ spinning, children }: { spinning: boolean; children: React.ReactNode }) {
@@ -113,7 +113,7 @@ function CameraLights() {
     place(key.current, -10, -6, 8, 0.6 + 0.9 * p);
     place(rimL.current, 12, -9, 6, 0.9 + 1.6 * p);
     place(rimR.current, 12, 9, 4, 0.7 + 1.3 * p);
-    scene.environmentIntensity = 1 + 0.55 * p;
+    scene.environmentIntensity = 0.9 + 0.5 * p; // the studio map, brighter as the vehicle opens up
   });
   return (
     <>
@@ -124,29 +124,35 @@ function CameraLights() {
   );
 }
 
+/** Reflections and soft light come from a photographed studio (Poly Haven "Monochrome Studio 02", CC0:
+ * dark ceiling, rectangular softboxes). A few long strip lights are added on top: they draw the clean
+ * highlight lines along the bodywork that automotive photography relies on. */
 function Studio() {
   return (
-    <Environment resolution={512} frames={1}>
-      <color attach="background" args={["#050608"]} />
-      {/* overhead soft box */}
-      <Lightformer form="rect" intensity={2.2} position={[0, 6, 0]} rotation-x={Math.PI / 2} scale={[9, 4, 1]} />
-      {/* long side strips: these make the highlight lines along the doors */}
-      <Lightformer form="rect" intensity={3} position={[0, 2.2, 6]} scale={[14, 0.35, 1]} />
-      <Lightformer form="rect" intensity={3} position={[0, 2.2, -6]} rotation-y={Math.PI} scale={[14, 0.35, 1]} />
-      <Lightformer form="rect" intensity={1.2} position={[0, 0.8, 6]} scale={[14, 0.15, 1]} />
-      <Lightformer form="rect" intensity={1.2} position={[0, 0.8, -6]} rotation-y={Math.PI} scale={[14, 0.15, 1]} />
-      {/* front and rear fill */}
-      <Lightformer form="rect" intensity={1.4} position={[7, 2, 0]} rotation-y={-Math.PI / 2} scale={[4, 2, 1]} />
-      <Lightformer form="rect" intensity={0.8} position={[-7, 2.5, 0]} rotation-y={Math.PI / 2} scale={[4, 1.2, 1]} />
-      {/* faint surrounding walls and floor bounce, so bare metal reads as metal instead of black */}
-      <Lightformer form="rect" intensity={0.22} position={[0, -5, 0]} rotation-x={-Math.PI / 2} scale={[30, 30, 1]} />
-      <Lightformer form="rect" intensity={0.16} position={[0, 2, 12]} scale={[30, 10, 1]} />
-      <Lightformer form="rect" intensity={0.16} position={[0, 2, -12]} rotation-y={Math.PI} scale={[30, 10, 1]} />
-      <Lightformer form="rect" intensity={0.12} position={[12, 2, 0]} rotation-y={-Math.PI / 2} scale={[30, 10, 1]} />
-      <Lightformer form="rect" intensity={0.12} position={[-12, 2, 0]} rotation-y={Math.PI / 2} scale={[30, 10, 1]} />
-      {/* a cool rim light from high behind */}
-      <Lightformer form="ring" color="#bcd7ff" intensity={1.5} position={[-4, 5, -4]} scale={2.5} />
+    <Environment files="/env/monochrome_studio_02_1k.hdr" resolution={512} frames={1} environmentIntensity={0.9}>
+      <Lightformer form="rect" intensity={2.2} position={[0, 2.2, 6]} scale={[14, 0.3, 1]} />
+      <Lightformer form="rect" intensity={2.2} position={[0, 2.2, -6]} rotation-y={Math.PI} scale={[14, 0.3, 1]} />
+      <Lightformer form="rect" intensity={1.4} position={[0, 6, 0]} rotation-x={Math.PI / 2} scale={[9, 3, 1]} />
+      <Lightformer form="ring" color="#bcd7ff" intensity={1.2} position={[-4, 5, -4]} scale={2.5} />
+      {/* faint surrounding walls and floor bounce: metal facing the camera reflects soft grey, never black */}
+      <Lightformer form="rect" intensity={0.35} position={[0, -5, 0]} rotation-x={-Math.PI / 2} scale={[30, 30, 1]} />
+      <Lightformer form="rect" intensity={0.3} position={[0, 2, 12]} scale={[30, 10, 1]} />
+      <Lightformer form="rect" intensity={0.3} position={[0, 2, -12]} rotation-y={Math.PI} scale={[30, 10, 1]} />
+      <Lightformer form="rect" intensity={0.25} position={[12, 2, 0]} rotation-y={-Math.PI / 2} scale={[30, 10, 1]} />
+      <Lightformer form="rect" intensity={0.25} position={[-12, 2, 0]} rotation-y={Math.PI / 2} scale={[30, 10, 1]} />
     </Environment>
+  );
+}
+
+/** Post-processing for the current quality tier (see settings.ts). Steps down a tier when frames are slow. */
+function Effects({ tier }: { tier: Tier }) {
+  if (!settings.effects || tier === "low") return null;
+  return (
+    <EffectComposer multisampling={tier === "high" ? 4 : 2}>
+      {/* Ambient occlusion: soft darkening where surfaces meet (crevices, contact between parts). */}
+      <N8AO aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality={tier === "high" ? "high" : "medium"} halfRes={tier !== "high"} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+    </EffectComposer>
   );
 }
 
@@ -156,9 +162,10 @@ export function Stage({ exploring, reducedMotion, selectedId, onSelect }: {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }) {
+  const tier = useQualityTier();
   return (
     <Canvas
-      dpr={[1, 2]}
+      dpr={tier === "high" ? [1, 2] : tier === "medium" ? [1, 1.5] : 1}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.08 }}
       camera={{ position: [8.4, 1.75, 8.4], fov: 24, near: 0.1, far: 100 }}
       onPointerMissed={() => onSelect(null)}
@@ -183,13 +190,9 @@ export function Stage({ exploring, reducedMotion, selectedId, onSelect }: {
         </Suspense>
       </Turntable>
       <Controls exploring={exploring} />
-      {settings.effects && (
-        <EffectComposer multisampling={4}>
-          {/* Ambient occlusion: soft darkening where surfaces meet (crevices, contact between parts). */}
-          <N8AO aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality="medium" halfRes />
-          <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        </EffectComposer>
-      )}
+      <Effects tier={tier} />
+      {/* Watches the frame rate; if it stays low, drop to the next quality tier. */}
+      <PerformanceMonitor flipflops={1} onDecline={() => quality.stepDown()} />
     </Canvas>
   );
 }

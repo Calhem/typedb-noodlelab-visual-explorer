@@ -115,7 +115,7 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
 
   const m = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
   const c = (hex: string) => new THREE.Color(hex);
-  return new Map<string, THREE.MeshPhysicalMaterial>([
+  const library = new Map<string, THREE.MeshPhysicalMaterial>([
     // tyre: soft black rubber with a faint sheen on the sidewall, never pure black
     ["rubber-tyre", m({ color: c("#1d1e21"), roughness: 0.86, sheen: 0.35, sheenRoughness: 0.6, sheenColor: c("#5b6068"), roughnessMap: friction })],
     ["rubber", m({ color: c("#1b1c1f"), roughness: 0.78, sheen: 0.2, sheenColor: c("#4a4e55") })],
@@ -132,7 +132,7 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["iron-friction", m({ color: c("#a3a6a9"), metalness: 1, roughness: 1, roughnessMap: ringsFriction, anisotropy: 0.9, anisotropyMap: brushing })],
     ["iron-cast", m({ color: c("#55585c"), metalness: 0.85, roughness: 1, roughnessMap: cast })],
     ["aluminium-anodised", m({ color: c("#3e4248"), metalness: 1, roughness: 0.3, clearcoat: 0.4 })],
-    ["caliper-paint", m({ color: c("#b8864f"), metalness: 0.85, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 })],
+    ["caliper-paint", m({ color: c("#9c7448"), metalness: 0.7, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.12 })],
     ["pad-friction", m({ color: c("#2d2925"), metalness: 0, roughness: 1, roughnessMap: friction })],
     // hub, bearing
     ["bearing-steel", m({ color: c("#d8dbde"), metalness: 1, roughness: 0.1 })],
@@ -147,6 +147,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["damper-paint", m({ color: c("#23262b"), metalness: 0.5, roughness: 0.3, clearcoat: 0.8 })],
     ["polyurethane", m({ color: c("#b88a2f"), metalness: 0, roughness: 0.55, sheen: 0.3, sheenColor: c("#e0b866") })],
   ]);
+  for (const [name, material] of library) material.name = name; // makes inspection and debugging easier
+  return library;
 }
 
 /** Swap the placeholder materials on a loaded object for the studio materials of the same name. */
