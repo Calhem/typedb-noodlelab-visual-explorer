@@ -218,6 +218,89 @@ def test_16_front_hv_connector(client):
     assert not rear_or_front(lost | degraded, "rear")
 
 
+# ---- C3b: battery and high-voltage distribution (docs/dependency-semantics.md, scenarios 19-27) -----------------
+
+ALL_TYRES = all_corners("tyre", "drive torque")
+
+
+def test_19_pack_fuse(client):
+    lost, degraded, _ = impact(client, "pack-fuse")
+    assert {("main-contactor-pos", "HV switching"), ("hv-junction-box", "HV supply"), ("hv-harness-front", "HV distribution"),
+            ("battery-rear-feed", "HV distribution"), ("pdu", "HV distribution"), ("hv-junction-box", "battery charging")} <= lost
+    assert ALL_TYRES <= lost
+    assert not {k for k in lost | degraded if k[0].startswith("battery-module-") or k[0] == "bms"}
+    assert propulsion(client, "pack-fuse")[1] == "lost"
+
+
+def test_20_module_monitor(client):
+    lost, degraded, _ = impact(client, "battery-monitor-3")
+    assert {("bms", "battery supervision"), ("main-contactor-pos", "HV switching"), ("main-contactor-neg", "HV switching"),
+            ("hv-junction-box", "HV supply")} <= lost
+    assert ALL_TYRES <= lost
+    assert not {k for k in lost | degraded if k[0] in ("battery-module-5", "battery-module-6")}
+    assert propulsion(client, "battery-monitor-3")[1] == "lost"
+
+
+def test_21_pack_current_sensor(client):
+    lost, degraded, _ = impact(client, "pack-current-sensor")
+    assert not lost
+    assert {("bms", "battery supervision"), ("hv-junction-box", "HV supply")} | ALL_TYRES <= degraded
+    assert propulsion(client, "pack-current-sensor") == ({"front-axle-drive": "reduced", "rear-axle-drive": "reduced"}, "reduced")
+
+
+def test_22_dc_charge_harness(client):
+    lost, degraded, fallbacks = impact(client, "hv-harness-charge")
+    assert lost == {("battery-rear-feed", "DC charging")}
+    assert degraded == {("hv-junction-box", "battery charging")}
+    assert ("hv-junction-box", "battery charging", "obc") in fallbacks
+    assert propulsion(client, "hv-harness-charge")[1] == "kept"
+
+
+def test_22b_charge_port_is_a_shared_cause(client):
+    """The on-board charger cannot stand in for DC charging when the charge port itself fails."""
+    lost, degraded, fallbacks = impact(client, "charge-port")
+    assert {("hv-harness-charge", "DC charging"), ("battery-rear-feed", "DC charging"), ("obc", "AC charging"),
+            ("hv-junction-box", "battery charging")} <= lost
+    assert not fallbacks
+
+
+def test_23_precharge(client):
+    lost, _, _ = impact(client, "precharge-circuit")
+    assert {("main-contactor-pos", "HV switching"), ("hv-junction-box", "HV supply")} | ALL_TYRES <= lost
+    assert propulsion(client, "precharge-circuit")[1] == "lost"
+
+
+def test_24_rear_feed(client):
+    lost, degraded, _ = impact(client, "battery-rear-feed")
+    assert {("hv-harness-rear", "HV distribution"), ("tyre-rl", "drive torque"), ("tyre-rr", "drive torque")} <= lost
+    assert not {k for k in lost | degraded if k[0] in ("tyre-fl", "tyre-fr")}
+    assert propulsion(client, "battery-rear-feed") == ({"front-axle-drive": "kept", "rear-axle-drive": "lost"}, "reduced")
+    _, _, fallbacks = impact(client, "battery-rear-feed")
+    assert ("hv-junction-box", "battery charging") in degraded and ("hv-junction-box", "battery charging", "obc") in fallbacks
+
+
+def test_25_lv_fuse_box(client):
+    lost, _, _ = impact(client, "lv-fuse-box")
+    assert {("lv-harness", "12 V distribution"), ("bms", "battery supervision"), ("hv-junction-box", "HV supply")} | ALL_TYRES <= lost
+    assert propulsion(client, "lv-fuse-box")[1] == "lost"
+
+
+def test_26_dc_dc(client):
+    lost, degraded, _ = impact(client, "dc-dc")
+    assert not lost and degraded == {("lv-battery", "12 V supply")}
+    assert propulsion(client, "dc-dc")[1] == "kept"
+
+
+def test_27_auxiliary_harness(client):
+    lost, degraded, _ = impact(client, "hv-harness-aux")
+    assert {("pdu", "HV distribution"), ("dc-dc", "12 V charging"), ("heat-pump-compressor", "refrigerant compression"),
+            ("obc", "AC charging")} <= lost
+    assert {("lv-battery", "12 V supply"), ("battery-cooling-plate", "cell cooling")} <= degraded
+    # corrected expectation (docs/dependency-semantics.md): degraded chilling does not reach the modules (C1 rule)
+    assert not {k for k in lost | degraded if k[1] == "drive torque"}
+    assert propulsion(client, "hv-harness-aux") == ({"front-axle-drive": "kept", "rear-axle-drive": "kept"}, "kept")
+
+
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------
 
 def test_typedb_matches_the_oracle_for_every_failure(driver, database):

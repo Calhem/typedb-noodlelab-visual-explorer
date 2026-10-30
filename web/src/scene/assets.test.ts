@@ -127,3 +127,43 @@ describe.each([
     expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(1_500_000);
   });
 });
+
+// ---- Battery pack and power electronics (C3b) -------------------------------------------------------------
+
+describe.each([
+  ["hv-battery", 47],
+  ["power-electronics", 6],
+] as const)("Blender %s", (name, count) => {
+  const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
+  const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>
+    json.scenes[json.scene ?? 0].nodes.map((i) => json.nodes[i]);
+  const full = gltfJson(asset(`${name}.glb`));
+  const light = gltfJson(asset(`${name}.lod1.glb`));
+  const nodes = roots(full) as { name: string; translation: number[]; rotation?: number[] }[];
+
+  it("maps every node, once, to a manifest id; the light copy has the same nodes", () => {
+    const ids = nodes.map((n) => map.nodes[n.name]);
+    expect(ids.length).toBe(count);
+    expect(new Set(ids).size).toBe(count);
+    for (const id of ids) expect(PART_BY_ID.has(id), id).toBe(true);
+    expect(roots(light).map((n) => n.name).sort()).toEqual(nodes.map((n) => n.name).sort());
+  });
+
+  it("places every part near the manifest's simple stand-in, with no baked rotation", () => {
+    for (const n of nodes) {
+      const id = map.nodes[n.name];
+      const stand = PART_BY_ID.get(id)!.position!;
+      const [x, y, z] = n.translation;
+      expect(Math.hypot(x - stand[0], y - stand[1], z - stand[2]), id).toBeLessThan(0.12);
+      expect(n.rotation, id).toBeUndefined();
+    }
+  });
+
+  it("uses only known materials and is compressed and small", () => {
+    const t = new THREE.Texture();
+    const known = createStudioMaterials({ tread: t, treadCavity: t, ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
+    for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
+    expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
+    expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(600_000);
+  });
+});

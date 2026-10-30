@@ -1,5 +1,6 @@
-// Packaging check for the Blender drive units (docs/c3a/README.md): no drive-unit part may pass through a
-// part around it (suspension, steering, subframes, thermal and power parts, the body structure, the corner).
+// Packaging check for the Blender drive units, battery pack and power electronics (docs/c3a, docs/c3b): no
+// modelled part may pass through a part around it (suspension, steering, subframes, thermal and power parts,
+// harnesses, the body structure, the corner).
 // Each part's surface is sampled every few millimetres into a voxel grid; two parts whose surfaces share
 // voxels are within about a voxel of each other. Parts designed to touch (a drive shaft in its hub, a mount on
 // the subframe, the harness in its connector) are listed as contacts. Loads the real compressed models.
@@ -60,6 +61,11 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/-drive-unit-mount-/, /-subframe$/],
   [/-hv-connector$/, /^hv-harness-/],
   [/-inverter$/, /^hv-harness-/],
+  // C3b: cables in their outlets, the pack bolted to the sills, the coolant line in the pack's ports
+  [/^(battery-enclosure|hv-junction-box|battery-rear-feed|pdu|charge-port|obc)$/, /^hv-harness-/],
+  [/^(battery-enclosure|battery-coolant-manifold)$/, /^coolant-lines$/],
+  [/^battery-side-rail-/, /^sill-/],
+  [/^(lv-battery|lv-fuse-box)$/, /^lv-harness$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
@@ -74,11 +80,13 @@ const BACKLOG = [
 
 describe("drive-unit packaging", () => {
   it("no drive-unit part passes through a neighbouring part", async () => {
-    const units = new Map([...(await loadParts("front-drive-unit")), ...(await loadParts("rear-drive-unit"))]);
+    const units = new Map([...(await loadParts("front-drive-unit")), ...(await loadParts("rear-drive-unit")),
+      ...(await loadParts("hv-battery")), ...(await loadParts("power-electronics"))]);
     const corner = await loadParts("corner-fr");
     const built = buildVehicle(corner);
     const zones = [new THREE.Box3(new THREE.Vector3(1.0, 0.1, -0.85), new THREE.Vector3(2.1, 1.1, 0.85)),
-                   new THREE.Box3(new THREE.Vector3(-2.1, 0.1, -0.85), new THREE.Vector3(-0.9, 1.1, 0.85))];
+                   new THREE.Box3(new THREE.Vector3(-2.1, 0.1, -0.85), new THREE.Vector3(-0.9, 1.1, 0.85)),
+                   new THREE.Box3(new THREE.Vector3(-1.1, 0.1, -0.85), new THREE.Vector3(1.3, 0.5, 0.85))];
     const neighbours = built.filter((b) => {
       if (units.has(b.id) || SKIP.has(b.id) || PART_BY_ID.get(b.id)!.shape.kind === "panel") return false;
       b.object.position.copy(b.position);
