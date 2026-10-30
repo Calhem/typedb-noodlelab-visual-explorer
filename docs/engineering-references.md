@@ -44,3 +44,33 @@ only as published sources; they have no connection with this project.
 - **Dependencies** (docs/dependency-semantics.md): no sensorless fallback after a resolver failure; an
   electric oil pump; drive torque lost per side downstream of the differential (an open differential would
   in fact leave the other wheel with almost no torque; flagged for review).
+
+## Battery and high-voltage distribution (C3b, 30 October 2026)
+
+### Sources
+
+| Topic | Source | What we took from it |
+|---|---|---|
+| 800 V pack architecture | Porsche newsroom, *The battery: sophisticated thermal management, 800-volt system voltage* (Taycan): 33 modules of 12 cells, 396 cells, 198s2p, each module with its own monitoring unit, modules joined by busbars | An 800 V class pack as one long series string of modules, each module monitored for voltage and temperature, modules linked by busbars |
+| Junction box contents | Texas Instruments, *SLYY226* (intelligent battery junction box); batterydesign.net, *High voltage system*; EFI Automotive battery junction box product sheet | Main contactors, pre-charge circuit, fuse (and optionally a pyrotechnic fuse) and current sensor in one housing at the pack; the BMS drives the contactors and reads the current sensor |
+| Pre-charge sequence | HP Academy, *EV fundamentals: battery pack* | The pre-charge path charges the inverters' capacitors before the main contactor closes |
+| Module formats | German VDA prismatic cell and module formats (as published by industry suppliers) | Prismatic cells stacked between end plates with straps, busbars and a monitoring board on top, cooled from below through a plate |
+
+### Concept numbers (design targets, not measurements)
+
+| Item | Value | Note |
+|---|---|---|
+| Cells | 224 prismatic NMC cells, 124 Ah, 3.6 V nominal | 14 per module, one string (224s1p) |
+| Pack | 806 V nominal, 100 kWh | 16 modules × 50.4 V × 6.25 kWh |
+| Module | 560 × 200 × 115 mm | 14 cells of 36 mm between end plates |
+| Pack height | about 175 mm from the protection plate to the lid | Between 190 mm ground clearance and the cabin floor at 380 mm |
+| Front bay | junction box, BMS and service disconnect in front of the modules | Inside the enclosure, behind the front subframe |
+
+### Simplifications and fictional assumptions
+
+- One cooling plate under all modules (real packs often use one plate per row, or cooling between cells).
+- The monitor chain is drawn as one ribbon; real packs use a twisted-pair daisy chain or wireless links.
+- No separate pyrotechnic fuse, no isolation-monitoring board, no DC-charge contactors (the DC charge path
+  joins the junction box's main bus).
+- Harnesses keep their simple procedural tube shapes; the new ones follow plausible routes.
+- The charge port sits in the left rear quarter; the opening in the body panel is not cut.

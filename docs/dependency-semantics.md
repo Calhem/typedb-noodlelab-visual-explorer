@@ -227,6 +227,51 @@ torque chain from each axle-drive system's drive shafts to the tyres), not from 
 | 3 (check) | **12 V battery** | as before | | both axles lost → vehicle **lost** |
 | 4 (check) | **Coolant pump** | as before | | both axles reduced → vehicle **reduced** |
 
+## Battery and high-voltage distribution: expected outcomes (C3b, 30 October 2026)
+
+Written before the C3b data. The pack and its distribution gain the parts that real packs have between
+the cells and the consumers (sources in docs/engineering-references.md).
+
+**Architecture.**
+- **Cells to terminals.** 16 modules in one series string (left column 1, 3 … 15, then right column 16 …
+  2). A **service disconnect** joins the two halves in the middle of the string. Then the **pack fuse**,
+  then the two **main contactors** in the **junction box** (positive and negative; the positive closes
+  through the **pre-charge circuit** first), then the junction box's HV supply.
+- **Supervision.** Eight **module monitors** (one per pair of modules, powered by their own cells) report
+  cell voltages and temperatures over the **monitor chain** to the BMS. The BMS also reads the **pack current
+  sensor**. Without valid cell data the BMS must open the contactors (a deliberate fail-safe). Without
+  current measurement it keeps the contactors closed but limits power.
+- **Distribution.**
+  - The junction box feeds the front inverter directly (hv-harness-front).
+  - It feeds the rear inverter through the pack's internal **rear feed** and hv-harness-rear.
+  - It feeds the front-compartment PDU through the new **auxiliary harness**; the PDU supplies the DC-DC
+    converter (moved next to the 12 V battery), the heat-pump compressor and the on-board charger.
+- **12 V.** The 12 V battery feeds the **12 V fuse box**, which feeds the low-voltage harness. The DC-DC
+  converter keeps the 12 V battery charged: losing it only degrades the 12 V supply (the battery runs down
+  slowly).
+- **Charging.** The **charge port** has an AC and a DC inlet.
+  - DC: the **DC charge harness** to the junction box.
+  - AC: the on-board charger.
+  - The junction box's *battery charging* function needs DC charging, with the on-board charger as a
+    **fallback** (much slower), and the BMS.
+
+| # | Failure | Lost | Degraded | Must not | Propulsion |
+|---|---|---|---|---|---|
+| 7 (check) | Battery module 5 | as before (string open) | as before | other modules | vehicle lost |
+| 19 | **Pack fuse** | positive contactor, junction box: HV supply, both inverter feeds, PDU, all tyres: drive torque, battery charging | | any module; BMS | vehicle lost |
+| 20 | **Module monitor 3** | BMS: battery supervision → contactors → HV supply → all propulsion | | the monitored modules' cell power | vehicle lost |
+| 21 | **Pack current sensor** | | BMS: battery supervision → contactors, HV supply → all four tyres: drive torque | anything lost | both axles reduced → vehicle reduced |
+| 22 | **DC charge harness** | | junction box: battery charging (on-board charger in use) | propulsion | kept |
+| 23 | **Pre-charge circuit** | positive contactor: HV switching → all propulsion | | | vehicle lost |
+| 24 | **Rear feed (in the pack)** | hv-harness-rear → rear inverter → rear tyres: drive torque | | any front drive | rear lost → vehicle reduced |
+| 25 | **12 V fuse box** | the low-voltage harness and every 12 V consumer, as the 12 V battery case (3) | | | vehicle lost |
+| 26 | **DC-DC converter** | | 12 V battery: 12 V supply | anything else | kept |
+| 27 | **Auxiliary harness** | PDU: HV distribution → DC-DC, compressor, on-board charger | battery cooling (chiller lost), 12 V supply | drive torque lost | both axles reduced → vehicle reduced |
+
+**Assumptions added:** a single series string; one monitor per two modules; loss of cell data opens the
+contactors; pre-charge is needed at every start (the static model treats it as needed for HV supply); the
+on-board charger is the fallback for charging, not for driving.
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
@@ -250,4 +295,6 @@ The assumptions that most shape the answers, for review:
 | Single failures only; degradation has no magnitude | Answers do not combine failures or say "how much" | Scope of this model |
 | A resolver failure stops its motor (no sensorless fallback) | Resolver or current-sensor failure loses that axle's drive | Many production inverters do the same; some can continue sensorless at reduced performance |
 | Drive-unit oil pumps are electric (12 V) | Oil-pump failure degrades that axle's torque (splash lubrication and hotter windings) | Common in recent units; some use a gear-driven pump instead |
+| Loss of cell monitoring (a module monitor or the monitor chain) opens the contactors | Any monitor failure stops all propulsion | Required fail-safe: cells may not be used unmonitored |
+| Pre-charge is needed to close the contactors | A pre-charge failure stops propulsion (at the next start) | The model is static; while already driving the contactors would stay closed |
 | Open differentials, one motor per axle (C3b) | A side-gear or drive-shaft failure loses drive at both wheels of that axle; the other axle keeps driving | Conventional open differential: equal torque to both sides, so a free side leaves both without useful torque. A locking or limited-slip differential, or one motor per wheel, would change this |
