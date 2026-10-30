@@ -153,3 +153,27 @@ Notation: *component: function*. "Must not" lists what the answer must **not** c
 
 The 12 V case (3) keeps the defensible part of the old 14-step chain, now worded as functions: the tyres lose
 *drive torque* (not "stop working"), braking is degraded rather than lost, and steering remains (heavier).
+
+---
+
+## What the tests do and do not establish (C2, 30 October 2026)
+
+The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
+every component as the failed part. Agreement shows **computational consistency**: TypeDB applies the
+modelled rules correctly and completely. It does **not** validate the engineering assumptions themselves,
+because both implementations read the same dependency data. Whether each dependency, effect and fallback is
+right is a matter of engineering review, not testing.
+
+The assumptions that most shape the answers, for review:
+
+| Assumption | Effect on answers | Basis |
+|---|---|---|
+| The 12 V supply has no redundancy (one battery, one harness) | A 12 V failure loses all propulsion (via the BMS and contactors) | Common in current EVs; some have a second supply for safety systems |
+| The BMS must hold the contactors closed | BMS loss opens the high-voltage circuit | Standard fail-safe design |
+| Modules are in one series string | Any module failure (open circuit) stops propulsion | Typical 800 V packs; partial-module failures that do not open the circuit are not modelled |
+| Loss of cooling degrades rather than stops | Coolant-pump failure reduces power, nothing lost | BMS and inverter derating; over a long period this could become a stop |
+| Brake hydraulics fail open through the ESC unit | ESC failure leaves unmodulated braking | Standard design intent |
+| Pedal and booster are each other's fallback for brake pressure | Booster failure degrades braking | Mechanical push-through; booster-only braking on electronic demand |
+| Automated driving requires stability control, booster, power steering, rack, VCU and gateway | Any of these loses automated driving | A deliberately conservative safety rule |
+| One wheel-speed sensor missing switches off anti-lock braking, stability and traction control | Sensor failure loses those functions, not braking | Typical behaviour (warning light) |
+| Single failures only; degradation has no magnitude | Answers do not combine failures or say "how much" | Scope of this model |
