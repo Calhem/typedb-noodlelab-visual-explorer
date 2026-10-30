@@ -157,11 +157,22 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
 .impact .reached { margin-top: 2px; max-height: 180px; }
 
 .typeql { margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 12px; }
+.typeql-toggle {
+  font: inherit; font-size: 11.5px; color: var(--ink-faint); background: none; border: 0; padding: 0; cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.typeql-toggle:hover, .typeql-toggle:focus-visible { color: var(--accent); outline: none; }
+.typeql-mark { display: inline-block; width: 10px; }
+.typeql-query { margin-top: 10px; }
+.typeql-meta { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-faint); margin-bottom: 3px; }
 .typeql pre {
-  margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.45);
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.45);
   font-size: 11px; line-height: 1.5; color: #c9d6d4; white-space: pre-wrap; word-break: break-word;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
+.tq-kw { color: var(--accent); }
+.tq-var { color: #9fb7ff; }
+.tq-str { color: #e0c48a; }
 
 .panel-state { padding: 6px 0 4px; }
 .panel:has(.panel-state) { bottom: auto; }   /* a short message: the panel fits it instead of the full height */

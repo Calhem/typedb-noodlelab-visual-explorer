@@ -2,11 +2,11 @@
 // sits (assembly), what it does (systems), how it is joined and what it depends on. Every value comes from the
 // semantic API; "TypeQL" shows the exact queries behind the panel.
 
-import { useState } from "react";
 import { semantic, type Answer, type Dependency, type Impact, type Requirement } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
 import { attributeLabel, attributeValue, connectionKind, words } from "./format";
+import { QueryViewer } from "./QueryViewer";
 
 interface Props {
   id: string;
@@ -21,7 +21,6 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
   const placement = useAnswer(id, (s) => semantic.assemblyOf(id, s));
   const systems = useAnswer(id, (s) => semantic.systemsOf(id, s));
   const relations = useAnswer(id, (s) => semantic.relationships(id, s));
-  const [showTypeql, setShowTypeql] = useState(false);
 
   const states = [details.state, placement.state, systems.state, relations.state];
   const failed = states.find((s) => s && s.status !== "loading" && s.status !== "ok") as
@@ -32,8 +31,6 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
   const p = ok(placement.state);
   const sys = ok(systems.state);
   const r = ok(relations.state);
-  const queries = [d, p, sys, r].flatMap((a) => a?.typeql ?? []);
-  const focusQueries = focus && focus.anchor === id ? focus.typeql : [];
 
   return (
     <aside className="panel" aria-live="polite" aria-label="Component details from TypeDB">
@@ -144,12 +141,7 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
             </>
           )}
 
-          <section className="typeql">
-            <button type="button" className="link" onClick={() => setShowTypeql((v) => !v)} aria-expanded={showTypeql}>
-              {showTypeql ? "Hide" : "Show"} the TypeQL behind this panel ({queries.length + focusQueries.length} queries)
-            </button>
-            {showTypeql && [...queries, ...focusQueries].map((q, i) => <pre key={i}>{q}</pre>)}
-          </section>
+          <QueryViewer answers={[d, p, sys, r, focus && focus.anchor === id ? focus : null]} />
         </>
       )}
     </aside>
