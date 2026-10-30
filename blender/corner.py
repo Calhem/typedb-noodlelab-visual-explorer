@@ -1,8 +1,8 @@
-"""Front-right wheel corner, modelled for close inspection.
+"""The four wheel corners, modelled for close inspection (front right first; the others derive from it).
 
-Build it with scripts/build-assets.sh (runs this script, then compresses the result). This script writes
-the uncompressed source model to web/assets-src/corner-fr.glb and the visual mapping to
-web/public/assets/corner-fr.map.json.
+Build them with scripts/build-assets.sh (runs this script, then compresses the result). For each corner
+(fr, fl, rr, rl) this script writes the uncompressed model to web/assets-src/corner-<c>.glb and the visual
+mapping to web/public/assets/corner-<c>.map.json.
 
 Nodes are named by neutral visual keys (for example "caliper"); the mapping file says which component
 id each node draws, so Blender names never become database identifiers (decision 0001). Positions are
@@ -26,9 +26,6 @@ import kit  # noqa: E402
 from kit import TAU, box, cylinder, lathe, merge_into, new_object, polar_array, rod, sector, transform  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-ASSET = "corner-fr"
-OUT = ROOT / "web" / "assets-src" / f"{ASSET}.glb"
-MAP = ROOT / "web" / "public" / "assets" / f"{ASSET}.map.json"
 
 AXLE = Vector((1.58, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF): web/src/vehicle/dimensions.ts
 CALIPER_ANGLE = 2.2  # calliper sits behind and above the axle (radians, in the wheel plane)
@@ -674,52 +671,122 @@ def link(name: str, a: Vector, b: Vector, r: float, adjuster: bool = False, gait
     return obj
 
 
-# ---- build --------------------------------------------------------------------------------------------
+def epb_actuator():
+    """Electric parking-brake actuator on a rear calliper's inboard half (motor-on-calliper): a gear housing
+    over the central piston, the motor alongside it, and the connector. It drives the piston's spindle to clamp
+    the pads mechanically, independent of hydraulic pressure."""
+    c = CALIPER_ANGLE
+    u = Vector((math.cos(c), math.sin(c), 0))
+    z_in = RING_Z - 0.066
+    p = u * 0.176
+    side = Vector((-u.y, u.x, 0))  # along the calliper, in the wheel plane
+    gear = new_object("epb-gear", transform(cylinder(0.034, 0.03, 48), Matrix.Translation(p + Vector((0, 0, z_in - 0.017)))), "aluminium-cast")
+    motor = new_object("epb-motor", transform(cylinder(0.019, 0.07, 40), Matrix.Translation(p + side * 0.045 + Vector((0, 0, z_in - 0.05)))), "steel-dark")
+    cap = new_object("epb-cap", transform(cylinder(0.02, 0.006, 40), Matrix.Translation(p + side * 0.045 + Vector((0, 0, z_in - 0.087)))), "plastic-black")
+    plug = new_object("epb-plug", transform(box(0.018, 0.02, 0.022), Matrix.Translation(p - side * 0.03 + Vector((0, 0, z_in - 0.024)))), "plastic-black")
+    pieces = [kit.shade(kit.bevel(o, 0.0008, 2), 40) for o in (gear, motor, cap, plug)]
+    obj = kit.join("epb", pieces)
+    kit.box_uv(obj, 6)
+    return at_axle(obj)
 
-def build():
-    kit.reset()
+
+# ---- build --------------------------------------------------------------------------------------------
+#
+# All four corners come from the same front-right geometry, so they match exactly:
+#   fr  as modelled
+#   fl  mirrored left to right (the tyre is turned round instead, so its sidewall marking still reads correctly)
+#   rr  flipped front to back about the axle and moved to the rear axle: the steering arm becomes the arm for
+#       the toe link (no gaiter), the calliper sits ahead of the axle and carries an electric parking brake
+#   rl  the rear-right, mirrored left to right
+# The rear corners use the front's disc, calliper and arm sizes (a simplification: docs/c3c/README.md).
+
+FRONT_X, REAR_X = 1.58, -1.45  # web/src/vehicle/dimensions.ts (FRONT_AXLE_X, REAR_AXLE_X)
+
+
+def corner_parts(rear: bool) -> dict:
+    """The corner's parts at the front-right position, keyed by neutral visual key."""
     parts = {
-        "tyre-fr": tyre(),
-        "wheel-fr": wheel(),
-        **{f"wheel-nut-fr-{n}": nut for n, nut in enumerate(wheel_nuts(), start=1)},
-        "brake-disc-fr": brake_disc(),
-        "caliper-fr": caliper(),
-        "brake-pad-inner-fr": brake_pad("inner"),
-        "brake-pad-outer-fr": brake_pad("outer"),
-        "brake-shield-fr": brake_shield(),
-        "brake-hose-fr": brake_hose(),
-        "hub-nut-fr": hub_nut(),
-        "hub-fr": hub(),
-        "wheel-bearing-fr": bearing(),
-        "knuckle-fr": knuckle(),
-        "wheel-speed-sensor-fr": speed_sensor(),
-        "lower-arm-fr": wishbone("lower", AXLE + LOWER_JOINT, Vector((AXLE.x + 0.17, 0.24, 0.40)), Vector((AXLE.x - 0.17, 0.24, 0.40)), brace=0.586),
-        "upper-arm-fr": wishbone("upper", AXLE + UPPER_JOINT, Vector((AXLE.x + 0.17, 0.62, 0.47)), Vector((AXLE.x - 0.17, 0.62, 0.47)), bar=(0.032, 0.022)),
-        "coilover-fr": damper(),
-        "spring-fr": spring(),
-        "top-mount-fr": top_mount(),
-        "drop-link-fr": link("drop", Vector((AXLE.x - 0.08, 0.36, 0.62)), Vector((AXLE.x - 0.035, 0.52, 0.59)), 0.006),
-        "tie-rod-fr": link("tie", Vector((AXLE.x - 0.2, 0.4, 0.45)), AXLE + STEER_JOINT, 0.0085, adjuster=True, gaiter=True),
+        "tyre": tyre(),
+        "wheel": wheel(),
+        **{f"wheel-nut-{n}": nut for n, nut in enumerate(wheel_nuts(), start=1)},
+        "brake-disc": brake_disc(),
+        "caliper": caliper(),
+        "brake-pad-inner": brake_pad("inner"),
+        "brake-pad-outer": brake_pad("outer"),
+        "brake-shield": brake_shield(),
+        "brake-hose": brake_hose(),
+        "hub-nut": hub_nut(),
+        "hub": hub(),
+        "wheel-bearing": bearing(),
+        "knuckle": knuckle(),
+        "wheel-speed-sensor": speed_sensor(),
+        "lower-arm": wishbone("lower", AXLE + LOWER_JOINT, Vector((AXLE.x + 0.17, 0.24, 0.40)), Vector((AXLE.x - 0.17, 0.24, 0.40)), brace=0.586),
+        "upper-arm": wishbone("upper", AXLE + UPPER_JOINT, Vector((AXLE.x + 0.17, 0.62, 0.47)), Vector((AXLE.x - 0.17, 0.62, 0.47)), bar=(0.032, 0.022)),
+        "coilover": damper(),
+        "spring": spring(),
+        "top-mount": top_mount(),
+        "drop-link": link("drop", Vector((AXLE.x - 0.08, 0.36, 0.62)), Vector((AXLE.x - 0.035, 0.52, 0.59)), 0.006),
     }
-    # Remove any helper objects left behind, then name and centre each part.
+    if rear:
+        parts["toe-link"] = link("toe", Vector((AXLE.x - 0.2, 0.4, 0.45)), AXLE + STEER_JOINT, 0.0085, adjuster=True)
+        parts["epb-actuator"] = epb_actuator()
+    else:
+        parts["tie-rod"] = link("tie", Vector((AXLE.x - 0.2, 0.4, 0.45)), AXLE + STEER_JOINT, 0.0085, adjuster=True, gaiter=True)
+    return parts
+
+
+def corner_transform(corner: str, turn: bool) -> Matrix:
+    """Maps front-right geometry to `corner`. turn=True gives a rotation instead of a mirror (for the tyre)."""
+    mirror_z = Matrix.Diagonal((1, 1, -1, 1))
+    flip_x = Matrix.Translation((REAR_X + FRONT_X, 0, 0)) @ Matrix.Diagonal((-1, 1, 1, 1))  # front-to-back, to the rear axle
+    to_rear = Matrix.Translation((REAR_X - FRONT_X, 0, 0))
+    turn_about = lambda x: Matrix.Translation((2 * x, 0, 0)) @ Matrix.Diagonal((-1, 1, -1, 1))  # half a turn about the vertical
+    if corner == "fr":
+        return Matrix.Identity(4)
+    if corner == "fl":
+        return turn_about(FRONT_X) if turn else mirror_z
+    if corner == "rr":
+        return to_rear if turn else flip_x
+    return (turn_about(REAR_X) @ to_rear) if turn else (mirror_z @ flip_x)
+
+
+def build(corner: str = "fr"):
+    kit.reset()
+    rear = corner[0] == "r"
+    parts = corner_parts(rear)
+    # Remove any helper objects left behind.
     keep = {o.name for o in parts.values()}
     for o in list(bpy.data.objects):
         if o.name not in keep:
             bpy.data.objects.remove(o)
     nodes = {}
-    for pid, obj in parts.items():
-        key = pid.replace("-fr", "")  # neutral visual key, e.g. "caliper", "wheel-nut-3"
-        kit.finish(obj, key)
+    for key, obj in parts.items():
+        m = corner_transform(corner, turn=key == "tyre")
+        if m != Matrix.Identity(4):
+            if obj.location.length > 0:  # repeated parts (wheel nuts) share a mesh placed by location: give each its own
+                if obj.data.users > 1:
+                    obj.data = obj.data.copy()
+                obj.data.transform(Matrix.Translation(obj.location))
+                obj.location = (0, 0, 0)
+            obj.data.transform(m)
+            if m.determinant() < 0:  # a mirror turns the faces inside out
+                obj.data.flip_normals()
+            obj.data.update()
+        pid = f"wheel-nut-{corner}-{key[-1]}" if key.startswith("wheel-nut-") else f"{key}-{corner}"
+        kit.finish(obj, key)  # neutral visual key, e.g. "caliper", "wheel-nut-3"
         nodes[key] = pid
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    kit.export_glb(str(OUT))
-    MAP.parent.mkdir(parents=True, exist_ok=True)
-    MAP.write_text(json.dumps({"asset": ASSET, "nodes": nodes}, indent=2) + "\n")
+    asset = f"corner-{corner}"
+    out = ROOT / "web" / "assets-src" / f"{asset}.glb"
+    mp = ROOT / "web" / "public" / "assets" / f"{asset}.map.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    kit.export_glb(str(out))
+    mp.write_text(json.dumps({"asset": asset, "nodes": nodes}, indent=2) + "\n")
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in parts.values())
-    print(f"exported {len(parts)} parts, {tris:,} triangles -> {OUT} ({OUT.stat().st_size / 1e6:.1f} MB)")
-    for pid, obj in parts.items():
-        print(f"  {pid:24s} {sum(len(p.vertices) - 2 for p in obj.data.polygons):>8,} tris  {[m.name for m in obj.data.materials]}")
+    print(f"{asset}: exported {len(parts)} parts, {tris:,} triangles -> {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    for key, obj in parts.items():
+        print(f"  {nodes[key]:24s} {sum(len(p.vertices) - 2 for p in obj.data.polygons):>8,} tris  {[m.name for m in obj.data.materials]}")
 
 
 if __name__ == "__main__":
-    build()
+    for c in sys.argv[1:] or ["fr", "fl", "rr", "rl"]:
+        build(c)
