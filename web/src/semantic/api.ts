@@ -109,7 +109,12 @@ export interface Impact {
   degraded: (Reached & { "via-function": string })[];
   fallbacks: (Named & { function: string; provider: string; "provider-name": string; needs: string; backup: string;
     "backup-name": string; description: string })[];
+  /** drive per axle and for the whole vehicle, from the tyres each axle drives (TypeDB) */
+  propulsion: { axles: { system: string; name: string; tyres: string[]; lost: number; degraded: number; state: PropulsionState }[];
+    vehicle: PropulsionState };
 }
+
+export type PropulsionState = "lost" | "reduced" | "kept";
 
 export interface Requirement extends Reached { role: "essential" | "backed up" | "supporting" }
 

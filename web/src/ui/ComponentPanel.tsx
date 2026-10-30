@@ -202,6 +202,7 @@ function ImpactList({ impact, onSelect }: { impact: Impact; onSelect: (id: strin
         The failed part loses all its functions{failed.functions.length ? `: ${failed.functions.join(", ")}` : ""}. Other parts usually lose
         or degrade only some of theirs.
       </p>
+      <Propulsion propulsion={impact.propulsion} />
       {!components.length && <p className="muted">No other part is affected, according to TypeDB.</p>}
       {losing.length > 0 && <><h4 className="lost">Lose a function ({losing.length})</h4><ol className="reached">{losing.map(row)}</ol></>}
       {degraded.length > 0 && <><h4 className="degraded">Only degraded ({degraded.length})</h4><ol className="reached">{degraded.map(row)}</ol></>}
@@ -216,6 +217,22 @@ function ImpactList({ impact, onSelect }: { impact: Impact; onSelect: (id: strin
             ))}
           </ul></>
       )}
+    </div>
+  );
+}
+
+/** Axle-level versus vehicle-level drive: one axle can stop driving while the other carries on. */
+function Propulsion({ propulsion }: { propulsion: Impact["propulsion"] }) {
+  const word = { lost: "no drive", reduced: "reduced drive", kept: "drives normally" } as const;
+  const vehicle = { lost: "The vehicle cannot drive.", reduced: "The vehicle can still drive, with less traction or power.", kept: "Propulsion is unaffected." } as const;
+  return (
+    <div className="propulsion">
+      <ul>
+        {propulsion.axles.map((a) => (
+          <li key={a.system} className={a.state}>{a.name}: {word[a.state]}</li>
+        ))}
+      </ul>
+      <p className={`vehicle ${propulsion.vehicle}`}>{vehicle[propulsion.vehicle]}</p>
     </div>
   );
 }
