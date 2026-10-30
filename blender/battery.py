@@ -111,8 +111,8 @@ def side_rail(side: int):
     z_in, z_out = side * (HALF_Z - 0.045), side * HALF_Z
     zc, w = (z_in + z_out) / 2, abs(z_out - z_in)
     pieces = bmesh.new()
-    length = 1.98
-    xc = (X0 + X1) / 2 - 0.0
+    length = 1.955  # ends clear of the rear wheel arches
+    xc = -0.0075
     for y, h in ((Y_FLOOR + 0.004, 0.008), (0.25, 0.006), (0.30, 0.006), (0.336, 0.008)):  # flanges and webs
         merge_into(pieces, transform(box(length, h, w), Matrix.Translation((xc, y, zc))))
     for z in (z_in + side * 0.0025, zc, z_out - side * 0.0025):  # walls
@@ -377,8 +377,8 @@ def service_disconnect():
 
 
 def rear_feed():
-    """HV cable pair from the junction box along the centre channel to the rear outlet, where the rear
-    inverter's harness plugs in."""
+    """HV cable pair from the junction box along the centre channel to the pack's rear outlets: one for the rear
+    inverter's cable, one for the DC charging cable (charging current runs forwards along the same feed)."""
     bm = bmesh.new()
     for dz in (0.0, 0.025):
         z = 0.02 + dz
@@ -386,7 +386,12 @@ def rear_feed():
         for a, b in zip(pts, pts[1:]):
             merge_into(bm, rod(a, b, 0.009, 16))
     cable = obj("feed-cable", bm, "hv-orange")
-    outlet = obj("feed-outlet", rod(Vector((X0 + 0.07, 0.30, 0.113)), Vector((X0 + 0.0, 0.30, 0.113)), 0.022, 24), "hv-orange")
+    outlet = bmesh.new()  # rear outlets: the rear inverter's cable (right) and the DC charging cable (left)
+    for z in (0.113, -0.10):
+        merge_into(outlet, rod(Vector((X0 + 0.07, 0.30, z)), Vector((X0 + 0.0, 0.30, z)), 0.022, 24))
+    for dz in (0.0, 0.025):  # the charging conductors join the feed inside the pack
+        merge_into(outlet, rod(Vector((X0 + 0.06, 0.30, -0.10 + dz)), Vector((X0 + 0.16, 0.338, 0.02 + dz)), 0.008, 16))
+    outlet = obj("feed-outlet", outlet, "hv-orange")
     return uv(kit.join("battery-rear-feed", [cable, outlet]))
 
 
@@ -416,7 +421,7 @@ def finned_unit(name, size, centre, fins_axis="x", fins=8, connectors=()):
 
 
 def lv_battery():
-    c = (1.95, 0.66, -0.42)
+    c = (1.95, 0.66, -0.36)  # inboard of the left front rail
     case = bx((0.24, 0.17, 0.17), c, "plastic-black", 0.006, "lvb-case")
     lid_ = bx((0.244, 0.012, 0.174), (c[0], c[1] + 0.09, c[2]), "plastic-black", 0.004, "lvb-lid")
     posts = bmesh.new()
@@ -476,16 +481,16 @@ def build_battery():
 def build_power():
     kit.reset()
     parts = {
-        "pdu": finned_unit("pdu", (0.2, 0.11, 0.22), (1.95, 0.655, 0.4), "z", 7,
-                           [((1.95 - 0.105, 0.66, 0.34), "hv-orange", (0.02, 0.04, 0.05)), ((1.95 - 0.105, 0.66, 0.46), "hv-orange", (0.02, 0.04, 0.05)),
-                            ((1.95, 0.72, 0.48), "plastic-black", (0.04, 0.02, 0.03))]),
+        "pdu": finned_unit("pdu", (0.2, 0.11, 0.22), (1.95, 0.655, 0.345), "z", 7,  # inboard of the right front rail
+                           [((1.95 - 0.105, 0.66, 0.30), "hv-orange", (0.02, 0.04, 0.05)), ((1.95 - 0.105, 0.66, 0.40), "hv-orange", (0.02, 0.04, 0.05)),
+                            ((1.95, 0.72, 0.42), "plastic-black", (0.04, 0.02, 0.03))]),
         "dc-dc": finned_unit("dc-dc", (0.16, 0.07, 0.22), (1.99, 0.565, 0.0), "z", 9,
                              [((1.99 - 0.085, 0.565, -0.06), "hv-orange", (0.02, 0.035, 0.04)), ((1.99 + 0.0, 0.565, -0.12), "steel-zinc", (0.03, 0.02, 0.02))]),
         "obc": finned_unit("obc", (0.3, 0.1, 0.26), (-1.9, 0.6, -0.33), "x", 8,
                            [((-1.9 + 0.155, 0.6, -0.28), "hv-orange", (0.02, 0.04, 0.05)), ((-1.9 - 0.155, 0.6, -0.4), "plastic-black", (0.02, 0.04, 0.05))]),
         "lv-battery": lv_battery(),
-        "lv-fuse-box": finned_unit("lv-fuse-box", (0.14, 0.06, 0.1), (1.95, 0.70, -0.25), "x", 0,
-                                   [((1.95, 0.735, -0.25), "plastic-black", (0.13, 0.012, 0.09))]),
+        "lv-fuse-box": finned_unit("lv-fuse-box", (0.14, 0.06, 0.1), (1.95, 0.70, -0.17), "x", 0,
+                                   [((1.95, 0.735, -0.17), "plastic-black", (0.13, 0.012, 0.09))]),
         "charge-port": charge_port(),
     }
     export("power-electronics", parts)
