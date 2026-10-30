@@ -3,7 +3,7 @@
 // Highlight levels (colours in src/theme.ts): "primary" (in the assembly, system or type; a function lost;
 // essential to the part), "secondary" (backed up or merely supporting) and "degraded" (functions only degraded).
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { SemanticError, semantic, type AssemblyDetails, type Impact, type QuestionResult, type Requirement, type SystemDetails,
   type TypeDetail } from "../semantic/api";
 
@@ -45,39 +45,46 @@ function levels(entries: [string, Level][]) {
 }
 
 export function useFocus() {
-  const [focus, setFocus] = useState<Focus | null>(null);
+  const [focus, setFocusState] = useState<Focus | null>(null);
   const [error, setError] = useState<FocusError | null>(null);
   /** the question being asked, while it runs (some take seconds) */
   const [pending, setPending] = useState<FocusRequest | null>(null);
+  // Only the latest request may set the focus; an older or cancelled one is aborted and its answer ignored.
+  const inFlight = useRef<AbortController | null>(null);
 
   const request = useCallback(async (req: FocusRequest) => {
     // Asking the same question again turns the perspective off.
     if (focus && focus.kind === req.kind && focus.key === req.key) {
-      setFocus(null);
+      setFocusState(null);
       return;
     }
     setError(null);
     setPending(req);
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+    const signal = controller.signal;
+    const setFocus = (f: Focus) => { if (!signal.aborted) setFocusState(f); };
     try {
       if (req.kind === "assembly") {
-        const { data, typeql, "timings-ms": timings } = await semantic.assembly(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.assembly(req.key, signal);
         const ids = levels(data["all-component-ids"].map((id) => [id, "primary"]));
         setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, assembly: data });
       } else if (req.kind === "system") {
-        const { data, typeql, "timings-ms": timings } = await semantic.system(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.system(req.key, signal);
         const ids = levels(data.components.map((c) => [c.id, "primary"]));
         setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, system: data });
       } else if (req.kind === "type") {
-        const { data, typeql, "timings-ms": timings } = await semantic.type(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.type(req.key, signal);
         const ids = levels(data.instances.map((i) => [i.id, "primary"]));
         setFocus({ ...req, title: `Every ${data.type.replace(/-/g, " ")}: ${plural(ids.size, "component")}`, ids, typeql,
           "timings-ms": timings, typeDetail: data });
       } else if (req.kind === "question") {
-        const { data, typeql, "timings-ms": timings } = await semantic.question(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.question(req.key, signal);
         const ids = levels(data.highlight.map((id) => [id, "primary"]));
         setFocus({ ...req, title: data.summary, ids, typeql, "timings-ms": timings, question: data });
       } else if (req.kind === "impact") {
-        const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key, signal);
         // Primary: the part loses at least one function. Degraded: its functions are only degraded.
         const ids = levels([[req.key, "primary"], ...data.components.map((c): [string, Level] => [c.id, c.lost.length ? "primary" : "degraded"])]);
         const losing = data.components.filter((c) => c.lost.length).length;
@@ -86,7 +93,7 @@ export function useFocus() {
           : `If it fails: ${plural(losing, "part")} lose a function, ${data.components.length - losing} only degraded`;
         setFocus({ ...req, title, ids, typeql, "timings-ms": timings, impact: data });
       } else {
-        const { data, typeql, "timings-ms": timings } = await semantic.requirements(req.key);
+        const { data, typeql, "timings-ms": timings } = await semantic.requirements(req.key, signal);
         const ids = levels([[req.key, "primary"], ...data.required.map((x): [string, Level] =>
           [x.id, x.role === "essential" ? "primary" : "secondary"])]);
         const essential = data.required.filter((r) => r.role === "essential").length;
@@ -94,7 +101,8 @@ export function useFocus() {
           requirements: data.required });
       }
     } catch (e) {
-      setFocus(null);
+      if (signal.aborted) return;                       // cancelled or replaced: not an error
+      setFocusState(null);
       if (e instanceof SemanticError) setError({ request: req, kind: e.kind, message: e.message });
       else throw e;
     } finally {
@@ -102,5 +110,12 @@ export function useFocus() {
     }
   }, [focus]);
 
-  return { focus, error, pending, request, clear: useCallback(() => { setFocus(null); setError(null); }, []) };
+  /** Stop waiting for the running request (the screen stays as it was). */
+  const cancel = useCallback(() => {
+    inFlight.current?.abort();
+    setPending(null);
+  }, []);
+
+  const clear = useCallback(() => { inFlight.current?.abort(); setPending(null); setFocusState(null); setError(null); }, []);
+  return { focus, error, pending, request, cancel, clear };
 }

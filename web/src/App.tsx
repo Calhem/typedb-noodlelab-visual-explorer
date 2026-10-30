@@ -42,7 +42,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const typedb = useTypeDBStatus();
-  const { focus, error: focusError, pending, request, clear } = useFocus();
+  const { focus, error: focusError, pending, request, cancel, clear } = useFocus();
   const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
@@ -105,7 +105,7 @@ export function App() {
       )}
 
       {exploring && exploreOpen && (
-        <Explore pending={pending} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
+        <Explore pending={pending} onCancel={cancel} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
           onClose={() => setExploreOpen(false)} />
       )}
       {exploring && !exploreOpen && (

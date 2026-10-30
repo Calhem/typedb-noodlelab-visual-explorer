@@ -13,6 +13,7 @@ export type ExploreTab = "systems" | "assemblies" | "types" | "questions";
 
 interface Props {
   pending: FocusRequest | null;
+  onCancel: () => void;
   tab: ExploreTab;
   onTab: (tab: ExploreTab) => void;
   focus: Focus | null;
@@ -23,7 +24,7 @@ interface Props {
 
 const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"], ["types", "Types"], ["questions", "Questions"]];
 
-export function Explore({ pending, tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
+export function Explore({ pending, onCancel, tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
   // A newly chosen system, assembly or type shows its detail at the top: scroll there.
   const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -44,7 +45,7 @@ export function Explore({ pending, tab, onTab, focus, onFocus, onSelect, onClose
         {tab === "systems" && <Systems focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "assemblies" && <Assemblies focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "types" && <Types focus={focus} onFocus={onFocus} onSelect={onSelect} />}
-        {tab === "questions" && <Questions pending={pending} focus={focus} onFocus={onFocus} />}
+        {tab === "questions" && <Questions pending={pending} onCancel={onCancel} focus={focus} onFocus={onFocus} />}
       </div>
     </aside>
   );
@@ -279,7 +280,7 @@ function Types({ focus, onFocus, onSelect }: Shared) {
 
 // ---- Questions ------------------------------------------------------------------------------------------------
 
-function Questions({ pending, focus, onFocus }: Omit<Shared, "onSelect"> & { pending: FocusRequest | null }) {
+function Questions({ pending, onCancel, focus, onFocus }: Omit<Shared, "onSelect"> & { pending: FocusRequest | null; onCancel: () => void }) {
   const list = useAnswer("questions", (s) => semantic.questions(s));
   const current = focus?.kind === "question" ? focus : null;
   const result = current?.question;
@@ -299,8 +300,11 @@ function Questions({ pending, focus, onFocus }: Omit<Shared, "onSelect"> & { pen
                   <button type="button" className="question" onClick={() => onFocus({ kind: "question", key: q.id, anchor: "explore" })}>
                     <span className="question-tag">{q.capability}</span>
                     <span className="question-title">{q.title}</span>
-                    {running === q.id && <span className="loading"> Asking TypeDB…</span>}
                   </button>
+                  {running === q.id && (
+                    <p className="question-running"><span className="loading">Asking TypeDB…</span>
+                      <button type="button" className="link" onClick={onCancel}>Cancel</button></p>
+                  )}
                   {open && result && (
                     <div className="answer" ref={(el) => el?.parentElement?.scrollIntoView({ block: "nearest", behavior: "smooth" })}>
                       <p className="answer-summary">{result.summary}</p>
