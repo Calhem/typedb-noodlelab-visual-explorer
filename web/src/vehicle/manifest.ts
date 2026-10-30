@@ -221,55 +221,94 @@ const driveUnit = (key: DriveKey, x: number): Part[] => {
   ];
 };
 
+// Battery pack (blender/battery.py has the detailed model; these simple shapes are the fallback). The pack sits
+// between the protection plate at y=0.19 and the cabin floor at 0.38; a narrower front bay holds the junction
+// box and BMS. Module rows run rear to front: row i holds module 2i+1 (left) and 2i+2 (right).
+const ROWS = Array.from({ length: 8 }, (_, i) => -0.88 + i * 0.24);
 const battery: Part[] = [
   { id: "battery-enclosure", material: "aluminium",
-    shape: { kind: "box", size: [2.0, 0.1, 1.36], radius: 0.03 }, position: [-0.02, 0.25, 0] },
+    shape: { kind: "box", size: [2.2, 0.15, 1.32], radius: 0.02 }, position: [0.11, 0.276, 0] },
   { id: "battery-lid", material: "satin-black",
-    shape: { kind: "box", size: [1.98, 0.012, 1.34], radius: 0.005 }, position: [-0.02, 0.37, 0] },
+    shape: { kind: "box", size: [2.16, 0.008, 1.32], radius: 0.003 }, position: [0.09, 0.36, 0] },
+  { id: "battery-underbody-shield", material: "steel",
+    shape: { kind: "box", size: [2.16, 0.008, 1.32], radius: 0.003 }, position: [0.09, 0.19, 0] },
   { id: "battery-cooling-plate", material: "aluminium",
-    shape: { kind: "box", size: [1.9, 0.008, 1.28], radius: 0.003 }, position: [-0.02, 0.256, 0] },
-  ...Array.from({ length: 8 }, (_, i) => -0.84 + i * 0.24).flatMap((x, i) =>
+    shape: { kind: "box", size: [1.9, 0.01, 1.24], radius: 0.003 }, position: [-0.02, 0.211, 0] },
+  ...ROWS.flatMap((x, i) =>
     SIDES.map((s, j): Part => ({
-      id: `battery-module-${i * 2 + j + 1}`, material: "battery", shape: { kind: "battery-module" }, position: [x - 0.02, 0.31, s.z * 0.33],
+      id: `battery-module-${i * 2 + j + 1}`, material: "battery", shape: { kind: "battery-module" }, position: [x - 0.0, 0.273, s.z * 0.33],
     })),
   ),
   ...SIDES.map((s): Part => ({
     id: `battery-busbar-${s.key}`, material: "copper",
-    shape: { kind: "box", size: [1.86, 0.008, 0.03], radius: 0.003 }, position: [-0.02, 0.375, s.z * 0.33 + 0.06],
+    // the right column's lead crosses to the negative contactor, so its centre sits further in
+    shape: { kind: "box", size: [1.9, 0.006, 0.03], radius: 0.002 }, position: [0.03, 0.315, s.z < 0 ? -0.32 : 0.19],
   })),
-  ...[-0.5, -0.02, 0.46].map((x, i): Part => ({
+  ...[-0.76, -0.04, 0.68].map((x, i): Part => ({
     id: `battery-crossmember-${i + 1}`, material: "aluminium",
-    shape: { kind: "box", size: [0.025, 0.09, 1.28], radius: 0.006 }, position: [x, 0.3, 0],
+    shape: { kind: "box", size: [0.03, 0.095, 1.28], radius: 0.004 }, position: [x, 0.254, 0],
   })),
   ...SIDES.map((s): Part => ({
     id: `battery-side-rail-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [1.96, 0.11, 0.04], radius: 0.01 }, position: [-0.02, 0.27, s.z * 0.67],
+    shape: { kind: "box", size: [1.955, 0.14, 0.045], radius: 0.006 }, position: [-0.0075, 0.27, s.z * 0.668],
   })),
   { id: "battery-coolant-manifold", material: "aluminium",
-    ...absTube([[-0.92, 0.27, 0], [0, 0.27, 0], [0.92, 0.27, 0]], 0.016) },
+    ...absTube([...[-0.96, -0.64, -0.32, 0, 0.32, 0.64, 0.96].map((x): Vec3 => [x, 0.226, -0.03]), [1.15, 0.26, -0.045]], 0.012) },
+  ...ROWS.map((x, i): Part => ({
+    id: `battery-monitor-${i + 1}`, material: "pcb",
+    shape: { kind: "box", size: [0.13, 0.01, 0.07], radius: 0.002 }, position: [x - 0.0, 0.282, 0],
+  })),
+  { id: "battery-monitor-chain", material: "satin-black",
+    shape: { kind: "tube", radius: 0.004, points: [[-0.94, 0.026, -0.1], [0.92, 0.02, -0.1], [0.94, -0.03, 0.1]] }, position: [0.06, 0.3, 0.07] },
   { id: "hv-junction-box", material: "electronics",
-    shape: { kind: "box", size: [0.16, 0.08, 0.22], radius: 0.012 }, position: [1.07, 0.31, -0.3] },
+    shape: { kind: "box", size: [0.15, 0.123, 0.29], radius: 0.01 }, position: [1.08, 0.277, -0.295] },
+  { id: "main-contactor-pos", material: "satin-black",
+    shape: { kind: "cylinder", radius: 0.026, length: 0.06, axis: "y" }, position: [1.045, 0.257, -0.4] },
+  { id: "main-contactor-neg", material: "satin-black",
+    shape: { kind: "cylinder", radius: 0.026, length: 0.06, axis: "y" }, position: [1.045, 0.257, -0.22] },
+  { id: "precharge-circuit", material: "satin-black",
+    shape: { kind: "box", size: [0.05, 0.03, 0.065], radius: 0.003 }, position: [1.105, 0.235, -0.378] },
+  { id: "pack-fuse", material: "electronics",
+    shape: { kind: "cylinder", radius: 0.013, length: 0.12, axis: "z" }, position: [1.105, 0.245, -0.26] },
+  { id: "pack-current-sensor", material: "satin-black",
+    shape: { kind: "box", size: [0.03, 0.02, 0.05], radius: 0.003 }, position: [1.105, 0.249, -0.18] },
   { id: "bms", material: "electronics",
-    shape: { kind: "box", size: [0.14, 0.05, 0.24], radius: 0.01 }, position: [1.08, 0.3, 0.36] },
+    shape: { kind: "box", size: [0.15, 0.056, 0.24], radius: 0.008 }, position: [1.055, 0.263, 0.28] },
+  { id: "service-disconnect", material: "hv-orange",
+    shape: { kind: "box", size: [0.07, 0.08, 0.1], radius: 0.006 }, position: [-0.93, 0.325, 0] },
+  { id: "battery-rear-feed", material: "hv-orange",
+    ...absTube([[1.0, 0.3, -0.16], [0.96, 0.338, 0.03], [-0.86, 0.338, 0.03], [-1.02, 0.3, 0.113]], 0.012) },
+  { id: "battery-vent", material: "satin-black",
+    shape: { kind: "cylinder", radius: 0.024, length: 0.036, axis: "x" }, position: [-0.993, 0.28, 0.42] },
 ];
 
 const power: Part[] = [
   { id: "lv-battery", material: "satin-black",
-    shape: { kind: "box", size: [0.24, 0.18, 0.17], radius: 0.015 }, position: [1.95, 0.66, -0.42] },
+    shape: { kind: "box", size: [0.24, 0.18, 0.17], radius: 0.015 }, position: [1.95, 0.675, -0.36] },
+  { id: "lv-fuse-box", material: "satin-black",
+    shape: { kind: "box", size: [0.14, 0.07, 0.1], radius: 0.008 }, position: [1.95, 0.705, -0.17] },
   { id: "pdu", material: "electronics",
-    shape: { kind: "box", size: [0.2, 0.12, 0.22], radius: 0.015 }, position: [1.95, 0.66, 0.4] },
+    shape: { kind: "box", size: [0.2, 0.12, 0.22], radius: 0.015 }, position: [1.943, 0.665, 0.345] },
   { id: "dc-dc", material: "electronics",
-    shape: { kind: "finned-box", size: [0.22, 0.08, 0.2], fins: 6 }, position: [-1.18, 0.44, -0.42] },
+    shape: { kind: "finned-box", size: [0.16, 0.07, 0.22], fins: 6 }, position: [1.983, 0.571, -0.01] },
   { id: "obc", material: "electronics",
-    shape: { kind: "finned-box", size: [0.3, 0.1, 0.26], fins: 8 }, position: [-1.9, 0.6, -0.33] },
+    shape: { kind: "finned-box", size: [0.3, 0.1, 0.26], fins: 8 }, position: [-1.9, 0.606, -0.33] },
+  { id: "charge-port", material: "satin-black",
+    shape: { kind: "cylinder", radius: 0.05, length: 0.08, axis: "z" }, position: [-1.98, 0.86, -0.875] },
+  // High-voltage harnesses: the junction box feeds the front inverter directly, the PDU over the front drive
+  // unit, and the rear inverter through the pack's internal rear feed. The DC charge harness runs from the
+  // charge port, under the rear-left drive shaft, to the pack's rear charging outlet.
   { id: "hv-harness-front", material: "hv-orange",
-    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [0.18, 0.04, -0.2], [0.3, 0.3, -0.33], [0.38, 0.453, -0.35]] }, // ends at the front inverter's HV connector
-    position: [0.98, 0.32, 0.18] },
+    ...absTube([[1.17, 0.29, -0.4], [1.25, 0.37, -0.38], [1.29, 0.6, -0.3], [1.36, 0.773, -0.17]], 0.014) },
   { id: "hv-harness-rear", material: "hv-orange",
-    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [-0.3, 0, -0.15], [-0.34, 0.25, -0.3], [-0.34, 0.442, -0.35]] }, // ends at the rear inverter's HV connector
-    position: [-1.02, 0.32, 0.18] },
+    ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
+  { id: "hv-harness-aux", material: "hv-orange",
+    ...absTube([[1.17, 0.29, -0.3], [1.25, 0.4, -0.29], [1.3, 0.75, -0.29], [1.45, 0.9, -0.28], [1.75, 0.89, -0.1], [1.8, 0.8, 0.3], [1.83, 0.66, 0.3]], 0.012) },
+  { id: "hv-harness-charge", material: "hv-orange",
+    ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.75, 0.47, -0.4], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
+      [-1.1, 0.345, -0.12], [-1.02, 0.3, -0.1]], 0.012) },
   { id: "lv-harness", material: "satin-black",
-    ...absTube([[1.95, 0.6, -0.3], [1.3, 0.75, -0.6], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.2, 0.44, -0.66], [-1.9, 0.62, -0.5]], 0.012) },
+    ...absTube([[1.95, 0.7, -0.17], [1.3, 0.75, -0.6], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.2, 0.44, -0.66], [-1.9, 0.62, -0.5]], 0.012) },
 ];
 
 const sensors: Part[] = [
@@ -533,7 +572,8 @@ const thermal: Part[] = [
     shape: { kind: "box", size: [0.22, 0.2, 0.5], radius: 0.03 }, position: [0.72, 0.62, -0.1] },
   { id: "coolant-lines", material: "satin-black",
     // runs above the front-left drive shaft, beside the motor's end cover
-    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.3, 0.49, -0.4], [1.0, 0.28, -0.24]], 0.013) },
+    // ends at the battery pack's coolant ports in the front bay
+    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.3, 0.49, -0.4], [1.24, 0.3, -0.12], [1.212, 0.26, -0.07]], 0.013) },
 ];
 
 const cabin: Part[] = [

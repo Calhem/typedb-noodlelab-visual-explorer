@@ -231,6 +231,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["pcb", m({ color: c("#1f3b2f"), metalness: 0.1, roughness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.15 })],
     ["module-grey", m({ color: c("#8b8e93"), metalness: 0, roughness: 0.6 })],
     ["hv-orange", m({ color: c("#d46a1f"), metalness: 0.05, roughness: 0.45, clearcoat: 0.3 })],
+    // battery: cells in a dark blue insulating wrap
+    ["battery-cell", m({ color: c("#2c3a52"), metalness: 0.1, roughness: 0.45, clearcoat: 0.4, clearcoatRoughness: 0.3 })],
   ]);
   for (const [name, material] of library) material.name = name; // makes inspection and debugging easier
   return library;

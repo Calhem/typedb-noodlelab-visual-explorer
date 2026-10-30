@@ -51,3 +51,9 @@ control-loops:
     sensors: []
     actuators: [rear-park-lock]
     system: rear-axle-drive
+  - name: "Battery management"
+    description: "The BMS reads every cell's voltage and temperature through the module monitors and the pack current through the shunt, and closes or opens the main contactors (through the pre-charge path first)."
+    controller: bms
+    sensors: [battery-monitor-1, battery-monitor-2, battery-monitor-3, battery-monitor-4, battery-monitor-5, battery-monitor-6, battery-monitor-7, battery-monitor-8, pack-current-sensor]
+    actuators: [main-contactor-pos, main-contactor-neg, precharge-circuit]
+    system: battery-management

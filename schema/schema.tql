@@ -102,6 +102,8 @@ entity low-voltage-battery sub electrical-component, owns energy-capacity-kwh, o
 entity power-electronics sub electrical-component, owns rated-power-kw, owns nominal-voltage-v;
 entity wiring-harness sub electrical-component;
 entity connector sub electrical-component;
+entity contactor sub electrical-component, plays control-loop:actuator;   # main contactors, pre-charge relay
+entity fuse sub electrical-component;                     # pack fuse, service disconnect, 12 V fuse box
 
 entity sensor @abstract, sub component, owns sensing-range-m, plays control-loop:sensor;
 entity camera sub sensor;
@@ -111,6 +113,7 @@ entity gnss-receiver sub sensor;
 entity wheel-speed-sensor sub sensor;
 entity position-sensor sub sensor;                      # motor resolvers
 entity current-sensor sub sensor;
+entity cell-monitor sub sensor;                          # battery module monitoring boards
 
 entity control-unit sub component, plays control-loop:controller;
 entity compute-unit sub control-unit;

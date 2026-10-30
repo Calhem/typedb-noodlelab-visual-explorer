@@ -158,25 +158,25 @@ properties:
 
   # ---- High-voltage battery and power distribution --------------------------------------------------------
   - match: battery-module-*
-    description: "Battery module of prismatic lithium-ion cells; sixteen in series make the 800 V pack."
+    description: "Battery module: 14 prismatic lithium-ion cells in series between aluminium end plates and steel straps, cooled from below. Sixteen in one series string make the 800 V pack."
     energy-capacity-kwh: 6.25
     nominal-voltage-v: 50
   - match: battery-enclosure
-    description: "Structural battery enclosure: an extruded aluminium tray that seals the pack and protects it in a side impact."
+    description: "Structural battery enclosure: a cast aluminium tray with a narrower front bay for the junction box and BMS; it seals the pack and carries the coolant ports."
     material-name: "extruded aluminium"
   - match: [battery-busbar-l, battery-busbar-r]
-    description: "Copper busbar connecting one row of battery modules in series."
+    description: "Copper links joining one column of modules in series, with the column's leads to the junction box and the service disconnect."
     material-name: "copper"
   - match: hv-junction-box
-    description: "High-voltage junction box: main contactors, fuses and the pre-charge circuit between the battery and the vehicle."
+    description: "Junction box housing in the pack's front bay: holds the main contactors, pre-charge circuit, pack fuse and current sensor, and has the outlets to the front inverter, the PDU and the DC charging cable."
     nominal-voltage-v: 800
   - match: bms
-    description: "Battery management system: monitors cell voltages and temperatures, balances the cells and opens or closes the main contactors."
+    description: "BMS master: reads every cell through the module monitors and the pack current, balances the cells, and opens or closes the main contactors."
   - match: pdu
-    description: "Power distribution unit: routes high voltage from the battery to the inverters, the DC-DC converter, the charger and the heat pump."
+    description: "Front power distribution unit: fused high-voltage outputs to the DC-DC converter, the heat-pump compressor and the on-board charger."
     nominal-voltage-v: 800
   - match: dc-dc
-    description: "DC-DC converter: steps 800 V down to 12 V to run the low-voltage electrics and charge the 12 V battery."
+    description: "DC-DC converter beside the 12 V battery: steps 800 V down to 12 V to run the low-voltage electrics and keep the 12 V battery charged."
     rated-power-kw: 3.5
     nominal-voltage-v: 800
   - match: obc
@@ -187,6 +187,35 @@ properties:
     description: "12 V battery: powers the control units and safety systems, including the battery management system that closes the main contactors."
     energy-capacity-kwh: 0.72
     nominal-voltage-v: 12
+  - match: battery-underbody-shield
+    description: "Protection plate under the pack: stops stones and kerbs from reaching the enclosure floor."
+    material-name: "high-strength steel"
+  - match: [battery-monitor-1, battery-monitor-2, battery-monitor-3, battery-monitor-4, battery-monitor-5, battery-monitor-6, battery-monitor-7, battery-monitor-8]
+    description: "Module monitor: measures each cell's voltage and the modules' temperatures for two modules, balances the cells, and reports to the BMS over the chain."
+  - match: battery-monitor-chain
+    description: "Isolated daisy-chain link from the module monitors to the BMS master."
+  - match: battery-vent
+    description: "Pressure-relief and degassing valve: lets gas out of the pack in a cell fault while keeping water out."
+  - match: service-disconnect
+    description: "Manual service disconnect: a fused plug at the middle of the series string; pulling it splits the pack into two safe halves for servicing."
+  - match: battery-rear-feed
+    description: "High-voltage cable pair inside the pack from the junction box to the rear outlets, where the rear inverter's cable and the DC charging cable plug in."
+  - match: [main-contactor-pos, main-contactor-neg]
+    description: "Main contactor: a sealed high-current switch that connects the pack to the vehicle; closed by the BMS, open when unpowered."
+  - match: precharge-circuit
+    description: "Pre-charge relay and resistor: charge the inverters' capacitors slowly before the positive contactor closes, avoiding a current surge."
+  - match: pack-fuse
+    description: "Pack fuse: opens the string on a short circuit."
+  - match: pack-current-sensor
+    description: "Shunt current sensor on the negative side: the BMS's measure of current, used for state of charge and power limits."
+  - match: lv-fuse-box
+    description: "12 V fuse box: fuses and distributes the 12 V battery's supply to the low-voltage harness."
+  - match: hv-harness-aux
+    description: "High-voltage cable from the junction box over the front drive unit to the front PDU."
+  - match: hv-harness-charge
+    description: "DC charging cable from the charge port, under the rear-left drive shaft, to the pack's rear charging outlet."
+  - match: charge-port
+    description: "Combined charging inlet: AC pins for the on-board charger and two DC pins for fast charging."
 
   # ---- Sensors and control ----------------------------------------------------------------------------------
   - match: front-camera

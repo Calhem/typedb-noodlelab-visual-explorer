@@ -100,27 +100,57 @@ connections:
   - {kind: data, network: hard-wired signal, ends: ["<a>-control-board", "<a>-<part>"], each: {part: [gate-driver, resolver, current-sensor]}}
   - {kind: data, network: hard-wired signal, ends: [vcu, "<unit>"], each: {unit: [front-disconnect, rear-park-lock]}}
   - {kind: fluid, fluid: oil, ends: ["<a>-oil-pump", "<a>-oil-cooler"]}
-  - {kind: power, voltage: high-voltage, ends: [pdu, "hv-harness-<a>"]}
   - {kind: data, network: CAN FD, ends: [vcu, "<a>-control-board"], description: "Torque requests"}
 
   # ---- Battery and power distribution -------------------------------------------------------------------
   - {kind: mechanical, joint: bolted, ends: [battery-module-<n>, battery-enclosure], each: {n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}}
   - {kind: power, voltage: high-voltage, ends: [battery-module-<n>, battery-busbar-l], each: {n: [1, 3, 5, 7, 9, 11, 13, 15]}}
   - {kind: power, voltage: high-voltage, ends: [battery-module-<n>, battery-busbar-r], each: {n: [2, 4, 6, 8, 10, 12, 14, 16]}}
-  - {kind: data, network: hard-wired signal, ends: [bms, battery-module-<n>], each: {n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}, description: "Cell voltage and temperature sensing"}
-  - {kind: power, voltage: high-voltage, ends: [battery-busbar-<s>, hv-junction-box]}
-  - {kind: data, network: hard-wired signal, ends: [bms, hv-junction-box], description: "Contactor control"}
+  # C3b: monitors, the string's path through the service disconnect, fuse and contactors, and the bay
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-1, "battery-module-<m>"], each: {m: [1, 2]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-2, "battery-module-<m>"], each: {m: [3, 4]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-3, "battery-module-<m>"], each: {m: [5, 6]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-4, "battery-module-<m>"], each: {m: [7, 8]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-5, "battery-module-<m>"], each: {m: [9, 10]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-6, "battery-module-<m>"], each: {m: [11, 12]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-7, "battery-module-<m>"], each: {m: [13, 14]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-8, "battery-module-<m>"], each: {m: [15, 16]}, description: "Cell voltage and temperature sensing"}
+  - {kind: data, network: hard-wired signal, ends: ["battery-monitor-<n>", battery-monitor-chain], each: {n: [1, 2, 3, 4, 5, 6, 7, 8]}, description: "Daisy chain"}
+  - {kind: data, network: hard-wired signal, ends: [battery-monitor-chain, bms]}
+  - {kind: mechanical, joint: bolted, ends: ["battery-monitor-<n>", battery-enclosure], each: {n: [1, 2, 3, 4, 5, 6, 7, 8]}}
+  - {kind: power, voltage: high-voltage, ends: [battery-busbar-<s>, service-disconnect], description: "The two halves of the string meet at the service disconnect"}
+  - {kind: power, voltage: high-voltage, ends: [battery-busbar-l, pack-fuse], description: "Positive end of the string"}
+  - {kind: power, voltage: high-voltage, ends: [pack-fuse, main-contactor-pos]}
+  - {kind: power, voltage: high-voltage, ends: [battery-busbar-r, pack-current-sensor], description: "Negative end of the string, through the shunt"}
+  - {kind: power, voltage: high-voltage, ends: [pack-current-sensor, main-contactor-neg]}
+  - {kind: power, voltage: high-voltage, ends: [precharge-circuit, main-contactor-pos], description: "Pre-charge path in parallel with the positive contactor"}
+  - {kind: power, voltage: high-voltage, ends: ["main-contactor-<pole>", hv-junction-box], each: {pole: [pos, neg]}}
+  - {kind: mechanical, joint: bolted, ends: ["<part>", hv-junction-box], each: {part: [main-contactor-pos, main-contactor-neg, precharge-circuit, pack-fuse, pack-current-sensor]}}
+  - {kind: data, network: hard-wired signal, ends: [bms, "<part>"], each: {part: [main-contactor-pos, main-contactor-neg, precharge-circuit]}, description: "Contactor drive"}
+  - {kind: data, network: hard-wired signal, ends: [bms, pack-current-sensor]}
+  - {kind: mechanical, joint: bolted, ends: ["<part>", battery-enclosure], each: {part: [hv-junction-box, bms, service-disconnect, battery-vent, battery-underbody-shield]}}
+  - {kind: mechanical, joint: clipped, ends: [battery-rear-feed, battery-enclosure]}
+  - {kind: power, voltage: high-voltage, ends: [hv-junction-box, battery-rear-feed]}
+  - {kind: power, voltage: high-voltage, ends: [battery-rear-feed, hv-harness-rear], description: "Rear outlet of the pack"}
   - {kind: mechanical, joint: bolted, ends: [battery-lid, battery-enclosure]}
   - {kind: mechanical, joint: bonded, ends: [battery-cooling-plate, battery-enclosure]}
   - {kind: mechanical, joint: welded, ends: [battery-crossmember-<n>, battery-enclosure], each: {n: [1, 2, 3]}}
   - {kind: mechanical, joint: welded, ends: [battery-side-rail-<s>, battery-enclosure]}
   - {kind: mechanical, joint: bolted, ends: [battery-enclosure, sill-<s>], description: "Pack bolted to the sills: part of the body structure"}
-  - {kind: power, voltage: high-voltage, ends: [hv-junction-box, pdu]}
+  - {kind: power, voltage: high-voltage, ends: [hv-junction-box, "<cable>"], each: {cable: [hv-harness-front, hv-harness-aux]}}
+  - {kind: power, voltage: high-voltage, ends: [battery-rear-feed, hv-harness-charge], description: "Rear charging outlet of the pack"}
+  - {kind: power, voltage: high-voltage, ends: [hv-harness-aux, pdu]}
+  - {kind: power, voltage: high-voltage, ends: [charge-port, hv-harness-charge], description: "DC charging"}
+  - {kind: power, voltage: high-voltage, ends: [charge-port, obc], description: "AC charging"}
+  - {kind: power, voltage: low-voltage, ends: [lv-battery, lv-fuse-box]}
+  - {kind: power, voltage: low-voltage, ends: [lv-fuse-box, lv-harness]}
+  - {kind: power, voltage: low-voltage, ends: [lv-harness, "<unit>"], each: {unit: [obc, charge-port, pack-current-sensor]}}
+  - {kind: mechanical, joint: bolted, ends: [lv-fuse-box, lv-battery]}
+  - {kind: mechanical, joint: bolted, ends: [charge-port, quarter-l], description: "Behind the charging door in the left rear quarter"}
   - {kind: power, voltage: high-voltage, ends: [pdu, dc-dc]}
   - {kind: power, voltage: high-voltage, ends: [pdu, obc]}
   - {kind: power, voltage: high-voltage, ends: [pdu, heat-pump-compressor]}
   - {kind: power, voltage: low-voltage, ends: [dc-dc, lv-battery]}
-  - {kind: power, voltage: low-voltage, ends: [lv-battery, lv-harness]}
   - {kind: power, voltage: low-voltage, ends: [lv-harness, "<unit>"], each: {unit: [bms, vcu, bcm, gateway, telematics, ad-compute, steering-ecu, esc-module, brake-booster, eps-motor, coolant-pump, cooling-fan-l, cooling-fan-r]}}
 
   # ---- Vehicle network and sensors ----------------------------------------------------------------------

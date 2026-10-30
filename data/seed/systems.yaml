@@ -39,22 +39,28 @@ systems:
     name: "Energy storage"
     description: "The battery pack: modules, busbars, enclosure, contactors and battery management."
     members: [battery-module-*, battery-busbar-*, battery-enclosure, battery-lid, battery-crossmember-*, battery-side-rail-*,
-              hv-junction-box, bms]
+              hv-junction-box, bms, battery-underbody-shield, battery-vent, battery-cooling-plate, service-disconnect, pack-fuse,
+              main-contactor-*]
+  - id: battery-management
+    parent: energy-storage
+    name: "Battery management"
+    description: "Watches every cell and the pack current, and opens or closes the main contactors: the BMS master, eight module monitors on their chain, the current sensor, contactors and pre-charge."
+    members: [bms, battery-monitor-*, battery-monitor-chain, pack-current-sensor, main-contactor-*, precharge-circuit]
   - id: hv-distribution
     parent: high-voltage
     name: "High-voltage distribution"
-    description: "Routes battery power to the inverters, DC-DC converter, charger and heat pump."
-    members: [pdu, hv-harness-front, hv-harness-rear, dc-dc]
+    description: "Routes battery power from the junction box to the inverters (the rear through the pack's internal feed) and, through the front PDU, to the DC-DC converter, charger and heat pump."
+    members: [hv-junction-box, battery-rear-feed, pdu, hv-harness-front, hv-harness-rear, hv-harness-aux, dc-dc]
   - id: charging
     parent: high-voltage
     name: "Charging"
-    description: "Takes energy from a charging point into the battery."
-    members: [obc, pdu, hv-junction-box]
+    description: "Takes energy from a charging point into the battery: DC straight to the junction box, AC through the on-board charger."
+    members: [charge-port, hv-harness-charge, obc, pdu, hv-junction-box]
 
   - id: low-voltage
     name: "12 V power"
     description: "The 12 V supply for control units, safety systems and body electrics."
-    members: [lv-battery, dc-dc, lv-harness]
+    members: [lv-battery, lv-fuse-box, dc-dc, lv-harness]
 
   - id: braking
     name: "Braking"

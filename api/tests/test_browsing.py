@@ -42,7 +42,10 @@ def test_assembly_tree_counts(client):
 def test_system_totals_include_subsystems(client):
     systems = {s["id"]: s for s in get(client, "/api/systems")["data"]}
     for s in SEED["systems"]:
-        subtree = {s["id"]} | {x["id"] for x in SEED["systems"] if x.get("parent") == s["id"]}
+        subtree, frontier = {s["id"]}, {s["id"]}
+        while frontier:  # every level of sub-systems
+            frontier = {x["id"] for x in SEED["systems"] if x.get("parent") in frontier}
+            subtree |= frontier
         expected = set().union(*(RESOLVED["members"][x] for x in subtree))
         assert systems[s["id"]]["total"] == len(expected), s["id"]
 
@@ -60,7 +63,8 @@ def test_type_hierarchy_counts_are_polymorphic(client):
         assert t["direct"] == direct.get(label, 0), label
         assert t["total"] == sum(n for ty, n in direct.items() if is_a(ty, label)), label
     assert types["component"]["total"] == len(SEED["components"])
-    assert types["sensor"]["direct"] == 0 and types["sensor"]["total"] == 19  # 15 vehicle sensors + 2 resolvers + 2 current sensors (C3a)
+    # 15 vehicle sensors, 2 resolvers and 2 current sensors (C3a), 8 module monitors and the pack current sensor (C3b)
+    assert types["sensor"]["direct"] == 0 and types["sensor"]["total"] == 28
 
 
 def test_type_detail_shows_schema_and_every_subtype_instance(client):
@@ -68,7 +72,7 @@ def test_type_detail_shows_schema_and_every_subtype_instance(client):
     assert "sensing-range-m" in data["owns"] and "control-loop:sensor" in data["plays"]
     assert {i["id"] for i in data["instances"]} == {c["id"] for c in SEED["components"] if is_a(c["type"], "sensor")}
     assert {i["type"] for i in data["instances"]} == {"camera", "radar", "lidar", "gnss-receiver", "wheel-speed-sensor",
-                                                     "position-sensor", "current-sensor"}
+                                                     "position-sensor", "current-sensor", "cell-monitor"}
     caliper = get(client, "/api/types/brake-caliper")["data"]
     assert caliper["supertypes"] == ["brake-component", "chassis-component", "component"]
     assert "piston-count" in caliper["owns"]

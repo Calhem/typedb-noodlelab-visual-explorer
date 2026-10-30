@@ -173,7 +173,26 @@ components:
   - {id: battery-side-rail-l, type: structural-member, assembly: hv-battery, name: "Left battery side rail"}
   - {id: battery-side-rail-r, type: structural-member, assembly: hv-battery, name: "Right battery side rail"}
   - {id: battery-coolant-manifold, type: thermal-component, assembly: hv-battery, name: "Battery coolant manifold"}
-  - {id: hv-junction-box, type: power-electronics, assembly: hv-battery, name: "High-voltage junction box"}
+  - {id: hv-junction-box, type: power-electronics, assembly: battery-junction-box, name: "High-voltage junction box"}
+  # C3b additions (battery pack)
+  - {id: battery-underbody-shield, type: structural-member, assembly: hv-battery, name: "Battery protection plate"}
+  - {id: battery-monitor-1, type: cell-monitor, assembly: hv-battery, name: "Module monitor 1 (modules 1 and 2)"}
+  - {id: battery-monitor-2, type: cell-monitor, assembly: hv-battery, name: "Module monitor 2 (modules 3 and 4)"}
+  - {id: battery-monitor-3, type: cell-monitor, assembly: hv-battery, name: "Module monitor 3 (modules 5 and 6)"}
+  - {id: battery-monitor-4, type: cell-monitor, assembly: hv-battery, name: "Module monitor 4 (modules 7 and 8)"}
+  - {id: battery-monitor-5, type: cell-monitor, assembly: hv-battery, name: "Module monitor 5 (modules 9 and 10)"}
+  - {id: battery-monitor-6, type: cell-monitor, assembly: hv-battery, name: "Module monitor 6 (modules 11 and 12)"}
+  - {id: battery-monitor-7, type: cell-monitor, assembly: hv-battery, name: "Module monitor 7 (modules 13 and 14)"}
+  - {id: battery-monitor-8, type: cell-monitor, assembly: hv-battery, name: "Module monitor 8 (modules 15 and 16)"}
+  - {id: battery-monitor-chain, type: wiring-harness, assembly: hv-battery, name: "Module monitor chain"}
+  - {id: battery-vent, type: battery-component, assembly: hv-battery, name: "Battery vent valve"}
+  - {id: service-disconnect, type: fuse, assembly: hv-battery, name: "Service disconnect"}
+  - {id: battery-rear-feed, type: wiring-harness, assembly: hv-battery, name: "Battery internal rear feed"}
+  - {id: main-contactor-pos, type: contactor, assembly: battery-junction-box, name: "Main contactor (positive)"}
+  - {id: main-contactor-neg, type: contactor, assembly: battery-junction-box, name: "Main contactor (negative)"}
+  - {id: precharge-circuit, type: contactor, assembly: battery-junction-box, name: "Pre-charge relay and resistor"}
+  - {id: pack-fuse, type: fuse, assembly: battery-junction-box, name: "Pack fuse"}
+  - {id: pack-current-sensor, type: current-sensor, assembly: battery-junction-box, name: "Pack current sensor"}
   - {id: bms, type: control-unit, assembly: hv-battery, name: "Battery management system"}
   # power-distribution
   - {id: lv-battery, type: low-voltage-battery, assembly: power-distribution, name: "12-volt battery"}
@@ -183,6 +202,11 @@ components:
   - {id: hv-harness-front, type: wiring-harness, assembly: power-distribution, name: "Front high-voltage cable"}
   - {id: hv-harness-rear, type: wiring-harness, assembly: power-distribution, name: "Rear high-voltage cable"}
   - {id: lv-harness, type: wiring-harness, assembly: power-distribution, name: "Low-voltage wiring harness"}
+  # C3b additions (power distribution and charging)
+  - {id: lv-fuse-box, type: fuse, assembly: power-distribution, name: "12-volt fuse box"}
+  - {id: hv-harness-aux, type: wiring-harness, assembly: power-distribution, name: "Auxiliary high-voltage cable"}
+  - {id: hv-harness-charge, type: wiring-harness, assembly: power-distribution, name: "DC charging cable"}
+  - {id: charge-port, type: connector, assembly: power-distribution, name: "Charge port"}
   # sensor-suite
   - {id: front-camera, type: camera, assembly: sensor-suite, name: "Forward-facing camera"}
   - {id: rear-camera, type: camera, assembly: sensor-suite, name: "Rear-view camera"}

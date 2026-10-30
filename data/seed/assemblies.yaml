@@ -26,6 +26,7 @@ assemblies:
   - {id: front-drive-unit, name: "Front drive unit", parent: powertrain}
   - {id: rear-drive-unit, name: "Rear drive unit", parent: powertrain}
   - {id: hv-battery, name: "High-voltage battery", parent: powertrain}
+  - {id: battery-junction-box, name: "Battery junction box", parent: hv-battery}
   - {id: power-distribution, name: "Power distribution", parent: vehicle}
   - {id: sensor-suite, name: "Driving sensor suite", parent: vehicle}
   - {id: electronics, name: "Control electronics", parent: vehicle}
