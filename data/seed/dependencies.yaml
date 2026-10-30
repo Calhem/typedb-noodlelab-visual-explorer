@@ -138,6 +138,28 @@ dependencies:
   - {dependent: "<a>-spider-gears", function: drive torque, provider: "<a>-differential", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-side-gear-<s>", function: drive torque, provider: "<a>-spider-gears", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-halfshaft-<s>", function: drive torque, provider: "<a>-side-gear-<s>", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  # ---- Suspension (docs/dependency-semantics.md, C3c step 2) --------------------------------------------------
+  - {dependent: "<a>-subframe", function: subframe location, provider: "<a>-subframe-mount-<n>", needs: body mounting, kind: support, loss: degraded,
+     each: {n: [1, 2, 3, 4]}, description: "The other three mounts still hold the subframe; alignment shifts and vibration rises"}
+  - {dependent: lower-arm-<c>, function: knuckle location, provider: "<a>-subframe", needs: subframe location, kind: support, loss: lost, degradation: degraded}
+  - {dependent: knuckle-<c>, function: wheel location, provider: lower-arm-<c>, needs: knuckle location, kind: support, loss: lost, degradation: degraded}
+  - {dependent: knuckle-<c>, function: wheel location, provider: upper-arm-<c>, needs: knuckle location, kind: support, loss: lost, degradation: degraded}
+  - {dependent: knuckle-f<s>, function: wheel alignment, provider: tie-rod-f<s>, needs: steering motion, kind: support, loss: lost,
+     description: "Without the tie rod the wheel can steer itself"}
+  - {dependent: toe-link-r<s>, function: toe control, provider: rear-subframe, needs: subframe location, kind: support, loss: lost, degradation: degraded}
+  - {dependent: knuckle-r<s>, function: wheel alignment, provider: toe-link-r<s>, needs: toe control, kind: support, loss: lost, degradation: degraded,
+     description: "Without the toe link the rear wheel can steer itself"}
+  - {dependent: spring-<c>, function: load support, provider: top-mount-<c>, needs: body attachment, kind: support, loss: lost}
+  - {dependent: coilover-<c>, function: damping, provider: top-mount-<c>, needs: body attachment, kind: support, loss: lost}
+  - {dependent: "<a>-anti-roll-bar", function: roll control, provider: "drop-link-<c>", needs: roll link, kind: support, loss: lost}
+  - {dependent: tyre-<c>, function: road holding, provider: knuckle-<c>, needs: wheel location, kind: support, loss: lost, degradation: degraded}
+  - {dependent: tyre-<c>, function: road holding, provider: knuckle-<c>, needs: wheel alignment, kind: support, loss: lost, degradation: degraded}
+  - {dependent: tyre-<c>, function: road holding, provider: spring-<c>, needs: load support, kind: support, loss: degraded,
+     description: "The corner rests on its bump stop: drivable slowly, ride and handling much worse"}
+  - {dependent: tyre-<c>, function: road holding, provider: coilover-<c>, needs: damping, kind: support, loss: degraded,
+     description: "Ride comfort and grip on rough roads reduced"}
+  - {dependent: tyre-<c>, function: road holding, provider: "<a>-anti-roll-bar", needs: roll control, kind: support, loss: degraded,
+     description: "Body roll and balance in corners worse; ride unaffected"}
   # Open differential (docs/dependency-semantics.md, C3b): it can only deliver torque while BOTH sides resist it.
   - {dependent: "<a>-halfshaft-<s>", function: reaction path, provider: "<a>-side-gear-<s>", needs: reaction path, kind: support, loss: lost}
   - {dependent: "<a>-differential", function: drive torque, provider: "<a>-halfshaft-<s>", needs: reaction path, kind: support, loss: lost,
