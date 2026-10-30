@@ -64,7 +64,7 @@ systems:
     parent: braking
     name: "Brake control and stability"
     description: "Builds and modulates brake pressure: anti-lock braking and stability control."
-    members: [brake-booster, esc-module, wheel-speed-sensor-*]
+    members: [brake-pedal, brake-booster, master-cylinder, esc-module, wheel-speed-sensor-*]
 
   - id: steering
     name: "Steering"

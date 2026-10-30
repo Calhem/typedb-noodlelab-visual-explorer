@@ -34,6 +34,10 @@ ASSETS = PROJECT / "web" / "public" / "assets"
 GENERATED_TQL = PROJECT / "data" / "seed.generated.tql"
 
 CORNERS = {"fl": ("front", "l"), "fr": ("front", "r"), "rl": ("rear", "l"), "rr": ("rear", "r")}
+# Dependency kind -> family (the relation subtype in the schema).
+FAMILIES = {"support": "physical-dependency", "torque": "physical-dependency",
+            "power": "operational-dependency", "cooling": "operational-dependency", "hydraulic": "operational-dependency",
+            "control": "control-dependency", "data": "control-dependency"}
 CONNECTION_TYPES = {"mechanical": ("mechanical-connection", "joint-type", "joint"),
                     "power": ("power-connection", "voltage-class", "voltage"),
                     "data": ("data-connection", "network", "network"),
@@ -179,9 +183,26 @@ def resolve(seed):
         if c["kind"] not in CONNECTION_TYPES:
             problems.append(f"connection {a} -- {b}: unknown kind '{c['kind']}'")
     for d in seed["dependencies"]:
+        where = f"dependency {d['dependent']}: {d.get('function')} <- {d['provider']}: {d.get('needs')}"
         for end in (d["dependent"], d["provider"]):
             if end not in id_set:
-                problems.append(f"dependency {d['dependent']} <- {d['provider']}: unknown component '{end}'")
+                problems.append(f"{where}: unknown component '{end}'")
+        if d.get("kind") not in FAMILIES:
+            problems.append(f"{where}: unknown kind '{d.get('kind')}'")
+        if not d.get("function") or not d.get("needs"):
+            problems.append(f"{where}: needs both 'function' and 'needs'")
+        if d.get("loss") not in ("lost", "degraded"):
+            problems.append(f"{where}: 'loss' must be lost or degraded")
+        if d.get("degradation") not in (None, "lost", "degraded"):
+            problems.append(f"{where}: 'degradation' must be lost or degraded")
+        if "fallback" in d:
+            backup = d["fallback"].get("backup")
+            if backup not in id_set:
+                problems.append(f"{where}: unknown fallback backup '{backup}'")
+            if backup == d["provider"]:
+                problems.append(f"{where}: a component cannot be its own fallback")
+            if d.get("loss") != "lost":
+                problems.append(f"{where}: a fallback only makes sense when the loss effect is 'lost'")
 
     loops = []
     for loop in seed["control_loops"]:
@@ -199,7 +220,7 @@ def resolve(seed):
 
     # Identical facts written twice (e.g. a corner pattern that also matches its own axle) count once.
     connections = list({(c["kind"], tuple(sorted(c["ends"]))): c for c in seed["connections"]}.values())
-    dependencies = list({(d["dependent"], d["provider"], d["kind"]): d for d in seed["dependencies"]}.values())
+    dependencies = list({(d["dependent"], d["function"], d["provider"], d["needs"]): d for d in seed["dependencies"]}.values())
     return problems, {"properties": properties, "members": members, "loops": loops,
                       "connections": connections, "dependencies": dependencies, "attributes": facts["attributes"]}
 
@@ -214,7 +235,11 @@ def validate(seed):
 # ---- 3. Writing the query -----------------------------------------------------------------------------------
 
 def var(prefix, identifier):
-    return f"${prefix}_" + re.sub(r"[^a-z0-9]", "_", identifier)
+    return f"${prefix}_" + re.sub(r"[^a-z0-9]", "_", identifier.lower())
+
+
+def function_names(resolved):
+    return sorted({d["function"] for d in resolved["dependencies"]} | {d["needs"] for d in resolved["dependencies"]})
 
 
 def literal(value, value_type):
@@ -271,10 +296,17 @@ def render(seed, resolved):
         out(f"  $conn_{len(lines)} isa {relation} (endpoint: {var('c', a)}, endpoint: {var('c', b)})"
             + has({attribute: c[key], "description": c.get("description")}, types) + ";")
 
-    out("  # ---- dependencies ----")
-    for d in resolved["dependencies"]:
-        out(f"  $dep_{len(lines)} isa dependency (dependent: {var('c', d['dependent'])}, provider: {var('c', d['provider'])})"
-            + has({"dependency-kind": d["kind"], "description": d.get("description")}, types) + ";")
+    out("  # ---- functions and dependencies (function to function) ----")
+    for name in function_names(resolved):
+        out(f"  {var('fn', name)} isa vehicle-function, has function-name {string(name)};")
+    for i, d in enumerate(resolved["dependencies"]):
+        out(f"  $dep_{i} isa {FAMILIES[d['kind']]} (dependent: {var('c', d['dependent'])}, affected-function: {var('fn', d['function'])}, "
+            f"provider: {var('c', d['provider'])}, required-function: {var('fn', d['needs'])})"
+            + has({"dependency-kind": d["kind"], "loss-effect": d["loss"], "degradation-effect": d.get("degradation"),
+                   "description": d.get("description")}, types) + ";")
+        if "fallback" in d:
+            out(f"  fallback (protected: $dep_{i}, backup: {var('c', d['fallback']['backup'])})"
+                + has({"description": d["fallback"].get("description")}, types) + ";")
 
     out("  # ---- control loops ----")
     for i, loop in enumerate(resolved["loops"]):
@@ -304,6 +336,8 @@ def expected_counts(seed, resolved):
         "system-membership": sum(1 for s in seed["systems"] if s.get("parent")) + sum(map(len, resolved["members"].values())),
         "connection": len(resolved["connections"]),
         "dependency": len(resolved["dependencies"]),
+        "vehicle-function": len(function_names(resolved)),
+        "fallback": sum(1 for d in resolved["dependencies"] if "fallback" in d),
         "control-loop": len(resolved["loops"]),
         "visual-representation": len(seed["components"]),
     }

@@ -133,18 +133,23 @@ def component_relationships(tx, component_id):
         fetch {{ "kind": $kind, "other": $other.component-id, "other-name": $other.name, "other-type": $other-type,
                 "details": {{ $r.* }} }};
     """)
+    dependency_fields = """ "family": $family, "kind": $kind, "function": $f.function-name, "needs": $g.function-name,
+                "loss": $d.loss-effect, "degradation": $d.degradation-effect, "description": $d.description,
+                "fallback": [ match fallback (protected: $d, backup: $b); fetch { "id": $b.component-id, "name": $b.name }; ] """
     needs = fetch(tx, f"""
         match
           $c isa component, has component-id {cid};
-          $d isa dependency (dependent: $c, provider: $p), has dependency-kind $kind;
-        fetch {{ "id": $p.component-id, "name": $p.name, "kind": $kind, "description": $d.description }};
+          $d isa! $family, links (dependent: $c, affected-function: $f, provider: $p, required-function: $g), has dependency-kind $kind;
+        fetch {{ "id": $p.component-id, "name": $p.name, {dependency_fields} }};
     """)
     needed_by = fetch(tx, f"""
         match
           $c isa component, has component-id {cid};
-          $d isa dependency (provider: $c, dependent: $dep), has dependency-kind $kind;
-        fetch {{ "id": $dep.component-id, "name": $dep.name, "kind": $kind, "description": $d.description }};
+          $d isa! $family, links (provider: $c, required-function: $g, dependent: $p, affected-function: $f), has dependency-kind $kind;
+        fetch {{ "id": $p.component-id, "name": $p.name, {dependency_fields} }};
     """)
+    for dep in needs + needed_by:
+        dep["family"] = _label(dep["family"]).replace("-dependency", "")
     loops = fetch(tx, f"""
         match
           $c isa component, has component-id {cid};
@@ -157,58 +162,107 @@ def component_relationships(tx, component_id):
         c["other-type"] = _label(c["other-type"])
     for loop in loops:
         loop["role"] = _label(loop["role"]).split(":")[-1]
-    by_name = lambda items: sorted(items, key=lambda x: (x.get("kind", ""), x.get("other-name") or x.get("name") or ""))
+    by_name = lambda items: sorted(items, key=lambda x: (x.get("kind", ""), x.get("other-name") or x.get("name") or "", x.get("function", "")))
     return {"connections": by_name(connections), "needs": by_name(needs), "needed-by": by_name(needed_by),
             "control-loops": sorted(loops, key=lambda x: x["name"])}
 
 
-def _walk(start, edges):
-    """Order the components reached through dependency edges by number of steps from the start."""
-    nxt = {}
+def _steps_from(start, edges):
+    """Steps from the start along (provider, function) -> (dependent, function) edges, breadth first.
+
+    The failed component counts as having lost all its functions, so every edge leaving it is a first step.
+    Returns {(component, function): (steps, edge that first reached it)}.
+    """
+    out = {}
     for e in edges:
-        nxt.setdefault(e["from"], []).append(e)
-    steps, frontier, reached = 0, [start], {}
+        out.setdefault((e["from"], e["needs"]), []).append(e)
+    first = [e for e in edges if e["from"] == start]
+    reached, frontier, steps = {}, first, 1
     while frontier:
-        steps += 1
-        new = []
-        for node in frontier:
-            for e in nxt.get(node, []):
-                if e["to"] not in reached and e["to"] != start:
-                    reached[e["to"]] = {"id": e["to"], "name": e["to-name"], "steps": steps, "via": node, "kind": e["kind"]}
-                    new.append(e["to"])
-        frontier = new
-    return sorted(reached.values(), key=lambda r: (r["steps"], r["name"]))
+        nxt = []
+        for e in frontier:
+            key = (e["to"], e["function"])
+            if key not in reached and e["to"] != start:
+                reached[key] = (steps, e)
+                nxt += out.get(key, [])
+        frontier, steps = nxt, steps + 1
+    return reached
 
 
 def component_impact(tx, component_id):
-    """Multi-step: everything affected if this component fails, following dependencies (see docs/dependency-semantics.md:
-    today every edge is treated as a total loss, which overstates some answers)."""
+    """Multi-step, function by function: what is lost, what is degraded and which fallbacks take over if this
+    component fails (docs/dependency-semantics.md, C1). Reasoning runs in TypeDB (lost_steps, degraded_steps)."""
     cid = string(component_id)
     if not rows(tx, f"match $c isa component, has component-id {cid};"):
         raise NotFound(f"component {component_id}")
-    edges = fetch(tx, f"""
+    step_fields = """ "from": $p.component-id, "needs": $g.function-name, "to": $c.component-id, "to-name": $c.name,
+                "function": $f.function-name, "kind": $kind """
+    lost = fetch(tx, f"""
         match
           $start isa component, has component-id {cid};
-          let $from, $to in impact_edges($start);
-          dependency (provider: $from, dependent: $to), has dependency-kind $kind;
-        fetch {{ "from": $from.component-id, "to": $to.component-id, "to-name": $to.name, "kind": $kind }};
+          let $p, $g, $c, $f in lost_steps($start);
+          dependency (provider: $p, required-function: $g, dependent: $c, affected-function: $f), has dependency-kind $kind;
+        fetch {{ {step_fields} }};
     """)
-    return {"affected": _walk(component_id, edges)}
+    # Degraded steps also carry their dependency's loss effect and fallbacks: a fallback is "in use" when its
+    # dependency's provider function is lost (worked out below from the lost steps, without a third recursive query).
+    degraded = fetch(tx, f"""
+        match
+          $start isa component, has component-id {cid};
+          let $p, $g, $c, $f in degraded_steps($start);
+          $d isa dependency (provider: $p, required-function: $g, dependent: $c, affected-function: $f), has dependency-kind $kind,
+            has loss-effect $loss;
+        fetch {{ {step_fields}, "provider-name": $p.name, "loss": $loss,
+                "fallback": [ match fallback (protected: $d, backup: $b), has description $why;
+                              fetch {{ "id": $b.component-id, "name": $b.name, "description": $why }}; ] }};
+    """)
+    lost_pairs = {(e["to"], e["function"]) for e in lost}
+    fallbacks = [
+        {"id": e["to"], "name": e["to-name"], "function": e["function"], "provider": e["from"], "provider-name": e["provider-name"],
+         "needs": e["needs"], "backup": b["id"], "backup-name": b["name"], "description": b["description"]}
+        for e in degraded if e["loss"] == "lost" and (e["from"] == component_id or (e["from"], e["needs"]) in lost_pairs)
+        for b in e["fallback"] if b["id"] != component_id
+    ]
+    lost_keys = {(e["to"], e["function"]) for e in lost}
+    reached = _steps_from(component_id, lost + degraded)
+
+    def item(key):
+        steps, e = reached[key]
+        return {"id": key[0], "name": e["to-name"], "function": key[1], "steps": steps,
+                "via": e["from"], "via-function": e["needs"], "kind": e["kind"]}
+    order = lambda x: (x["steps"], x["name"], x["function"])
+    unique_fallbacks = {(f["id"], f["function"], f["backup"]): f for f in fallbacks}
+    return {
+        "lost": sorted((item(k) for k in reached if k in lost_keys), key=order),
+        "degraded": sorted((item(k) for k in reached if k not in lost_keys), key=order),
+        "fallbacks": sorted(unique_fallbacks.values(), key=lambda f: (f["name"], f["function"])),
+    }
 
 
 def component_requirements(tx, component_id):
-    """Multi-step: everything this component relies on, directly or indirectly."""
+    """Multi-step: every (component, function) this component's functions rely on, directly or indirectly, and how
+    much each matters: essential (its loss loses the function), backed up (a fallback exists) or supporting
+    (its loss only degrades)."""
     cid = string(component_id)
     if not rows(tx, f"match $c isa component, has component-id {cid};"):
         raise NotFound(f"component {component_id}")
     edges = fetch(tx, f"""
         match
           $end isa component, has component-id {cid};
-          let $from, $to in requirement_edges($end);
-          dependency (dependent: $from, provider: $to), has dependency-kind $kind;
-        fetch {{ "from": $from.component-id, "to": $to.component-id, "to-name": $to.name, "kind": $kind }};
+          let $c, $f, $p, $g in requirement_steps($end);
+          $d isa dependency (dependent: $c, affected-function: $f, provider: $p, required-function: $g), has loss-effect $loss,
+            has dependency-kind $kind;
+        fetch {{ "from": $c.component-id, "needs": $f.function-name, "to": $p.component-id, "to-name": $p.name,
+                "function": $g.function-name, "loss": $loss, "kind": $kind,
+                "fallback": [ match fallback (protected: $d, backup: $b); fetch {{ "id": $b.component-id }}; ] }};
     """)
-    return {"required": _walk(component_id, edges)}
+    reached = _steps_from(component_id, edges)
+    required = []
+    for (comp, function), (steps, e) in reached.items():
+        role = "backed up" if e["fallback"] else ("essential" if e["loss"] == "lost" else "supporting")
+        required.append({"id": comp, "name": e["to-name"], "function": function, "steps": steps, "via": e["from"],
+                         "kind": e["kind"], "role": role})
+    return {"required": sorted(required, key=lambda x: (x["steps"], x["name"], x["function"]))}
 
 
 # ---- Assemblies and systems -------------------------------------------------------------------------------

@@ -183,6 +183,10 @@ const brakeControl: Part[] = [
     shape: { kind: "cylinder", radius: 0.085, length: 0.16, axis: "x" }, position: [1.14, 0.84, DRIVER_Z] },
   { id: "esc-module", material: "aluminium",
     shape: { kind: "box", size: [0.15, 0.12, 0.14], radius: 0.02 }, position: [1.84, 0.7, 0.05] },
+  { id: "master-cylinder", material: "aluminium",
+    shape: { kind: "cylinder", radius: 0.03, length: 0.17, axis: "x" }, position: [1.3, 0.86, DRIVER_Z] },
+  { id: "brake-pedal", material: "satin-black",
+    shape: { kind: "box", size: [0.03, 0.09, 0.07], radius: 0.01 }, position: [0.86, 0.42, DRIVER_Z], rotation: [0, 0, 0.35] },
 ];
 
 const driveUnit = (key: "front" | "rear", x: number): Part[] => {

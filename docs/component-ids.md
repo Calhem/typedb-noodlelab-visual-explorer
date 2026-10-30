@@ -23,3 +23,10 @@ relationships it will carry in TypeDB.
 
 `{c}` = corner (`fl`, `fr`, `rl`, `rr`); `{s}` = side (`l`, `r`); `{key}` = `front` or `rear`.
 All other milestone-2.2 additions are new parts with new ids (see `manifest.ts`).
+
+## Added for C1 (dependency semantics, 30 October 2026)
+
+| Id | Assembly | Why |
+|---|---|---|
+| `brake-pedal` | brake-control | The driver's brake demand, and the mechanical fallback when the booster fails |
+| `master-cylinder` | brake-control | Between the pedal/booster and the ESC hydraulic unit; the fallback path when the ESC module fails |

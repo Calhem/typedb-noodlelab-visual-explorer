@@ -68,7 +68,7 @@ def _ids_in(value, found):
 def test_3_semantic_perspectives_are_produced_by_typeql(client, driver, database):
     """Every answer lists its TypeQL; running exactly that TypeQL in TypeDB yields every id the answer shows."""
     for path, key in [("/api/systems/braking", "components"), ("/api/assemblies/front-drive-unit", "all-component-ids"),
-                      ("/api/components/lv-battery/impact", "affected"), ("/api/components/tyre-fr/requirements", "required")]:
+                      ("/api/components/lv-battery/impact", "lost"), ("/api/components/tyre-fr/requirements", "required")]:
         body = get(client, path)
         assert body["typeql"], f"{path} returned no TypeQL"
         shown = body["data"][key]

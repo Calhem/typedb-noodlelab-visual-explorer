@@ -167,6 +167,10 @@ properties:
     description: "Automated-driving computer: fuses the sensors, plans the path and commands steering, braking and drive torque."
   - match: vcu
     description: "Vehicle control unit: turns the accelerator pedal and driving mode into torque requests for the two drive units, including traction control."
+  - match: master-cylinder
+    description: "Tandem master cylinder: turns pedal and booster force into brake-fluid pressure, in two separate circuits."
+  - match: brake-pedal
+    description: "Brake pedal: the driver's brake demand, and the mechanical fallback that still applies the brakes if the booster fails."
   - match: esc-module
     description: "Electronic stability control: valve block and controller that modulate brake pressure at each wheel (anti-lock braking, stability control)."
   - match: brake-booster

@@ -131,6 +131,8 @@ components:
   # brake-control
   - {id: brake-booster, type: actuator, assembly: brake-control, name: "Electric brake booster"}
   - {id: esc-module, type: control-unit, assembly: brake-control, name: "Stability control module (ABS/ESC)"}
+  - {id: master-cylinder, type: brake-component, assembly: brake-control, name: "Brake master cylinder"}
+  - {id: brake-pedal, type: driver-control, assembly: brake-control, name: "Brake pedal"}
   # front-drive-unit
   - {id: front-motor, type: electric-motor, assembly: front-drive-unit, name: "Front electric motor"}
   - {id: front-gearbox, type: gearbox, assembly: front-drive-unit, name: "Front reduction gearbox"}

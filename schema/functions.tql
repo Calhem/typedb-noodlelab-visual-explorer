@@ -33,19 +33,48 @@ fun system_components($s: system) -> { component }:
          let $c in system_components($sub); };
   return { $c };
 
-# Failure impact: every component affected if $start fails (every edge treated as a total loss; see
-# docs/dependency-semantics.md), with the step that reaches it
-# (the provider it depends on directly), so the chain can be shown. A component reached by several
-# routes comes back once per route.
-fun impact_edges($start: component) -> { component, component }:
-  match
-    { dependency (provider: $start, dependent: $to); $from is $start; }
-    or { let $prev, $from in impact_edges($start); dependency (provider: $from, dependent: $to); };
-  return { $from, $to };
+# Failure impact, function by function (docs/dependency-semantics.md, C1). When $start fails, all its functions
+# are lost; each dependency then applies its effects. Two functions call each other:
+#   lost_steps      the dependent's function is LOST
+#   degraded_steps  the dependent's function is DEGRADED
+# Each returns the steps (provider, its function, dependent, its function). A function reached both ways is
+# lost (callers apply that). Fallbacks: a backup counts unless it is the failed part itself (single-failure
+# analysis; the tests check that no backup loses a function in the same failure).
 
-# The reverse walk: everything $end relies on, directly or indirectly, with each step.
-fun requirement_edges($end: component) -> { component, component }:
+# Lost when the required function is lost and nothing takes over, or when it is degraded and the dependency
+# says that degradation is enough to lose the function.
+fun lost_steps($start: component) -> { component, vehicle-function, component, vehicle-function }:
   match
-    { dependency (dependent: $end, provider: $to); $from is $end; }
-    or { let $from_prev, $from in requirement_edges($end); dependency (dependent: $from, provider: $to); };
-  return { $from, $to };
+    $d isa dependency (provider: $p, required-function: $g, dependent: $c, affected-function: $f);
+    {
+      $d has loss-effect "lost";
+      not { fallback (protected: $d, backup: $b); not { $b is $start; }; };
+      { $p is $start; } or { let $p0, $g0, $p, $g in lost_steps($start); };
+    } or {
+      $d has degradation-effect "lost";
+      let $p1, $g1, $p, $g in degraded_steps($start);
+    };
+  return { $p, $g, $c, $f };
+
+# Degraded when the required function is lost but the dependency only degrades (or a backup takes over),
+# or when the required function is degraded and the dependency passes that on.
+fun degraded_steps($start: component) -> { component, vehicle-function, component, vehicle-function }:
+  match
+    $d isa dependency (provider: $p, required-function: $g, dependent: $c, affected-function: $f);
+    {
+      { $d has loss-effect "degraded"; }
+      or { $d has loss-effect "lost"; fallback (protected: $d, backup: $b); not { $b is $start; }; };
+      { $p is $start; } or { let $p0, $g0, $p, $g in lost_steps($start); };
+    } or {
+      $d has degradation-effect "degraded";
+      let $p1, $g1, $p, $g in degraded_steps($start);
+    };
+  return { $p, $g, $c, $f };
+
+# The reverse walk: every (provider, function) that $end's functions rely on, directly or indirectly.
+# Returns each step: dependent, its function, provider, the function it supplies.
+fun requirement_steps($end: component) -> { component, vehicle-function, component, vehicle-function }:
+  match
+    dependency (dependent: $c, affected-function: $f, provider: $p, required-function: $g);
+    { $c is $end; } or { let $c0, $f0, $c, $f in requirement_steps($end); };
+  return { $c, $f, $p, $g };

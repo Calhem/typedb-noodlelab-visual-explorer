@@ -86,21 +86,17 @@ def test_relationships(client):
     assert loops == {("Anti-lock braking and stability control", "actuator")}
 
 
-def test_failure_impact_is_multi_step_and_matches_the_dependency_graph(client):
-    edges = [(d["provider"], d["dependent"]) for d in RESOLVED["dependencies"]]
-    for cid in ["lv-battery", "coolant-pump", "front-gate-driver", "esc-module"]:
-        affected = get(client, f"/api/components/{cid}/impact")["data"]["affected"]
-        assert {a["id"] for a in affected} == reach(cid, edges), cid
-        assert max(a["steps"] for a in affected) >= 2 or cid == "esc-module"
-    # the 12 V battery's failure reaches the wheels through the battery contactors and the drive units
-    lv = {a["id"]: a for a in get(client, "/api/components/lv-battery/impact")["data"]["affected"]}
-    assert "tyre-rl" in lv and lv["tyre-rl"]["steps"] > 5
-
-
 def test_requirements_are_the_reverse_walk(client):
-    edges = [(d["dependent"], d["provider"]) for d in RESOLVED["dependencies"]]
+    edges = [((d["dependent"], d["function"]), (d["provider"], d["needs"])) for d in RESOLVED["dependencies"]]
     required = get(client, "/api/components/tyre-fr/requirements")["data"]["required"]
-    assert {r["id"] for r in required} == reach("tyre-fr", edges)
+    seen, frontier = set(), list({b for a, b in edges if a[0] == "tyre-fr"})
+    while frontier:
+        node = frontier.pop()
+        if node in seen or node[0] == "tyre-fr":
+            continue
+        seen.add(node)
+        frontier += [b for a, b in edges if a == node]
+    assert {(r["id"], r["function"]) for r in required} == seen
 
 
 def test_pattern_matching_in_seed_is_exact():

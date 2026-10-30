@@ -4,7 +4,8 @@
 #   physical   assembly-membership   where a component sits (wheel end > chassis > vehicle)
 #   functional system-membership     what it does (braking, propulsion, automated driving...); a component
 #                                    can take part in several systems
-#   behaviour  connection, dependency and control-loop: how components are joined, what each relies on to
+#   behaviour  connection, dependency (function to function, with fallbacks) and control-loop: how components
+#              are joined, what each function relies on to
 #              work, and which controllers, sensors and actuators work together
 # Plus the link from each component to the 3D object that draws it (visual-representation).
 #
@@ -44,6 +45,9 @@ attribute voltage-class, value string @values("high-voltage", "low-voltage");
 attribute network, value string @values("CAN FD", "automotive Ethernet", "hard-wired signal");
 attribute fluid, value string @values("brake fluid", "coolant", "refrigerant");
 attribute dependency-kind, value string @values("power", "torque", "control", "data", "hydraulic", "cooling", "support");
+attribute loss-effect, value string @values("lost", "degraded");
+attribute degradation-effect, value string @values("lost", "degraded");
+attribute function-name, value string;
 
 # ---- Components: a type hierarchy, so questions can be asked at any level ("every sensor") ------------------
 
@@ -52,7 +56,7 @@ entity component @abstract,
   plays assembly-membership:member @card(1..1),
   plays system-membership:member,
   plays connection:endpoint,
-  plays dependency:dependent, plays dependency:provider,
+  plays dependency:dependent, plays dependency:provider, plays fallback:backup,
   plays visual-representation:represented @card(1..1);
 
 entity body-component @abstract, sub component;
@@ -74,6 +78,7 @@ entity wheel-end-component sub chassis-component;         # hub, bearing, knuckl
 entity suspension-component sub chassis-component;
 entity steering-component sub chassis-component;
 entity fastener sub component;
+entity driver-control sub component;                 # pedals and other direct driver inputs
 
 entity powertrain-component @abstract, sub component;
 entity electric-motor sub powertrain-component, owns peak-power-kw, owns peak-torque-nm, owns nominal-voltage-v,
@@ -137,11 +142,34 @@ relation power-connection sub connection, owns voltage-class;
 relation data-connection sub connection, owns network;
 relation fluid-connection sub connection, owns fluid;
 
-# Directed: the dependent cannot do its job without the provider.
-relation dependency,
-  relates dependent,
-  relates provider,
+# What a part does: "drive torque", "brake pressure", "anti-lock braking"... Shared across components. Failure
+# states belong to (component, function) pairs, so a failure can take one function and leave others.
+entity vehicle-function,
+  owns function-name @key,
+  plays dependency:affected-function, plays dependency:required-function;
+
+# "The dependent's affected function needs the provider's required function." Directed, one of three families.
+# loss-effect: what happens to the affected function if the required function is lost.
+# degradation-effect (optional): what happens if the required function is only degraded; absent = nothing.
+relation dependency @abstract,
+  relates dependent @card(1..1),
+  relates affected-function @card(1..1),
+  relates provider @card(1..1),
+  relates required-function @card(1..1),
   owns dependency-kind,
+  owns loss-effect @card(1..1),
+  owns degradation-effect,
+  owns description,
+  plays fallback:protected;
+relation physical-dependency sub dependency;        # load paths, mechanical support, torque transmission
+relation operational-dependency sub dependency;     # energy and working media: power, cooling, hydraulic pressure
+relation control-dependency sub dependency;         # commands and sensor information
+
+# If the provider's function is lost but the backup still works, the dependent is degraded, not lost
+# (for example the brake pedal pushing the master cylinder without the booster).
+relation fallback,
+  relates protected @card(1..1),
+  relates backup @card(1..1),
   owns description;
 
 # A closed loop: a controller reads sensors and commands actuators to govern a system.

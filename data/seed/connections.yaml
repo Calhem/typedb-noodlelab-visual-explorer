@@ -114,7 +114,10 @@ connections:
   - {kind: fluid, fluid: coolant, ends: [battery-coolant-manifold, battery-cooling-plate]}
   - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, battery-chiller]}
   - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, hvac-module]}
-  - {kind: fluid, fluid: brake fluid, ends: [brake-booster, esc-module]}
+  - {kind: mechanical, joint: ball-joint, ends: [brake-pedal, brake-booster], description: "Pedal pushrod"}
+  - {kind: mechanical, joint: bolted, ends: [master-cylinder, brake-booster]}
+  - {kind: fluid, fluid: brake fluid, ends: [master-cylinder, esc-module], description: "Two brake circuits"}
+  - {kind: mechanical, joint: bolted, ends: [brake-booster, bulkhead]}
 
   # ---- Body ---------------------------------------------------------------------------------------------
   - {kind: mechanical, joint: hinged, ends: [door-f<s>, a-pillar-<s>]}
