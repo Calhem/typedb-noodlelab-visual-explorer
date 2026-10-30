@@ -159,6 +159,7 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
 }
 
 .panel-state { padding: 6px 0 4px; }
+.panel:has(.panel-state) { bottom: auto; }   /* a short message: the panel fits it instead of the full height */
 .panel-state p { color: var(--ink-dim); }
 .panel-state.unavailable h2 { color: #e0a85a; }
 
