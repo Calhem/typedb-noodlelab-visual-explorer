@@ -12,13 +12,16 @@ import { setExplodedVolume } from "./framing";
 import { progress } from "./progress";
 import { vehicleState } from "./vehicleState";
 
-const ACCENT = new THREE.Color("#02dac9");
-const AMBER = new THREE.Color("#e0a85a"); // secondary highlight: degraded, backed up or supporting
+import { theme } from "../theme";
+
+const COLOURS = { primary: new THREE.Color(theme.accent), secondary: new THREE.Color(theme.accentSoft), degraded: new THREE.Color(theme.degraded) };
+const GLOW = { selected: theme.highlight.selectedGlow, primary: theme.highlight.primaryGlow, secondary: theme.highlight.secondaryGlow,
+  degraded: theme.highlight.degradedGlow };
 
 export function Vehicle({ selectedId, highlight, onSelect }: {
   selectedId: string | null;
   /** component ids to bring forward (a semantic focus), with their level; the rest is ghosted. null = no focus */
-  highlight: Map<string, "primary" | "secondary"> | null;
+  highlight: Map<string, "primary" | "secondary" | "degraded"> | null;
   onSelect: (id: string | null) => void;
 }) {
   const loaded = use(externalParts);
@@ -57,18 +60,18 @@ export function Vehicle({ selectedId, highlight, onSelect }: {
   const variants = useMemo(() => new Map<string, THREE.Material>(), [built]);
   useEffect(() => () => { for (const m of variants.values()) m.dispose(); variants.clear(); }, [variants]);
   useEffect(() => {
-    const variant = (base: THREE.Material, kind: "selected" | "primary" | "secondary" | "ghost") => {
+    const variant = (base: THREE.Material, kind: "selected" | "primary" | "secondary" | "degraded" | "ghost") => {
       const key = `${base.uuid}:${kind}`;
       let m = variants.get(key);
       if (!m) {
         const copy = base.clone() as THREE.MeshPhysicalMaterial;
         if (kind === "ghost") {
           copy.transparent = true;
-          copy.opacity = 0.05;
+          copy.opacity = theme.highlight.ghostOpacity;
           copy.depthWrite = false;
         } else if ("emissive" in copy) {
-          copy.emissive = (kind === "secondary" ? AMBER : ACCENT).clone();
-          copy.emissiveIntensity = kind === "selected" ? 0.45 : kind === "primary" ? 0.32 : 0.42;
+          copy.emissive = COLOURS[kind === "selected" ? "primary" : kind].clone();
+          copy.emissiveIntensity = GLOW[kind];
         }
         variants.set(key, (m = copy));
       }

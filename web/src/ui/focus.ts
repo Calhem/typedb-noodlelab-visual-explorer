@@ -1,14 +1,14 @@
 // A "focus" is a semantic perspective on the 3D model: the components TypeDB returns for one question
 // (an assembly's contents, a system's members, a failure's impact) are highlighted and the rest is ghosted.
-// Two highlight levels: "primary" (in the assembly or system; a function lost; essential to the part) and
-// "secondary" (a function degraded; backed up or merely supporting).
+// Highlight levels (colours in src/theme.ts): "primary" (in the assembly, system or type; a function lost;
+// essential to the part), "secondary" (backed up or merely supporting) and "degraded" (functions only degraded).
 
 import { useCallback, useState } from "react";
 import { SemanticError, semantic, type AssemblyDetails, type Impact, type QuestionResult, type Requirement, type SystemDetails,
   type TypeDetail } from "../semantic/api";
 
 export type FocusKind = "assembly" | "system" | "impact" | "requirements" | "type" | "question";
-export type Level = "primary" | "secondary";
+export type Level = "primary" | "secondary" | "degraded";
 
 export interface FocusRequest {
   kind: FocusKind;
@@ -78,8 +78,8 @@ export function useFocus() {
         setFocus({ ...req, title: data.summary, ids, typeql, "timings-ms": timings, question: data });
       } else if (req.kind === "impact") {
         const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
-        // Teal: the part loses at least one function. Amber: its functions are only degraded.
-        const ids = levels([[req.key, "primary"], ...data.components.map((c): [string, Level] => [c.id, c.lost.length ? "primary" : "secondary"])]);
+        // Primary: the part loses at least one function. Degraded: its functions are only degraded.
+        const ids = levels([[req.key, "primary"], ...data.components.map((c): [string, Level] => [c.id, c.lost.length ? "primary" : "degraded"])]);
         const losing = data.components.filter((c) => c.lost.length).length;
         const title = data.components.length === 0
           ? "If it fails: no other part is affected"

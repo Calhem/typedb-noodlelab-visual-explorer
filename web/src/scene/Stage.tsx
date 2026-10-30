@@ -174,7 +174,7 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, insets,
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
-  highlight: Map<string, "primary" | "secondary"> | null;
+  highlight: Map<string, "primary" | "secondary" | "degraded"> | null;
   insets: Insets;
   onSelect: (id: string | null) => void;
 }) {

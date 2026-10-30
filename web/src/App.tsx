@@ -90,7 +90,7 @@ export function App() {
           {focus && (focus.kind === "impact" || focus.kind === "requirements") && (
             <span className="focus-key">
               <i className="primary" />{focus.kind === "impact" ? "loses a function" : "essential"}
-              <i className="secondary" />{focus.kind === "impact" ? "only degraded" : "backed up or supporting"}
+              <i className={focus.kind === "impact" ? "degraded" : "secondary"} />{focus.kind === "impact" ? "only degraded" : "backed up or supporting"}
             </span>
           )}
           <button type="button" className="link" onClick={clear}>{focusError ? "Dismiss" : "Clear"}</button>
