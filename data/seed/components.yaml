@@ -349,8 +349,8 @@ components:
   - {id: front-rotor-shaft, type: motor-component, assembly: front-drive-unit, name: "Front rotor shaft"}
   - {id: front-motor-bearing-1, type: motor-component, assembly: front-drive-unit, name: "Front motor bearing 1"}
   - {id: front-motor-bearing-2, type: motor-component, assembly: front-drive-unit, name: "Front motor bearing 2"}
-  - {id: front-reduction-gear, type: gearbox-component, assembly: front-drive-unit, name: "Front reduction gear"}
-  - {id: front-pinion, type: gearbox-component, assembly: front-drive-unit, name: "Front pinion gear"}
+  - {id: front-reduction-gear, type: gear, assembly: front-drive-unit, name: "Front final-drive gear"}
+  - {id: front-pinion, type: gear, assembly: front-drive-unit, name: "Front input pinion"}
   - {id: front-differential, type: gearbox-component, assembly: front-drive-unit, name: "Front differential"}
   - {id: front-gate-driver, type: inverter-component, assembly: front-drive-unit, name: "Front inverter gate-driver board"}
   - {id: front-inverter-busbars, type: inverter-component, assembly: front-drive-unit, name: "Front inverter busbars"}
@@ -358,6 +358,23 @@ components:
   - {id: front-inverter-lid, type: inverter-component, assembly: front-drive-unit, name: "Front inverter lid"}
   - {id: front-power-module, type: inverter-component, assembly: front-drive-unit, name: "Front inverter power module"}
   - {id: front-dc-link-capacitor, type: inverter-component, assembly: front-drive-unit, name: "Front DC-link capacitor"}
+  # C3a additions (front drive unit)
+  - {id: front-resolver, type: position-sensor, assembly: front-drive-unit, name: "Front motor resolver"}
+  - {id: front-intermediate-shaft, type: gear, assembly: front-drive-unit, name: "Front intermediate shaft and pinion"}
+  - {id: front-intermediate-gear, type: gear, assembly: front-drive-unit, name: "Front intermediate gear"}
+  - {id: front-side-gear-l, type: gear, assembly: front-drive-unit, name: "Front left differential side gear"}
+  - {id: front-side-gear-r, type: gear, assembly: front-drive-unit, name: "Front right differential side gear"}
+  - {id: front-spider-gears, type: gear, assembly: front-drive-unit, name: "Front differential spider gears"}
+  - {id: front-disconnect, type: axle-disconnect, assembly: front-drive-unit, name: "Front axle disconnect clutch"}
+  - {id: front-oil-pump, type: thermal-component, assembly: front-drive-unit, name: "Front drive-unit oil pump"}
+  - {id: front-oil-cooler, type: thermal-component, assembly: front-drive-unit, name: "Front drive-unit oil cooler"}
+  - {id: front-control-board, type: control-unit, assembly: front-drive-unit, name: "Front motor control board"}
+  - {id: front-current-sensor, type: current-sensor, assembly: front-drive-unit, name: "Front phase current sensor"}
+  - {id: front-phase-busbars, type: inverter-component, assembly: front-drive-unit, name: "Front phase busbars"}
+  - {id: front-hv-connector, type: connector, assembly: front-drive-unit, name: "Front inverter HV connector"}
+  - {id: front-drive-unit-mount-1, type: mount, assembly: front-drive-unit, name: "Front drive-unit mount 1 (motor end)"}
+  - {id: front-drive-unit-mount-2, type: mount, assembly: front-drive-unit, name: "Front drive-unit mount 2 (gearbox)"}
+  - {id: front-drive-unit-mount-3, type: mount, assembly: front-drive-unit, name: "Front drive-unit mount 3 (torque rod)"}
   # rear-drive-unit
   - {id: rear-stator, type: motor-component, assembly: rear-drive-unit, name: "Rear motor stator"}
   - {id: rear-rotor, type: motor-component, assembly: rear-drive-unit, name: "Rear motor rotor"}
@@ -365,8 +382,8 @@ components:
   - {id: rear-rotor-shaft, type: motor-component, assembly: rear-drive-unit, name: "Rear rotor shaft"}
   - {id: rear-motor-bearing-1, type: motor-component, assembly: rear-drive-unit, name: "Rear motor bearing 1"}
   - {id: rear-motor-bearing-2, type: motor-component, assembly: rear-drive-unit, name: "Rear motor bearing 2"}
-  - {id: rear-reduction-gear, type: gearbox-component, assembly: rear-drive-unit, name: "Rear reduction gear"}
-  - {id: rear-pinion, type: gearbox-component, assembly: rear-drive-unit, name: "Rear pinion gear"}
+  - {id: rear-reduction-gear, type: gear, assembly: rear-drive-unit, name: "Rear final-drive gear"}
+  - {id: rear-pinion, type: gear, assembly: rear-drive-unit, name: "Rear input pinion"}
   - {id: rear-differential, type: gearbox-component, assembly: rear-drive-unit, name: "Rear differential"}
   - {id: rear-gate-driver, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter gate-driver board"}
   - {id: rear-inverter-busbars, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter busbars"}
@@ -374,6 +391,23 @@ components:
   - {id: rear-inverter-lid, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter lid"}
   - {id: rear-power-module, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter power module"}
   - {id: rear-dc-link-capacitor, type: inverter-component, assembly: rear-drive-unit, name: "Rear DC-link capacitor"}
+  # C3a additions (rear drive unit)
+  - {id: rear-resolver, type: position-sensor, assembly: rear-drive-unit, name: "Rear motor resolver"}
+  - {id: rear-intermediate-shaft, type: gear, assembly: rear-drive-unit, name: "Rear intermediate shaft and pinion"}
+  - {id: rear-intermediate-gear, type: gear, assembly: rear-drive-unit, name: "Rear intermediate gear"}
+  - {id: rear-side-gear-l, type: gear, assembly: rear-drive-unit, name: "Rear left differential side gear"}
+  - {id: rear-side-gear-r, type: gear, assembly: rear-drive-unit, name: "Rear right differential side gear"}
+  - {id: rear-spider-gears, type: gear, assembly: rear-drive-unit, name: "Rear differential spider gears"}
+  - {id: rear-park-lock, type: park-lock, assembly: rear-drive-unit, name: "Rear park lock"}
+  - {id: rear-oil-pump, type: thermal-component, assembly: rear-drive-unit, name: "Rear drive-unit oil pump"}
+  - {id: rear-oil-cooler, type: thermal-component, assembly: rear-drive-unit, name: "Rear drive-unit oil cooler"}
+  - {id: rear-control-board, type: control-unit, assembly: rear-drive-unit, name: "Rear motor control board"}
+  - {id: rear-current-sensor, type: current-sensor, assembly: rear-drive-unit, name: "Rear phase current sensor"}
+  - {id: rear-phase-busbars, type: inverter-component, assembly: rear-drive-unit, name: "Rear phase busbars"}
+  - {id: rear-hv-connector, type: connector, assembly: rear-drive-unit, name: "Rear inverter HV connector"}
+  - {id: rear-drive-unit-mount-1, type: mount, assembly: rear-drive-unit, name: "Rear drive-unit mount 1 (motor end)"}
+  - {id: rear-drive-unit-mount-2, type: mount, assembly: rear-drive-unit, name: "Rear drive-unit mount 2 (gearbox)"}
+  - {id: rear-drive-unit-mount-3, type: mount, assembly: rear-drive-unit, name: "Rear drive-unit mount 3 (torque rod)"}
   # thermal
   - {id: radiator, type: thermal-component, assembly: thermal, name: "Front heat exchanger"}
   - {id: cooling-fan-l, type: thermal-component, assembly: thermal, name: "Left cooling fan"}

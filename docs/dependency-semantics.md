@@ -156,6 +156,44 @@ The 12 V case (3) keeps the defensible part of the old 14-step chain, now worded
 
 ---
 
+## Drive units in detail: expected outcomes (C3a, 30 October 2026)
+
+Written before the C3a data was loaded. The drive units gain the parts a real unit has between the battery
+harness and the wheels, and each joins the function chains where it physically sits:
+
+- **DC side:** harness → **HV connector** → DC busbars → DC-link capacitor → power module.
+- **Control:** VCU torque request → **motor-control board**, which also needs the **resolver** (rotor angle)
+  and the **current sensor** (phase currents) → gate driver → power module. The VCU no longer talks to the
+  gate driver directly.
+- **AC side:** power module → **phase busbars** → stator.
+- **Torque:** rotor shaft → input pinion → **intermediate gear** → (front: **disconnect clutch** →)
+  **intermediate shaft** → final-drive gear → differential → **spider gears** → **side gear** (one per side) →
+  drive shaft → hub.
+- **Oil:** the electric **oil pump** (12 V) feeds the **oil cooler**, which passes the heat to the coolant
+  lines. Losing oil flow *degrades* the gear train (splash lubrication only); losing oil cooling *degrades*
+  the stator (torque limited). New dependency kind `lubrication` (operational family).
+- **Front disconnect** needs 12 V and the VCU's command: a spring opens it without them. **Rear park lock**
+  needs the VCU's park command; it carries no drive torque, so its failure takes no drive function.
+
+| # | Failure | Lost | Degraded | Must not |
+|---|---|---|---|---|
+| 4 (revised) | **Coolant pump** | as before, **plus both oil coolers: oil cooling** (their heat goes into the same coolant) | as before, plus both stators: magnetic field | any tyre: drive torque lost; any module lost |
+| 11 | **Front resolver** | front control board: motor control → gate driver → power module → … → front tyres: drive torque | | any rear part |
+| 12 | **Rear oil pump** | rear oil cooler: oil cooling | rear stator, rear gear train, rear drive shafts, hubs, wheels, tyres: drive torque (limited) | any tyre: drive torque lost |
+| 13 | **Front disconnect clutch** | front intermediate shaft, final-drive gear, differential, front drive shafts → front tyres: drive torque | | the front motor's own functions (stator, rotor); any rear part |
+| 14 | **Rear left side gear** | rear-left drive shaft, hub, wheel, tyre: drive torque | | the rear-right wheel (see the caveat below) |
+| 15 | **Rear park lock** | nothing | nothing | any drive torque |
+| 16 | **Front HV connector** | front DC busbars, capacitor, power module, … → front tyres: drive torque | | any rear part |
+
+**Caveat for review (14, and the existing drive-shaft cases):** with an *open* differential, a broken side gear
+or drive shaft leaves the other wheel of that axle with almost no torque too, because an open differential
+passes equal torque to both sides and the broken side resists nothing. The model keeps the approved C1
+per-side rule; correcting it would mean "a broken drive shaft loses drive at both wheels of its axle".
+Proposed for decision, not implemented.
+
+New assumptions, added to the table below: the resolver has no sensorless fallback (a failed resolver stops
+that axle's motor); the oil pump is electric (12 V), not driven by the gears.
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
@@ -177,3 +215,6 @@ The assumptions that most shape the answers, for review:
 | Automated driving requires stability control, booster, power steering, rack, VCU and gateway | Any of these loses automated driving | A deliberately conservative safety rule |
 | One wheel-speed sensor missing switches off anti-lock braking, stability and traction control | Sensor failure loses those functions, not braking | Typical behaviour (warning light) |
 | Single failures only; degradation has no magnitude | Answers do not combine failures or say "how much" | Scope of this model |
+| A resolver failure stops its motor (no sensorless fallback) | Resolver or current-sensor failure loses that axle's drive | Many production inverters do the same; some can continue sensorless at reduced performance |
+| Drive-unit oil pumps are electric (12 V) | Oil-pump failure degrades that axle's torque (splash lubrication and hotter windings) | Common in recent units; some use a gear-driven pump instead |
+| Drive torque is lost per side downstream of the differential | A side-gear or drive-shaft failure loses only that wheel's drive | Simplification: with an open differential the other wheel loses most of its torque too (see the C3a caveat) |

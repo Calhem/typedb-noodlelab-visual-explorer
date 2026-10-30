@@ -25,9 +25,13 @@ describe.runIf(process.env.TYPEDB_INTEGRATION === "1")("the web app against Type
 
   it("TypeDB's visual references are the nodes the app loads from each model file", async () => {
     const { data } = await get<{ id: string; asset: string; node: string }[]>("components");
-    const fromTypeDB = Object.fromEntries(data.filter((c) => c.asset !== "procedural").map((c) => [c.node, c.id]));
-    const map = JSON.parse(readFileSync(join(root, "web/public/assets/corner-fr.map.json"), "utf8"));
-    expect(fromTypeDB).toEqual(map.nodes);
+    const assets = ["corner-fr", "front-drive-unit", "rear-drive-unit"];
+    expect([...new Set(data.map((c) => c.asset))].sort()).toEqual([...assets, "procedural"].sort());
+    for (const asset of assets) {
+      const fromTypeDB = Object.fromEntries(data.filter((c) => c.asset === asset).map((c) => [c.node, c.id]));
+      const map = JSON.parse(readFileSync(join(root, `web/public/assets/${asset}.map.json`), "utf8"));
+      expect(fromTypeDB, asset).toEqual(map.nodes);
+    }
   });
 
   it("component details and assembly paths are answered by TypeQL", async () => {

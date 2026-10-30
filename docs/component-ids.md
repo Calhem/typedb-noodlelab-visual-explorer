@@ -30,3 +30,26 @@ All other milestone-2.2 additions are new parts with new ids (see `manifest.ts`)
 |---|---|---|
 | `brake-pedal` | brake-control | The driver's brake demand, and the mechanical fallback when the booster fails |
 | `master-cylinder` | brake-control | Between the pedal/booster and the ESC hydraulic unit; the fallback path when the ESC module fails |
+
+## Added for C3a (drive units, 30 October 2026)
+
+All 40 existing drive-unit ids are kept with their meaning. Two are refined, not renamed: `{key}-pinion` is
+now the *input* pinion (first stage) and `{key}-reduction-gear` the *final-drive* gear (second stage); both
+became TypeDB type `gear`. `{key}-gearbox` draws the main half of the split case, `{key}-motor` the motor
+housing. 32 new ids (16 per unit):
+
+| Id | Type | Why |
+|---|---|---|
+| `{key}-resolver` | position-sensor | Rotor angle for motor control |
+| `{key}-current-sensor` | current-sensor | Phase-current feedback for motor control |
+| `{key}-control-board` | control-unit | Motor control, between the VCU and the gate driver (controller of the current-control loop) |
+| `{key}-phase-busbars` | inverter-component | Power module to stator windings |
+| `{key}-hv-connector` | connector | Where the HV harness enters the inverter |
+| `{key}-intermediate-shaft` | gear | Second shaft of the two-stage reduction, with its integral pinion |
+| `{key}-intermediate-gear` | gear | First-stage driven gear |
+| `{key}-side-gear-l`, `{key}-side-gear-r` | gear | Differential side gears: each drives one drive shaft |
+| `{key}-spider-gears` | gear | Differential pinions on their cross pin |
+| `{key}-oil-pump`, `{key}-oil-cooler` | thermal-component | Lubrication and oil cooling (also in the new system `drive-unit-cooling`) |
+| `{key}-drive-unit-mount-1` … `-3` | mount | Motor-end mount, gearbox mount, torque rod |
+| `front-disconnect` | axle-disconnect | Front dog clutch, so the front motor can stop |
+| `rear-park-lock` | park-lock | Park pawl on the rear intermediate shaft |

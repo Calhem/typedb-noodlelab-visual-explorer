@@ -18,6 +18,7 @@ import { useSyncExternalStore } from "react";
 const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
 
 export const settings = {
+  /** the Blender-modelled parts (corner and drive units); ?corner=procedural shows the simple shapes instead */
   blenderCorner: params.get("corner") !== "procedural",
   effects: params.get("fx") !== "off",
   /** forced ambient-occlusion resolution, or null for automatic */

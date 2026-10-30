@@ -37,6 +37,7 @@ CORNERS = {"fl": ("front", "l"), "fr": ("front", "r"), "rl": ("rear", "l"), "rr"
 # Dependency kind -> family (the relation subtype in the schema).
 FAMILIES = {"support": "physical-dependency", "torque": "physical-dependency",
             "power": "operational-dependency", "cooling": "operational-dependency", "hydraulic": "operational-dependency",
+            "lubrication": "operational-dependency",
             "control": "control-dependency", "data": "control-dependency"}
 CONNECTION_TYPES = {"mechanical": ("mechanical-connection", "joint-type", "joint"),
                     "power": ("power-connection", "voltage-class", "voltage"),

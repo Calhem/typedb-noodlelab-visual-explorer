@@ -1,4 +1,5 @@
-// Loads the Blender-modelled parts (built by scripts/build-assets.sh into web/public/assets).
+// Loads the Blender-modelled parts (built by scripts/build-assets.sh into web/public/assets): the front-right
+// wheel corner and both drive units.
 //
 // Each model comes as three files:
 //   <asset>.glb        full detail, Meshopt-compressed
@@ -26,7 +27,7 @@ interface VisualMap {
   nodes: Record<string, string>; // visual key -> component id
 }
 
-const ASSETS = settings.blenderCorner ? ["corner-fr"] : [];
+const ASSETS = settings.blenderCorner ? ["corner-fr", "front-drive-unit", "rear-drive-unit"] : [];
 
 /** A level of detail switches when the part's distance exceeds this many times its radius. */
 const LOD_SWITCH = { high: 60, medium: 35, low: 15 } as const;

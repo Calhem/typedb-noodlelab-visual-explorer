@@ -34,6 +34,7 @@ attribute peak-power-kw, value double;
 attribute rated-power-kw, value double;
 attribute peak-torque-nm, value double;
 attribute gear-ratio, value double;
+attribute tooth-count, value integer;
 attribute nominal-voltage-v, value double;
 attribute energy-capacity-kwh, value double;
 attribute sensing-range-m, value double;
@@ -43,8 +44,8 @@ attribute sensing-range-m, value double;
 attribute joint-type, value string @values("bolted", "splined", "press-fit", "bearing", "ball-joint", "bushed", "welded", "bonded", "clipped", "threaded", "seated", "meshed", "hinged");
 attribute voltage-class, value string @values("high-voltage", "low-voltage");
 attribute network, value string @values("CAN FD", "automotive Ethernet", "hard-wired signal");
-attribute fluid, value string @values("brake fluid", "coolant", "refrigerant");
-attribute dependency-kind, value string @values("power", "torque", "control", "data", "hydraulic", "cooling", "support");
+attribute fluid, value string @values("brake fluid", "coolant", "refrigerant", "oil");
+attribute dependency-kind, value string @values("power", "torque", "control", "data", "hydraulic", "cooling", "lubrication", "support");
 attribute loss-effect, value string @values("lost", "degraded");
 attribute degradation-effect, value string @values("lost", "degraded");
 attribute function-name, value string;
@@ -86,6 +87,10 @@ entity electric-motor sub powertrain-component, owns peak-power-kw, owns peak-to
 entity motor-component sub powertrain-component;
 entity gearbox sub powertrain-component, owns gear-ratio;
 entity gearbox-component sub powertrain-component;
+entity gear sub gearbox-component, owns tooth-count;      # gears and shafts with integral gear teeth
+entity park-lock sub gearbox-component, plays control-loop:actuator;
+entity axle-disconnect sub gearbox-component, plays control-loop:actuator;
+entity mount sub powertrain-component;                    # rubber mounts carrying a drive unit on its subframe
 entity drive-shaft sub powertrain-component;
 entity inverter sub powertrain-component, owns peak-power-kw, owns nominal-voltage-v;
 entity inverter-component sub powertrain-component;
@@ -96,6 +101,7 @@ entity battery-component sub electrical-component;
 entity low-voltage-battery sub electrical-component, owns energy-capacity-kwh, owns nominal-voltage-v;
 entity power-electronics sub electrical-component, owns rated-power-kw, owns nominal-voltage-v;
 entity wiring-harness sub electrical-component;
+entity connector sub electrical-component;
 
 entity sensor @abstract, sub component, owns sensing-range-m, plays control-loop:sensor;
 entity camera sub sensor;
@@ -103,6 +109,8 @@ entity radar sub sensor;
 entity lidar sub sensor;
 entity gnss-receiver sub sensor;
 entity wheel-speed-sensor sub sensor;
+entity position-sensor sub sensor;                      # motor resolvers
+entity current-sensor sub sensor;
 
 entity control-unit sub component, plays control-loop:controller;
 entity compute-unit sub control-unit;

@@ -223,6 +223,14 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["spring-paint", m({ color: c("#2c3035"), metalness: 0.4, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.2 })],
     ["damper-paint", m({ color: c("#23262b"), metalness: 0.5, roughness: 0.3, clearcoat: 0.8 })],
     ["polyurethane", m({ color: c("#b88a2f"), metalness: 0, roughness: 0.55, sheen: 0.3, sheenColor: c("#e0b866") })],
+    // drive units: enamelled copper windings and busbars, grey laminations, nickel-plated magnets,
+    // solder-masked boards, the moulded power module, the orange high-voltage connector
+    ["copper", m({ color: c("#b8734a"), metalness: 1, roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.2 })],
+    ["electrical-steel", m({ color: c("#5a5e66"), metalness: 0.9, roughness: 0.42 })],
+    ["magnet", m({ color: c("#a9adb3"), metalness: 1, roughness: 0.22 })],
+    ["pcb", m({ color: c("#1f3b2f"), metalness: 0.1, roughness: 0.4, clearcoat: 0.8, clearcoatRoughness: 0.15 })],
+    ["module-grey", m({ color: c("#8b8e93"), metalness: 0, roughness: 0.6 })],
+    ["hv-orange", m({ color: c("#d46a1f"), metalness: 0.05, roughness: 0.45, clearcoat: 0.3 })],
   ]);
   for (const [name, material] of library) material.name = name; // makes inspection and debugging easier
   return library;

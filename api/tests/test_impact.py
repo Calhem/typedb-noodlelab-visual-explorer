@@ -90,9 +90,11 @@ def test_3_twelve_volt_battery(client):
 
 def test_4_coolant_pump(client):
     lost, degraded, _ = impact(client, "coolant-pump")
+    # revised in C3a: the drive units' oil coolers reject their heat into the same coolant
     assert lost == {("coolant-lines", "coolant flow"), ("battery-coolant-manifold", "coolant flow"),
-                    ("battery-cooling-plate", "cell cooling")}
+                    ("battery-cooling-plate", "cell cooling"), ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
     assert {(f"battery-module-{n}", "cell power") for n in range(1, 17)} <= degraded
+    assert {("front-stator", "magnetic field"), ("rear-stator", "magnetic field")} <= degraded
     assert all_corners("tyre", "drive torque") <= degraded
 
 

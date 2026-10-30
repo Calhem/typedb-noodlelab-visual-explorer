@@ -27,3 +27,27 @@ control-loops:
     sensors: [front-camera, rear-camera, side-camera-*, front-radar, corner-radar-*, lidar, gnss-antenna, wheel-speed-sensor-*]
     actuators: [eps-motor, brake-booster, front-motor, rear-motor]
     system: automated-driving
+  - name: "Front motor current control"
+    description: "The motor-control board reads the rotor angle and the three phase currents and sets the power module's switching so the motor produces the torque the VCU requests."
+    controller: front-control-board
+    sensors: [front-resolver, front-current-sensor]
+    actuators: [front-motor]
+    system: front-axle-drive
+  - name: "Rear motor current control"
+    description: "The motor-control board reads the rotor angle and the three phase currents and sets the power module's switching so the motor produces the torque the VCU requests."
+    controller: rear-control-board
+    sensors: [rear-resolver, rear-current-sensor]
+    actuators: [rear-motor]
+    system: rear-axle-drive
+  - name: "Front axle disconnect"
+    description: "The VCU engages the front axle's dog clutch when all-wheel drive is needed (traction, hard acceleration) and opens it to stop the front motor's drag."
+    controller: vcu
+    sensors: [wheel-speed-sensor-*]
+    actuators: [front-disconnect]
+    system: front-axle-drive
+  - name: "Park lock"
+    description: "The VCU engages the rear park lock in Park and releases it when a gear is selected."
+    controller: vcu
+    sensors: []
+    actuators: [rear-park-lock]
+    system: rear-axle-drive

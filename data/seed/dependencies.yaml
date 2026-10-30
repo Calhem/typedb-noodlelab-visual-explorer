@@ -2,7 +2,7 @@
 #
 #   dependent / function   the component and the function of it that relies on...
 #   provider / needs       ...this component's function
-#   kind                   support, torque (physical); power, cooling, hydraulic (operational); control, data (control)
+#   kind                   support, torque (physical); power, cooling, lubrication, hydraulic (operational); control, data (control)
 #   loss                   what happens to `function` if `needs` is LOST: lost | degraded
 #   degradation            (optional) what happens if `needs` is only DEGRADED: lost | degraded; absent = nothing
 #   fallback               (optional) {backup, description}: if `needs` is lost but the backup works, the
@@ -27,7 +27,11 @@ dependencies:
   - {dependent: coolant-pump, function: coolant flow, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
   - {dependent: "cooling-fan-<s>", function: airflow, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
   - {dependent: "<a>-gate-driver", function: switching control, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost,
-     description: "The gate-driver and control board runs on 12 V"}
+     description: "The gate-driver board's isolated supplies are fed from 12 V"}
+  - {dependent: "<a>-control-board", function: motor control, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
+  - {dependent: "<a>-current-sensor", function: current measurement, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
+  - {dependent: "<a>-oil-pump", function: oil flow, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
+  - {dependent: vcu, function: park control, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
 
   # ---- High-voltage path: modules > busbars > junction box > PDU > harness > inverter -------------------------
   # Loss of any module opens the series string; reduced module power (degradation) reduces pack power.
@@ -40,29 +44,57 @@ dependencies:
      description: "The BMS holds the main contactors closed; without it they open (a deliberate fail-safe)"}
   - {dependent: pdu, function: HV distribution, provider: hv-junction-box, needs: HV supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "hv-harness-<a>", function: HV distribution, provider: pdu, needs: HV distribution, kind: power, loss: lost, degradation: degraded}
-  - {dependent: "<a>-inverter-busbars", function: DC supply, provider: "hv-harness-<a>", needs: HV distribution, kind: power, loss: lost, degradation: degraded}
+  - {dependent: "<a>-hv-connector", function: DC supply, provider: "hv-harness-<a>", needs: HV distribution, kind: power, loss: lost, degradation: degraded}
+  - {dependent: "<a>-inverter-busbars", function: DC supply, provider: "<a>-hv-connector", needs: DC supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "<a>-dc-link-capacitor", function: DC supply, provider: "<a>-inverter-busbars", needs: DC supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "<a>-power-module", function: phase current, provider: "<a>-dc-link-capacitor", needs: DC supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "<a>-power-module", function: phase current, provider: "<a>-gate-driver", needs: switching control, kind: control, loss: lost}
   - {dependent: "<a>-power-module", function: phase current, provider: coolant-lines, needs: coolant flow, kind: cooling, loss: degraded,
      description: "Without coolant the inverter limits its current"}
-  - {dependent: "<a>-gate-driver", function: switching control, provider: vcu, needs: torque control, kind: control, loss: lost,
+  - {dependent: "<a>-gate-driver", function: switching control, provider: "<a>-control-board", needs: motor control, kind: control, loss: lost,
+     description: "Switching commands from the motor-control board"}
+  - {dependent: "<a>-control-board", function: motor control, provider: vcu, needs: torque control, kind: control, loss: lost,
      description: "Torque requests"}
+  - {dependent: "<a>-control-board", function: motor control, provider: "<a>-resolver", needs: rotor position, kind: data, loss: lost,
+     description: "Field-oriented control needs the rotor angle; this concept has no sensorless fallback"}
+  - {dependent: "<a>-control-board", function: motor control, provider: "<a>-current-sensor", needs: current measurement, kind: data, loss: lost,
+     description: "The current loop cannot run without phase-current feedback"}
   - {dependent: dc-dc, function: 12 V charging, provider: pdu, needs: HV distribution, kind: power, loss: lost, degradation: degraded}
   - {dependent: obc, function: AC charging, provider: pdu, needs: HV distribution, kind: power, loss: lost}
   - {dependent: heat-pump-compressor, function: refrigerant compression, provider: pdu, needs: HV distribution, kind: power, loss: lost}
 
   # ---- Drive torque, each axle: power module > stator > rotor > shaft > gears > drive shafts > hubs > wheels > tyres
-  - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-power-module", needs: phase current, kind: power, loss: lost, degradation: degraded}
+  - {dependent: "<a>-phase-busbars", function: phase current, provider: "<a>-power-module", needs: phase current, kind: power, loss: lost, degradation: degraded}
+  - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-phase-busbars", needs: phase current, kind: power, loss: lost, degradation: degraded}
+  - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-oil-cooler", needs: oil cooling, kind: cooling, loss: degraded,
+     description: "Without oil cooling the end windings overheat: the motor limits its torque"}
+  - {dependent: "<a>-oil-cooler", function: oil cooling, provider: "<a>-oil-pump", needs: oil flow, kind: lubrication, loss: lost}
+  - {dependent: "<a>-oil-cooler", function: oil cooling, provider: coolant-lines, needs: coolant flow, kind: cooling, loss: lost, degradation: degraded,
+     description: "The oil gives its heat to the vehicle's coolant circuit"}
   - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-motor", needs: housing support, kind: support, loss: lost}
   - {dependent: "<a>-rotor", function: drive torque, provider: "<a>-stator", needs: magnetic field, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-rotor-shaft", function: drive torque, provider: "<a>-rotor", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-rotor-shaft", function: drive torque, provider: "<a>-motor-bearing-<n>", needs: shaft support, kind: support, loss: lost,
      each: {n: [1, 2]}}
   - {dependent: "<a>-pinion", function: drive torque, provider: "<a>-rotor-shaft", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
-  - {dependent: "<a>-reduction-gear", function: drive torque, provider: "<a>-pinion", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: "<a>-intermediate-gear", function: drive torque, provider: "<a>-pinion", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: rear-intermediate-shaft, function: drive torque, provider: rear-intermediate-gear, needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: front-disconnect, function: drive torque, provider: front-intermediate-gear, needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: front-intermediate-shaft, function: drive torque, provider: front-disconnect, needs: drive torque, kind: torque, loss: lost, degradation: degraded,
+     description: "The dog clutch couples the intermediate gear to its shaft"}
+  - {dependent: front-disconnect, function: drive torque, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost,
+     description: "A spring opens the clutch when its solenoid has no power"}
+  - {dependent: front-disconnect, function: drive torque, provider: vcu, needs: torque control, kind: control, loss: lost,
+     description: "Engaged only on the VCU's command"}
+  - {dependent: rear-park-lock, function: parking hold, provider: vcu, needs: park control, kind: control, loss: lost,
+     description: "Engaging or releasing the park lock needs the VCU's command"}
+  - {dependent: "<a>-intermediate-shaft", function: drive torque, provider: "<a>-oil-pump", needs: oil flow, kind: lubrication, loss: degraded,
+     description: "Without pumped oil the gears run on splash lubrication only: torque is limited"}
+  - {dependent: "<a>-reduction-gear", function: drive torque, provider: "<a>-intermediate-shaft", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-differential", function: drive torque, provider: "<a>-reduction-gear", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
-  - {dependent: "<a>-halfshaft-<s>", function: drive torque, provider: "<a>-differential", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: "<a>-spider-gears", function: drive torque, provider: "<a>-differential", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: "<a>-side-gear-<s>", function: drive torque, provider: "<a>-spider-gears", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  - {dependent: "<a>-halfshaft-<s>", function: drive torque, provider: "<a>-side-gear-<s>", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: hub-<c>, function: drive torque, provider: "<a>-halfshaft-<s>", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: wheel-<c>, function: drive torque, provider: hub-<c>, needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: tyre-<c>, function: drive torque, provider: wheel-<c>, needs: drive torque, kind: torque, loss: lost, degradation: degraded}

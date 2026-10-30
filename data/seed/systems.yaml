@@ -10,17 +10,21 @@ systems:
   - id: front-axle-drive
     parent: propulsion
     name: "Front axle drive"
-    description: "Front motor, inverter, gearbox and drive shafts."
+    description: "Front motor, inverter, two-stage gearbox with differential, drive shafts, and the disconnect clutch that lets the front motor stop when its drive is not needed."
     members: [front-motor, front-stator, front-rotor, front-rotor-shaft, front-motor-*, front-gearbox, front-gearbox-cover,
               front-reduction-gear, front-pinion, front-differential, front-inverter, front-inverter-*, front-gate-driver,
-              front-power-module, front-dc-link-capacitor, front-halfshaft-*]
+              front-power-module, front-dc-link-capacitor, front-halfshaft-*, front-resolver, front-intermediate-*, front-side-gear-*,
+              front-spider-gears, front-disconnect, front-oil-pump, front-oil-cooler, front-control-board, front-current-sensor, front-phase-busbars,
+              front-hv-connector, front-drive-unit-mount-*]
   - id: rear-axle-drive
     parent: propulsion
     name: "Rear axle drive"
-    description: "Rear motor, inverter, gearbox and drive shafts: the main drive."
+    description: "Rear motor, inverter, two-stage gearbox with differential and park lock, and drive shafts: the main drive."
     members: [rear-motor, rear-stator, rear-rotor, rear-rotor-shaft, rear-motor-*, rear-gearbox, rear-gearbox-cover,
               rear-reduction-gear, rear-pinion, rear-differential, rear-inverter, rear-inverter-*, rear-gate-driver,
-              rear-power-module, rear-dc-link-capacitor, rear-halfshaft-*]
+              rear-power-module, rear-dc-link-capacitor, rear-halfshaft-*, rear-resolver, rear-intermediate-*, rear-side-gear-*,
+              rear-spider-gears, rear-park-lock, rear-oil-pump, rear-oil-cooler, rear-control-board, rear-current-sensor, rear-phase-busbars,
+              rear-hv-connector, rear-drive-unit-mount-*]
   - id: traction-control
     parent: propulsion
     name: "Traction control"
@@ -123,6 +127,11 @@ systems:
     name: "Front-end cooling"
     description: "Radiator and fans rejecting heat to the outside air."
     members: [radiator, cooling-fan-*]
+  - id: drive-unit-cooling
+    parent: thermal-management
+    name: "Drive-unit oil cooling"
+    description: "In each drive unit an electric pump circulates oil over the gears and motor windings, and an oil cooler passes the heat to the coolant circuit."
+    members: [front-oil-pump, front-oil-cooler, rear-oil-pump, rear-oil-cooler]
   - id: cabin-climate
     parent: thermal-management
     name: "Cabin climate"

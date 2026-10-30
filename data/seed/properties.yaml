@@ -78,23 +78,66 @@ properties:
 
   # ---- Drive units ----------------------------------------------------------------------------------------
   - match: front-motor
-    description: "Front traction motor: permanent-magnet synchronous machine in a cast housing; drives the front wheels."
+    description: "Front traction motor: 8-pole interior permanent-magnet synchronous machine with a hairpin stator, in a water-jacketed cast housing; drives the front wheels."
     peak-power-kw: 180
     peak-torque-nm: 340
     nominal-voltage-v: 800
   - match: rear-motor
-    description: "Rear traction motor: permanent-magnet synchronous machine; the main drive motor."
+    description: "Rear traction motor: 8-pole interior permanent-magnet synchronous machine with a hairpin stator and a longer core than the front; the main drive motor."
     peak-power-kw: 300
     peak-torque-nm: 520
     nominal-voltage-v: 800
   - match: [front-stator, rear-stator]
-    description: "Stator: laminated steel core with hairpin copper windings; the inverter's currents in it create the rotating magnetic field."
+    description: "Stator: 48-slot laminated steel core with hairpin copper windings (bent crowns at one end, laser-welded pin pairs at the other); the inverter's currents in it create the rotating magnetic field."
     material-name: "electrical steel, copper"
   - match: [front-rotor, rear-rotor]
-    description: "Rotor with embedded permanent magnets, turned by the stator's rotating field."
+    description: "Rotor: laminated core with V-shaped pockets holding the permanent magnets, turned by the stator's rotating field."
   - match: [front-gearbox, rear-gearbox]
-    description: "Single-speed reduction gearbox with an integrated open differential."
-    gear-ratio: 9.05
+    description: "Main half of the split gearbox case: single-speed, two-stage helical reduction with an integrated open differential. Carries the motor."
+    gear-ratio: 9.06
+    material-name: "cast aluminium"
+  - match: [front-gearbox-cover, rear-gearbox-cover]
+    description: "Cover half of the split gearbox case: carries the outer bearings of all three shafts."
+    material-name: "cast aluminium"
+  - match: [front-pinion, rear-pinion]
+    description: "Input pinion on the motor shaft: first stage of the reduction (21 to 61 teeth, 2.90:1)."
+    tooth-count: 21
+  - match: [front-intermediate-gear, rear-intermediate-gear]
+    description: "Large first-stage gear on the intermediate shaft."
+    tooth-count: 61
+  - match: [front-intermediate-shaft, rear-intermediate-shaft]
+    description: "Intermediate shaft with its integral second-stage pinion (17 to 53 teeth, 3.12:1)."
+    tooth-count: 17
+  - match: [front-reduction-gear, rear-reduction-gear]
+    description: "Final-drive gear bolted to the differential case: the last of the reduction's two stages."
+    tooth-count: 53
+  - match: [front-side-gear-*, rear-side-gear-*]
+    description: "Differential side gear: a bevel gear splined to one drive shaft."
+    tooth-count: 16
+  - match: [front-spider-gears, rear-spider-gears]
+    description: "Two bevel pinions on a cross pin in the differential case: they let the side gears turn at different speeds."
+    tooth-count: 10
+  - match: [front-resolver, rear-resolver]
+    description: "Variable-reluctance resolver: measures the rotor's angle, which the motor control needs to time the phase currents."
+  - match: [front-current-sensor, rear-current-sensor]
+    description: "Three-phase current sensor: magnetic cores with Hall elements around the phase busbars."
+  - match: [front-control-board, rear-control-board]
+    description: "Motor-control board: turns the VCU's torque request into switching commands, using the rotor angle and phase currents."
+  - match: [front-phase-busbars, rear-phase-busbars]
+    description: "Three copper busbars carrying the phase currents from the power module to the stator windings."
+    material-name: "copper"
+  - match: [front-hv-connector, rear-hv-connector]
+    description: "Sealed high-voltage connector where the harness from the power-distribution unit plugs into the inverter."
+  - match: [front-oil-pump, rear-oil-pump]
+    description: "Electric oil pump: lubricates the gears and bearings and sprays the motor's end windings."
+  - match: [front-oil-cooler, rear-oil-cooler]
+    description: "Plate heat exchanger: passes heat from the drive unit's oil to the vehicle's coolant."
+  - match: [front-drive-unit-mount-*, rear-drive-unit-mount-*]
+    description: "Rubber mount carrying the drive unit on its subframe and isolating its vibration."
+  - match: front-disconnect
+    description: "Dog clutch on the intermediate shaft with a solenoid actuator: lets the front motor stop when only the rear drives, saving its drag losses."
+  - match: rear-park-lock
+    description: "Park lock: an electrically actuated pawl that engages a parking gear on the intermediate shaft."
   - match: [front-differential, rear-differential]
     description: "Open differential: splits torque between the left and right drive shafts and lets them turn at different speeds in corners."
   - match: [front-inverter, rear-inverter]
@@ -105,13 +148,13 @@ properties:
   - match: rear-inverter
     peak-power-kw: 330
   - match: [front-power-module, rear-power-module]
-    description: "Silicon-carbide power module: the switches that build the motor's three-phase current."
+    description: "Silicon-carbide MOSFET six-pack module (three half-bridges) on a pin-fin cold plate: the switches that build the motor's three-phase current."
   - match: [front-gate-driver, rear-gate-driver]
-    description: "Gate-driver and control board: switches the power module according to the torque requested by the vehicle control unit."
+    description: "Gate-driver board: isolated drivers that switch each of the power module's six transistors on the motor-control board's command."
   - match: [front-dc-link-capacitor, rear-dc-link-capacitor]
-    description: "DC-link capacitor: smooths the high-voltage supply at the inverter input."
+    description: "Film DC-link capacitor: smooths the high-voltage supply at the inverter input."
   - match: [front-halfshaft-*, rear-halfshaft-*]
-    description: "Drive shaft with constant-velocity joints at each end, carrying torque from the differential to the wheel hub."
+    description: "Drive shaft: a tripod plunging joint at the gearbox end and a fixed ball joint at the wheel, carrying torque from the differential to the wheel hub. The left one passes under the motor."
 
   # ---- High-voltage battery and power distribution --------------------------------------------------------
   - match: battery-module-*

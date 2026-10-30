@@ -189,19 +189,34 @@ const brakeControl: Part[] = [
     shape: { kind: "box", size: [0.03, 0.09, 0.07], radius: 0.01 }, position: [0.86, 0.42, DRIVER_Z], rotation: [0, 0, 0.35] },
 ];
 
-const driveUnit = (key: "front" | "rear", x: number): Part[] => {
-  const d = key === "front" ? 1 : -1;
+// Drive units: three parallel shafts along z (docs/engineering-references.md). The motor's axis is above the
+// wheel axis on the left, the two-stage gear train in a split case on the right, the inverter on top.
+// The Blender models (blender/drive_unit.py) use the same layout; these simple shapes are the fallback.
+type DriveKey = "front" | "rear";
+const DRIVE = {
+  front: { motor: [-0.03, 0.593], inter: [0.0186, 0.5167], housingR: 0.13, statorR: 0.112, rotorR: 0.068, stack: [-0.215, -0.045], housing: [-0.27, 0.03] },
+  rear: { motor: [-0.1, 0.567], inter: [-0.087, 0.4775], housingR: 0.145, statorR: 0.125, rotorR: 0.078, stack: [-0.25, -0.04], housing: [-0.285, 0.03] },
+} as const;
+/** Positions within a drive unit: axle x plus an offset; "motor" / "inter" / "wheel" shafts. */
+const duAt = (key: DriveKey, x: number, shaft: "motor" | "inter" | "wheel", z: number, dy = 0): Vec3 => {
+  const [ox, y] = shaft === "wheel" ? [0, AXLE_Y] : DRIVE[key][shaft];
+  return [x + ox, y + dy, z];
+};
+
+const driveUnit = (key: DriveKey, x: number): Part[] => {
+  const u = DRIVE[key];
+  const [h0, h1] = u.housing;
+  const top = u.motor[1] + u.housingR + 0.01;
   return [
     { id: `${key}-motor`, material: "cast",
-      shape: { kind: "cylinder", radius: key === "front" ? 0.13 : 0.145, length: 0.3, axis: "z", segments: 48 },
-      position: [x - d * 0.04, 0.42, -0.13] },
+      shape: { kind: "ring", radius: u.housingR, inner: u.statorR, length: h1 - h0, axis: "z" }, position: duAt(key, x, "motor", (h0 + h1) / 2) },
     { id: `${key}-gearbox`, material: "aluminium",
-      shape: { kind: "box", size: [0.32, 0.3, 0.18], radius: 0.05 }, position: [x, 0.4, 0.12] },
+      shape: { kind: "box", size: [0.3, 0.34, 0.095], radius: 0.04 }, position: [x - 0.02, 0.47, 0.0775] },
     { id: `${key}-inverter`, material: "electronics",
-      shape: { kind: "finned-box", size: [0.34, 0.1, 0.42], fins: 9 }, position: [x - d * 0.02, 0.62, -0.05] },
+      shape: { kind: "box", size: [0.3, 0.075, 0.4], radius: 0.01 }, position: [x + u.motor[0], top + 0.0375, -0.06] },
     ...SIDES.map((s): Part => ({
       id: `${key}-halfshaft-${s.key}`, material: "steel",
-      shape: { kind: "cylinder", radius: 0.022, length: 0.44, axis: "z" }, position: [x, AXLE_Y, s.z * 0.45],
+      shape: { kind: "cylinder", radius: 0.022, length: 0.6, axis: "z" }, position: [x, AXLE_Y, s.z * 0.44],
     })),
   ];
 };
@@ -248,10 +263,10 @@ const power: Part[] = [
   { id: "obc", material: "electronics",
     shape: { kind: "finned-box", size: [0.3, 0.1, 0.26], fins: 8 }, position: [-1.9, 0.6, -0.33] },
   { id: "hv-harness-front", material: "hv-orange",
-    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [0.2, 0.08, -0.05], [0.38, 0.28, -0.12], [0.46, 0.3, -0.2]] },
+    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [0.18, 0.04, -0.2], [0.3, 0.3, -0.33], [0.38, 0.453, -0.35]] }, // ends at the front inverter's HV connector
     position: [0.98, 0.32, 0.18] },
   { id: "hv-harness-rear", material: "hv-orange",
-    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [-0.2, 0.08, -0.05], [-0.38, 0.28, -0.12], [-0.46, 0.3, -0.2]] },
+    shape: { kind: "tube", radius: 0.014, points: [[0, 0, 0], [-0.3, 0, -0.15], [-0.34, 0.25, -0.3], [-0.34, 0.442, -0.35]] }, // ends at the rear inverter's HV connector
     position: [-1.02, 0.32, 0.18] },
   { id: "lv-harness", material: "satin-black",
     ...absTube([[1.95, 0.6, -0.3], [1.3, 0.75, -0.6], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.2, 0.44, -0.66], [-1.9, 0.62, -0.5]], 0.012) },
@@ -428,41 +443,76 @@ const upperArms: Part[] = [
     position: [REAR_AXLE_X + 0.2, 0.3, 0] },
 ];
 
-const driveUnitDetail = (key: "front" | "rear", x: number): Part[] => {
+const driveUnitDetail = (key: DriveKey, x: number): Part[] => {
+  const u = DRIVE[key];
+  const [s0, s1] = u.stack;
+  const [h0] = u.housing;
+  const top = u.motor[1] + u.housingR + 0.01;
+  const mx = x + u.motor[0];
   const d = key === "front" ? 1 : -1;
-  const r = key === "front" ? 0.13 : 0.145;
-  const mx = x - d * 0.04;
   return [
     { id: `${key}-stator`, material: "copper",
-      shape: { kind: "ring", radius: r - 0.016, inner: 0.074, length: 0.2, axis: "z" }, position: [mx, 0.42, -0.13] },
+      shape: { kind: "ring", radius: u.statorR, inner: u.rotorR + 0.001, length: s1 - s0 + 0.05, axis: "z" }, position: duAt(key, x, "motor", (s0 + s1) / 2) },
     { id: `${key}-rotor`, material: "steel",
-      shape: { kind: "cylinder", radius: 0.068, length: 0.34, axis: "z", segments: 40 }, position: [mx, 0.42, -0.13] },
+      shape: { kind: "cylinder", radius: u.rotorR, length: s1 - s0, axis: "z", segments: 40 }, position: duAt(key, x, "motor", (s0 + s1) / 2) },
     { id: `${key}-motor-end-cover`, material: "cast",
-      shape: { kind: "cylinder", radius: r, length: 0.025, axis: "z", segments: 48 }, position: [mx, 0.42, -0.295] },
+      shape: { kind: "cylinder", radius: u.housingR, length: 0.03, axis: "z", segments: 48 }, position: duAt(key, x, "motor", h0 - 0.015) },
     { id: `${key}-rotor-shaft`, material: "steel",
-      shape: { kind: "cylinder", radius: 0.018, length: 0.5, axis: "z" }, position: [mx, 0.42, -0.13] },
+      shape: { kind: "cylinder", radius: 0.02, length: 0.5, axis: "z" }, position: duAt(key, x, "motor", (h0 - 0.03 + 0.205) / 2) },
     ...[1, 2].map((n): Part => ({
       id: `${key}-motor-bearing-${n}`, material: "steel",
-      shape: { kind: "ring", radius: 0.036, inner: 0.018, length: 0.02, axis: "z" }, position: [mx, 0.42, -0.13 + (n === 1 ? -0.18 : 0.18)],
+      shape: { kind: "ring", radius: n === 1 ? 0.042 : 0.047, inner: n === 1 ? 0.016 : 0.02, length: 0.015, axis: "z" },
+      position: duAt(key, x, "motor", n === 1 ? h0 - 0.026 : 0.05),
     })),
-    { id: `${key}-reduction-gear`, material: "steel",
-      shape: { kind: "gear", radius: 0.1, teeth: 36, thickness: 0.035 }, position: [x - 0.04, 0.38, 0.12] },
+    { id: `${key}-resolver`, material: "electronics",
+      shape: { kind: "ring", radius: 0.045, inner: 0.022, length: 0.012, axis: "z" }, position: duAt(key, x, "motor", h0 - 0.012) },
     { id: `${key}-pinion`, material: "steel",
-      shape: { kind: "gear", radius: 0.045, teeth: 16, thickness: 0.05 }, position: [x + 0.09, 0.42, 0.12] },
+      shape: { kind: "gear", radius: 0.025, teeth: 21, thickness: 0.034 }, position: duAt(key, x, "motor", 0.165) },
+    { id: `${key}-intermediate-gear`, material: "steel",
+      shape: { kind: "gear", radius: 0.069, teeth: 61, thickness: 0.03 }, position: duAt(key, x, "inter", 0.165) },
+    { id: `${key}-intermediate-shaft`, material: "steel",
+      shape: { kind: "cylinder", radius: 0.019, length: 0.16, axis: "z" }, position: duAt(key, x, "inter", 0.125) },
+    { id: `${key}-reduction-gear`, material: "steel",
+      shape: { kind: "gear", radius: 0.089, teeth: 53, thickness: 0.038 }, position: duAt(key, x, "wheel", 0.085) },
     { id: `${key}-differential`, material: "cast",
-      shape: { kind: "ring", radius: 0.07, inner: 0.025, length: 0.07, axis: "z" }, position: [x - 0.04, 0.38, 0.04] },
-    { id: `${key}-gate-driver`, material: "pcb",
-      shape: { kind: "box", size: [0.2, 0.012, 0.28], radius: 0.003 }, position: [x - d * 0.02, 0.645, -0.05] },
-    { id: `${key}-inverter-busbars`, material: "copper",
-      shape: { kind: "box", size: [0.16, 0.006, 0.3], radius: 0.002 }, position: [x - d * 0.02, 0.575, -0.05] },
+      shape: { kind: "ring", radius: 0.06, inner: 0.019, length: 0.135, axis: "z" }, position: duAt(key, x, "wheel", 0.0675) },
+    ...SIDES.map((s): Part => ({
+      id: `${key}-side-gear-${s.key}`, material: "steel",
+      shape: { kind: "gear", radius: 0.028, teeth: 16, thickness: 0.014 }, position: duAt(key, x, "wheel", 0.0675 + s.z * 0.03),
+    })),
+    { id: `${key}-spider-gears`, material: "steel",
+      shape: { kind: "cylinder", radius: 0.007, length: 0.1, axis: "y" }, position: duAt(key, x, "wheel", 0.0675) },
     { id: `${key}-gearbox-cover`, material: "aluminium",
-      shape: { kind: "box", size: [0.3, 0.28, 0.02], radius: 0.008 }, position: [x, 0.4, 0.22] },
+      shape: { kind: "box", size: [0.3, 0.34, 0.09], radius: 0.04 }, position: [x - 0.02, 0.47, 0.17] },
+    { id: `${key}-oil-pump`, material: "cast",
+      shape: { kind: "cylinder", radius: 0.026, length: 0.09, axis: "z" }, position: [x + d * 0.06, AXLE_Y - 0.105, 0.06] },
+    { id: `${key}-oil-cooler`, material: "aluminium",
+      shape: { kind: "box", size: [0.07, 0.06, 0.07], radius: 0.006 }, position: [x - d * 0.06, AXLE_Y + 0.09, 0.07] },
+    { id: key === "front" ? "front-disconnect" : "rear-park-lock", material: "electronics",
+      shape: { kind: "cylinder", radius: 0.022, length: 0.05, axis: "z" }, position: duAt(key, x, "inter", 0.24, d * 0.05) },
+    { id: `${key}-gate-driver`, material: "pcb",
+      shape: { kind: "box", size: [0.19, 0.006, 0.17], radius: 0.002 }, position: [mx, top + 0.05, -0.02] },
+    { id: `${key}-control-board`, material: "pcb",
+      shape: { kind: "box", size: [0.24, 0.006, 0.1], radius: 0.002 }, position: [mx, top + 0.07, 0.085] },
+    { id: `${key}-inverter-busbars`, material: "copper",
+      shape: { kind: "box", size: [0.11, 0.006, 0.16], radius: 0.002 }, position: [mx, top + 0.066, -0.15] },
+    { id: `${key}-phase-busbars`, material: "copper",
+      shape: { kind: "box", size: [0.07, 0.04, 0.05], radius: 0.002 }, position: [mx, top - 0.01, 0.08] },
+    { id: `${key}-current-sensor`, material: "satin-black",
+      shape: { kind: "box", size: [0.11, 0.022, 0.026], radius: 0.004 }, position: [mx, top + 0.03, 0.09] },
+    { id: `${key}-hv-connector`, material: "hv-orange",
+      shape: { kind: "box", size: [0.04, 0.05, 0.07], radius: 0.006 }, position: [mx - d * 0.168, top + 0.04, -0.17] },
     { id: `${key}-inverter-lid`, material: "aluminium",
-      shape: { kind: "box", size: [0.34, 0.012, 0.42], radius: 0.005 }, position: [x - d * 0.02, 0.68, -0.05] },
+      shape: { kind: "box", size: [0.3, 0.008, 0.4], radius: 0.004 }, position: [mx, top + 0.079, -0.06] },
     { id: `${key}-power-module`, material: "pcb",
-      shape: { kind: "box", size: [0.22, 0.02, 0.3], radius: 0.004 }, position: [x - d * 0.02, 0.6, -0.05] },
+      shape: { kind: "box", size: [0.1, 0.03, 0.15], radius: 0.004 }, position: [mx, top + 0.02, -0.02] },
     { id: `${key}-dc-link-capacitor`, material: "satin-black",
-      shape: { kind: "box", size: [0.1, 0.06, 0.18], radius: 0.01 }, position: [x - d * 0.1, 0.6, 0.1] },
+      shape: { kind: "box", size: [0.21, 0.05, 0.12], radius: 0.01 }, position: [mx, top + 0.034, -0.185] },
+    ...[1, 2, 3].map((n): Part => ({
+      id: `${key}-drive-unit-mount-${n}`, material: "satin-black",
+      shape: { kind: "cylinder", radius: 0.03, length: 0.05, axis: "z" },
+      position: n === 1 ? [mx, 0.285, h0 + 0.05] : n === 2 ? [x - d * 0.04, 0.285, 0.125] : [x + d * 0.15, 0.31, 0.175],
+    })),
   ];
 };
 
@@ -482,7 +532,8 @@ const thermal: Part[] = [
   { id: "hvac-module", material: "satin-black",
     shape: { kind: "box", size: [0.22, 0.2, 0.5], radius: 0.03 }, position: [0.72, 0.62, -0.1] },
   { id: "coolant-lines", material: "satin-black",
-    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.44, -0.32], [1.3, 0.33, -0.3], [1.0, 0.28, -0.24]], 0.013) },
+    // runs above the front-left drive shaft, beside the motor's end cover
+    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.3, 0.49, -0.4], [1.0, 0.28, -0.24]], 0.013) },
 ];
 
 const cabin: Part[] = [
