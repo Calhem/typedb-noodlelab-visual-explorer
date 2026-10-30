@@ -233,7 +233,7 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
 .question { display: block; width: 100%; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; padding: 8px 10px; cursor: pointer; }
 .question:hover .question-title { color: var(--accent); }
 .question-tag { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 2px; }
-.answer { padding: 0 10px 10px; }
+.answer { padding: 0 10px 10px; overflow-x: auto; }
 .answer-summary { margin: 2px 0 4px; font-size: 14px; color: var(--accent); }
 .answer-how { margin: 0 0 8px; font-size: 11.5px; }
 .answer-time { white-space: nowrap; color: var(--ink-dim); }

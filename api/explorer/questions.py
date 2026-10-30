@@ -129,9 +129,9 @@ def battery_to_wheel(tx):
         chain.append(came[node])
         node = came[node]["from"]
     chain.reverse()
-    table = [[i + 1, e["to-name"], e["needs"], e["from-name"], e["function"]] for i, e in enumerate(reversed(chain))]
+    table = [[i + 1, f"{e['to-name']}: {e['needs']}", f"{e['from-name']}: {e['function']}"] for i, e in enumerate(reversed(chain))]
     return {"summary": f"{len(chain)} steps from a battery module to the front-left tyre, found by a recursive walk",
-            "columns": ["Step", "Provider", "supplies", "to", "for its"], "rows": table,
+            "columns": ["Step", "Provider: what it supplies", "to: the function it serves"], "rows": table,
             "highlight": ["tyre-fl"] + [e["to"] for e in chain]}
 
 

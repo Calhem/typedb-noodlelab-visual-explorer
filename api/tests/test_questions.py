@@ -61,7 +61,8 @@ def test_connections_by_kind(client):
 def test_battery_to_wheel_is_a_real_chain(client):
     deps = {(d["provider"], d["needs"], d["dependent"], d["function"]) for d in RESOLVED["dependencies"]}
     names = {c["name"]: c["id"] for c in SEED["components"]}
-    rows = ask(client, "battery-to-wheel")["rows"]
+    split = lambda cell: cell.rsplit(": ", 1)
+    rows = [(step, *split(a), *split(b)) for step, a, b in ask(client, "battery-to-wheel")["rows"]]
     assert names[rows[0][1]].startswith("battery-module-") and names[rows[-1][3]] == "tyre-fl"
     for step, provider, supplies, dependent, function in rows:
         assert (names[provider], supplies, names[dependent], function) in deps
