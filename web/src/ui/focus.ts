@@ -4,9 +4,9 @@
 // "secondary" (a function degraded; backed up or merely supporting).
 
 import { useCallback, useState } from "react";
-import { SemanticError, semantic, type AssemblyDetails, type Impact, type Requirement, type SystemDetails } from "../semantic/api";
+import { SemanticError, semantic, type AssemblyDetails, type Impact, type Requirement, type SystemDetails, type TypeDetail } from "../semantic/api";
 
-export type FocusKind = "assembly" | "system" | "impact" | "requirements";
+export type FocusKind = "assembly" | "system" | "impact" | "requirements" | "type";
 export type Level = "primary" | "secondary";
 
 export interface FocusRequest {
@@ -28,6 +28,7 @@ export interface Focus extends FocusRequest {
   /** the answer behind an assembly or system focus, so views can show it without asking again */
   assembly?: AssemblyDetails;
   system?: SystemDetails;
+  typeDetail?: TypeDetail;
 }
 
 export type FocusError = { request: FocusRequest; kind: SemanticError["kind"]; message: string };
@@ -61,6 +62,11 @@ export function useFocus() {
         const { data, typeql, "timings-ms": timings } = await semantic.system(req.key);
         const ids = levels(data.components.map((c) => [c.id, "primary"]));
         setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, system: data });
+      } else if (req.kind === "type") {
+        const { data, typeql, "timings-ms": timings } = await semantic.type(req.key);
+        const ids = levels(data.instances.map((i) => [i.id, "primary"]));
+        setFocus({ ...req, title: `Every ${data.type.replace(/-/g, " ")}: ${plural(ids.size, "component")}`, ids, typeql,
+          "timings-ms": timings, typeDetail: data });
       } else if (req.kind === "impact") {
         const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
         const ids = levels([[req.key, "primary"], ...data.lost.map((x): [string, Level] => [x.id, "primary"]),

@@ -129,6 +129,16 @@ export interface SystemDetails extends Named {
 
 export interface ComponentListing extends Named { type: string; asset: string; node: string }
 
+export interface TypeNode { type: string; parent: string | null; total: number; direct: number }
+
+export interface TypeDetail {
+  type: string;
+  supertypes: string[];
+  owns: string[];
+  plays: string[];
+  instances: (Named & { type: string })[];
+}
+
 export const semantic = {
   health: async () => {
     const response = await fetch("/api/health").catch(() => null);
@@ -144,5 +154,7 @@ export const semantic = {
   assembly: (a: string, s?: AbortSignal) => ask<AssemblyDetails>(`assemblies/${id(a)}`, s),
   assemblies: (s?: AbortSignal) => ask<AssemblyNode[]>("assemblies", s),
   systems: (s?: AbortSignal) => ask<SystemSummary[]>("systems", s),
+  types: (s?: AbortSignal) => ask<TypeNode[]>("types", s),
+  type: (label: string, s?: AbortSignal) => ask<TypeDetail>(`types/${id(label)}`, s),
   system: (sys: string, s?: AbortSignal) => ask<SystemDetails>(`systems/${id(sys)}`, s),
 };

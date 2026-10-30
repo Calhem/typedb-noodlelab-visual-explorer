@@ -3,12 +3,13 @@
 // part named here opens its component panel. The TypeQL behind each view is one click away.
 
 import { useState, type ReactNode } from "react";
-import { semantic, type AssemblyNode, type SystemSummary } from "../semantic/api";
+import { semantic, type AssemblyNode, type SystemSummary, type TypeNode } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
+import { words } from "./format";
 import { QueryViewer } from "./QueryViewer";
 
-export type ExploreTab = "systems" | "assemblies";
+export type ExploreTab = "systems" | "assemblies" | "types";
 
 interface Props {
   tab: ExploreTab;
@@ -19,7 +20,7 @@ interface Props {
   onClose: () => void;
 }
 
-const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"]];
+const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"], ["types", "Types"]];
 
 export function Explore({ tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
   return (
@@ -36,6 +37,7 @@ export function Explore({ tab, onTab, focus, onFocus, onSelect, onClose }: Props
       <div className="explore-body">
         {tab === "systems" && <Systems focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "assemblies" && <Assemblies focus={focus} onFocus={onFocus} onSelect={onSelect} />}
+        {tab === "types" && <Types focus={focus} onFocus={onFocus} onSelect={onSelect} />}
       </div>
     </aside>
   );
@@ -206,6 +208,64 @@ function Assemblies({ focus, onFocus, onSelect }: Shared) {
         }}
       </Loaded>
       <QueryViewer answers={[tree.state?.status === "ok" ? tree.state.answer : null]} label="TypeQL for the tree" />
+    </>
+  );
+}
+
+// ---- Types --------------------------------------------------------------------------------------------------
+
+function Types({ focus, onFocus, onSelect }: Shared) {
+  const tree = useAnswer("types", (s) => semantic.types(s));
+  const current = focus?.kind === "type" ? focus : null;
+  const detail = current?.typeDetail;
+  return (
+    <>
+      {detail ? (
+        <div className="detail detail-top">
+          <p className="panel-path">{[...detail.supertypes].reverse().map(words).join("  ›  ")}</p>
+          <h2>{words(detail.type)}</h2>
+          <p className="muted">
+            {detail.instances.length} {detail.instances.length === 1 ? "part" : "parts"}
+            {new Set(detail.instances.map((i) => i.type)).size > 1 ? ` of ${new Set(detail.instances.map((i) => i.type)).size} types, found with one query` : ""}
+          </p>
+          <section>
+            <h3>Schema: what it can own</h3>
+            <div className="chips schema">{detail.owns.map((a) => <span key={a} className="chip static">{a}</span>)}</div>
+          </section>
+          <section>
+            <h3>Schema: roles it can play</h3>
+            <div className="chips schema">{detail.plays.map((r) => <span key={r} className="chip static" title={r}>{r.replace(":", " › ")}</span>)}</div>
+          </section>
+          <section>
+            <h3>Parts</h3>
+            {[...new Set(detail.instances.map((i) => i.type))].map((t) => (
+              <div key={t} className="type-group">
+                <p className="type-label">{words(t)}</p>
+                <PartList parts={detail.instances.filter((i) => i.type === t)} onSelect={onSelect} />
+              </div>
+            ))}
+          </section>
+          <QueryViewer answers={[current]} />
+        </div>
+      ) : (
+        <p className="explore-intro">What kind of thing each part is. Choosing a type includes all its subtypes: one query finds every sensor, whatever kind.</p>
+      )}
+      {detail && <h3 className="list-head">All types</h3>}
+      <Loaded state={tree.state} retry={tree.retry}>
+        {(types) => {
+          const row = (t: TypeNode, depth: number): ReactNode => (
+            <li key={t.type}>
+              <button type="button" className={`tree-row depth-${depth}${current?.key === t.type ? " active" : ""}`}
+                onClick={() => onFocus({ kind: "type", key: t.type, anchor: "explore" })}>
+                <span>{words(t.type)}</span><span className="count">{t.total}</span>
+              </button>
+              {types.some((c) => c.parent === t.type) && <ul>{types.filter((c) => c.parent === t.type).map((c) => row(c, depth + 1))}</ul>}
+            </li>
+          );
+          return <ul className="tree">{types.filter((t) => !t.parent).map((t) => row(t, 0))}</ul>;
+        }}
+      </Loaded>
+      <QueryViewer answers={[tree.state?.status === "ok" ? tree.state.answer : null]} label="TypeQL for the hierarchy" />
     </>
   );
 }

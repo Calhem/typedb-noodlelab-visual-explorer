@@ -24,7 +24,7 @@ export function attributeValue(attribute: string, value: string | number) {
 
 /** "brake-caliper" -> "Brake caliper" */
 export function words(label: string) {
-  const text = label.replace(/-/g, " ");
+  const text = label.replace(/-/g, " ").replace(/\bgnss\b/gi, "GNSS");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 

@@ -59,7 +59,9 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
           {d && (
             <p className="panel-types" title="Type hierarchy in the TypeDB schema">
               {d.data.types.slice(0, -1).map((t, i) => (
-                <span key={t}>{i > 0 && <span className="sep">⊂</span>}{words(t)}</span>
+                <span key={t}>{i > 0 && <span className="sep">⊂</span>}
+                  <button type="button" className="link type-link" onClick={() => onFocus({ kind: "type", key: t, anchor: id })}>{words(t)}</button>
+                </span>
               ))}
             </p>
           )}

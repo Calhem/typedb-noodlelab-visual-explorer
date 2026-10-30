@@ -47,8 +47,10 @@ export function App() {
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
   useEffect(() => {
-    if (focus?.kind === "system" || focus?.kind === "assembly") {
-      setExploreTab(focus.kind === "system" ? "systems" : "assemblies");
+    const tabs: Partial<Record<string, ExploreTab>> = { system: "systems", assembly: "assemblies", type: "types" };
+    const tab = focus ? tabs[focus.kind] : undefined;
+    if (tab) {
+      setExploreTab(tab);
       setExploreOpen(true);
     }
   }, [focus]);
