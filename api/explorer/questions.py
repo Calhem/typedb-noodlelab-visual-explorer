@@ -136,11 +136,20 @@ def battery_to_wheel(tx):
 
 
 def propulsion_single_points(tx):
+    # Two stages (docs/optimisation-backlog.md). A failure only spreads along dependencies, so a part can only
+    # stop all four wheels if it is in the requirement chain of every tyre: the reverse walk finds those few
+    # candidates first, and the forward failure reasoning (about 15 ms per part, however little it reaches)
+    # then runs for them alone instead of for every part.
     found = fetch(tx, """
         match
-          $start isa component;
-          let $p, $g, $t, $f in lost_steps($start);
-          $t isa tyre; $f has function-name "drive torque";
+          $t isa tyre;
+          let $c, $f, $start, $g in requirement_steps($t);
+        select $t, $start;
+        distinct;
+        reduce $needed-by = count groupby $start;
+        match $needed-by == 4;
+          let $p1, $g1, $t1, $f1 in lost_steps($start);
+          $t1 isa tyre; $f1 has function-name "drive torque";
         reduce $tyres = count groupby $start;
         match $tyres == 4;
         fetch { "id": $start.component-id, "name": $start.name };
@@ -170,8 +179,9 @@ QUESTIONS = {
                          "Walks the function-level dependencies back from the tyre with a recursive function and shows the "
                          "shortest chain to a battery module.", battery_to_wheel),
     "propulsion-single-points": ("Which single failures stop all propulsion?", "Function-level failure reasoning",
-                                 "Runs the failure reasoning for every part at once and keeps the parts whose loss alone takes "
-                                 "drive torque from all four wheels. The heaviest question: a few seconds.", propulsion_single_points),
+                                 "Walks back from the four tyres to find the parts every wheel's drive needs, then runs the "
+                                 "failure reasoning for each of those and keeps the parts whose loss alone takes drive torque "
+                                 "from all four wheels. The heaviest question: about a second.", propulsion_single_points),
 }
 
 
