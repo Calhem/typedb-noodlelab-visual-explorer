@@ -59,7 +59,11 @@ export function buildVehicle(external: Map<string, THREE.Object3D> = new Map()):
   return PARTS.map((part) => {
     const modelled = external.get(part.id);
     if (modelled) {
-      const built: BuiltPart = { id: part.id, object: modelled, position: modelled.position.clone(), rotation: modelled.rotation.clone(), source: "blender" };
+      // The loaded model objects outlive this function (they are shared and moved by the explosion), so their
+      // assembled pose is recorded once, the first time they are used, never re-read from a moved object.
+      const home = (modelled.userData.home ??= { position: modelled.position.clone(), rotation: modelled.rotation.clone() }) as
+        { position: THREE.Vector3; rotation: THREE.Euler };
+      const built: BuiltPart = { id: part.id, object: modelled, position: home.position.clone(), rotation: home.rotation.clone(), source: "blender" };
       tag(modelled, part.id);
       return built;
     }
