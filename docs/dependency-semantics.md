@@ -250,7 +250,10 @@ the cells and the consumers (sources in docs/engineering-references.md).
   converter keeps the 12 V battery charged: losing it only degrades the 12 V supply (the battery runs down
   slowly).
 - **Charging.** The **charge port** has an AC and a DC inlet.
-  - DC: the **DC charge harness** to the junction box.
+  - DC: the **DC charge harness** to the pack's rear outlet, then forwards along the internal **rear feed** to the
+    junction box. (First drawn running inside the pack to the junction box. The packaging check showed that route
+    crossing the side rail and crossmembers, so the cable now joins the rear feed, as real packs bring DC charging
+    in at a dedicated inlet. This adds DC charging to scenario 24.)
   - AC: the on-board charger.
   - The junction box's *battery charging* function needs DC charging, with the on-board charger as a
     **fallback** (much slower), and the BMS.
@@ -261,12 +264,20 @@ the cells and the consumers (sources in docs/engineering-references.md).
 | 19 | **Pack fuse** | positive contactor, junction box: HV supply, both inverter feeds, PDU, all tyres: drive torque, battery charging | | any module; BMS | vehicle lost |
 | 20 | **Module monitor 3** | BMS: battery supervision → contactors → HV supply → all propulsion | | the monitored modules' cell power | vehicle lost |
 | 21 | **Pack current sensor** | | BMS: battery supervision → contactors, HV supply → all four tyres: drive torque | anything lost | both axles reduced → vehicle reduced |
-| 22 | **DC charge harness** | | junction box: battery charging (on-board charger in use) | propulsion | kept |
+| 22 | **DC charge harness** | rear feed: DC charging (added with the reroute below) | junction box: battery charging (on-board charger in use) | propulsion | kept |
 | 23 | **Pre-charge circuit** | positive contactor: HV switching → all propulsion | | | vehicle lost |
-| 24 | **Rear feed (in the pack)** | hv-harness-rear → rear inverter → rear tyres: drive torque | | any front drive | rear lost → vehicle reduced |
+| 24 | **Rear feed (in the pack)** | hv-harness-rear → rear inverter → rear tyres: drive torque | junction box: battery charging (on-board charger in use; see below) | any front drive | rear lost → vehicle reduced |
 | 25 | **12 V fuse box** | the low-voltage harness and every 12 V consumer, as the 12 V battery case (3) | | | vehicle lost |
 | 26 | **DC-DC converter** | | 12 V battery: 12 V supply | anything else | kept |
-| 27 | **Auxiliary harness** | PDU: HV distribution → DC-DC, compressor, on-board charger | battery cooling (chiller lost), 12 V supply | drive torque lost | both axles reduced → vehicle reduced |
+| 27 (corrected) | **Auxiliary harness** | PDU: HV distribution → DC-DC, compressor, on-board charger | battery cooling (chiller lost), 12 V supply | drive torque lost or degraded | both axles kept → vehicle kept |
+
+**Correction to 27, found by its test.** As first written, scenario 27 expected reduced drive at both axles
+through the loss of battery chilling. That contradicts the rule approved at C1: losing the chiller only
+*degrades* the cooling plate, and a degraded plate does not reduce the modules' power (only a lost plate
+does). The data was not changed to fit; the expectation was. Over a long drive the pack would warm and the
+BMS would eventually limit power. That is a rate effect, which this model does not represent. Scenario 19
+also exposed a gap in the *data*: charging did not depend on the contactors and fuse. It now does, because
+charging current reaches the cells through them.
 
 **Assumptions added:** a single series string; one monitor per two modules; loss of cell data opens the
 contactors; pre-charge is needed at every start (the static model treats it as needed for HV supply); the
