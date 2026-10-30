@@ -45,7 +45,7 @@ the provisional dimensions in docs/design-targets.md. No commissioning or vendor
   `api.py` (GET-only endpoints; 503 typedb-unavailable, 500 query-failed, 404, 422), `animation.py`.
 - Web side: `web/src/semantic/api.ts` (client), `web/src/ui/ComponentPanel.tsx`, `web/src/ui/focus.ts`
   (perspectives: highlighted ids come from TypeDB answers).
-- TypeDB 3.14.1 planner bug QPL1: avoid `{ $x is $s; } or { <relation binding $x> };` (see queries.system).
+- TypeDB 3.14.1 planner bug QPL1: avoid `{ $x is $s; } or { <relation binding $x> };` (see queries.system; write-up and repro in docs/typedb-issues/).
 
 ## Git workflow (permanent)
 Every piece of work follows this loop:
