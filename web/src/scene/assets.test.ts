@@ -1,4 +1,4 @@
-// Checks the Blender-modelled corner (web/public/assets/corner-fr.*) against the component manifest:
+// Checks the Blender-modelled corner and drive units (web/public/assets/*.glb) against the component manifest:
 // the mapping file links every node to a real component id, both detail levels have the same nodes,
 // positions are sensible, and every material name is one the app renders. Reads the GLB's JSON chunk
 // directly, so it needs no browser.
@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
-import { FRONT_AXLE_X } from "../vehicle/dimensions";
+import { FRONT_AXLE_X, REAR_AXLE_X } from "../vehicle/dimensions";
 import { PART_BY_ID } from "../vehicle/manifest";
 import { createStudioMaterials } from "../vehicle/studioMaterials";
 
@@ -73,5 +73,57 @@ describe("Blender front-right corner", () => {
   it("is compressed (Meshopt) and small enough to download quickly", () => {
     expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
     expect(readFileSync(asset("corner-fr.glb")).byteLength).toBeLessThan(4_000_000);
+  });
+});
+
+// ---- Drive units (C3a) ---------------------------------------------------------------------------------
+
+const DRIVE_UNIT_PARTS = [
+  "motor", "motor-end-cover", "stator", "rotor", "rotor-shaft", "motor-bearing-1", "motor-bearing-2", "resolver", "pinion",
+  "intermediate-shaft", "intermediate-gear", "reduction-gear", "differential", "side-gear-l", "side-gear-r", "spider-gears",
+  "gearbox", "gearbox-cover", "oil-pump", "oil-cooler", "inverter", "inverter-lid", "power-module", "dc-link-capacitor",
+  "inverter-busbars", "gate-driver", "control-board", "current-sensor", "phase-busbars", "hv-connector",
+  "drive-unit-mount-1", "drive-unit-mount-2", "drive-unit-mount-3", "halfshaft-l", "halfshaft-r",
+];
+
+describe.each([
+  ["front", FRONT_AXLE_X, "front-disconnect"],
+  ["rear", REAR_AXLE_X, "rear-park-lock"],
+] as const)("Blender %s drive unit", (key, axleX, special) => {
+  const name = `${key}-drive-unit`;
+  const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
+  const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>
+    json.scenes[json.scene ?? 0].nodes.map((i) => json.nodes[i]);
+  const full = gltfJson(asset(`${name}.glb`));
+  const light = gltfJson(asset(`${name}.lod1.glb`));
+  const nodes = roots(full) as { name: string; translation: number[]; rotation?: number[] }[];
+
+  it("draws exactly the unit's parts, once each, every node mapped to a manifest id", () => {
+    const expected = [...DRIVE_UNIT_PARTS.map((p) => `${key}-${p}`), special].sort();
+    expect(nodes.map((n) => map.nodes[n.name]).sort()).toEqual(expected);
+    for (const id of expected) expect(PART_BY_ID.has(id), id).toBe(true);
+    expect(roots(light).map((n) => n.name).sort()).toEqual(nodes.map((n) => n.name).sort());
+  });
+
+  it("places every part around its axle, near the manifest's simple stand-in, with no baked rotation", () => {
+    for (const n of nodes) {
+      const id = map.nodes[n.name];
+      const [x, y, z] = n.translation;
+      expect(Math.abs(x - axleX), id).toBeLessThan(0.3);
+      expect(y, id).toBeGreaterThan(0.25);
+      expect(y, id).toBeLessThan(0.85);
+      expect(Math.abs(z), id).toBeLessThan(0.75);
+      expect(n.rotation, id).toBeUndefined();
+      const stand = PART_BY_ID.get(id)!.position!;
+      expect(Math.hypot(x - stand[0], y - stand[1], z - stand[2]), id).toBeLessThan(0.12);
+    }
+  });
+
+  it("uses only known materials and is compressed and small", () => {
+    const t = new THREE.Texture();
+    const known = createStudioMaterials({ tread: t, treadCavity: t, ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
+    for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
+    expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
+    expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(1_500_000);
   });
 });

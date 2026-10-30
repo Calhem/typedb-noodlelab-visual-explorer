@@ -137,6 +137,53 @@ def test_10_steering_rack(client):
     assert lost == {("tie-rod-fl", "steering motion"), ("tie-rod-fr", "steering motion"), ("ad-compute", "automated driving")}
 
 
+# ---- C3a: the drive units in detail (docs/dependency-semantics.md, scenarios 11-16) ---------------------------------
+
+def rear_or_front(keys, axle):
+    return {k for k in keys if k[0].startswith(f"{axle}-") or k[0].endswith(("-rl", "-rr") if axle == "rear" else ("-fl", "-fr"))}
+
+
+def test_11_front_resolver(client):
+    lost, degraded, _ = impact(client, "front-resolver")
+    assert {("front-control-board", "motor control"), ("front-gate-driver", "switching control"),
+            ("front-power-module", "phase current"), ("tyre-fl", "drive torque"), ("tyre-fr", "drive torque")} <= lost
+    assert not rear_or_front(lost | degraded, "rear")
+
+
+def test_12_rear_oil_pump(client):
+    lost, degraded, _ = impact(client, "rear-oil-pump")
+    assert lost == {("rear-oil-cooler", "oil cooling")}
+    assert {("rear-stator", "magnetic field"), ("rear-intermediate-shaft", "drive torque"), ("rear-reduction-gear", "drive torque"),
+            ("tyre-rl", "drive torque"), ("tyre-rr", "drive torque")} <= degraded
+    assert not rear_or_front(lost | degraded, "front")
+
+
+def test_13_front_disconnect(client):
+    lost, degraded, _ = impact(client, "front-disconnect")
+    assert {("front-intermediate-shaft", "drive torque"), ("front-reduction-gear", "drive torque"), ("front-differential", "drive torque"),
+            ("front-halfshaft-l", "drive torque"), ("front-halfshaft-r", "drive torque"), ("tyre-fl", "drive torque"), ("tyre-fr", "drive torque")} <= lost
+    assert not {k for k in lost | degraded if k[0] in ("front-stator", "front-rotor", "front-rotor-shaft")}
+    assert not rear_or_front(lost | degraded, "rear")
+
+
+def test_14_rear_left_side_gear(client):
+    lost, degraded, _ = impact(client, "rear-side-gear-l")
+    assert lost == {("rear-halfshaft-l", "drive torque"), ("hub-rl", "drive torque"), ("wheel-rl", "drive torque"), ("tyre-rl", "drive torque")}
+    assert not degraded
+
+
+def test_15_rear_park_lock(client):
+    lost, degraded, _ = impact(client, "rear-park-lock")
+    assert not lost and not degraded
+
+
+def test_16_front_hv_connector(client):
+    lost, degraded, _ = impact(client, "front-hv-connector")
+    assert {("front-inverter-busbars", "DC supply"), ("front-dc-link-capacitor", "DC supply"), ("front-power-module", "phase current"),
+            ("tyre-fl", "drive torque"), ("tyre-fr", "drive torque")} <= lost
+    assert not rear_or_front(lost | degraded, "rear")
+
+
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------
 
 def test_typedb_matches_the_oracle_for_every_failure(driver, database):
