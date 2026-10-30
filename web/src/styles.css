@@ -46,12 +46,63 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
 
 .exploring .intro { opacity: 0; transform: translateY(12px); pointer-events: none; }
 
-.hint {
-  position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%);
-  font-size: 12px; color: var(--ink-faint); letter-spacing: 0.03em;
-  opacity: 0; transition: opacity 0.9s var(--ease) 0.4s; pointer-events: none;
+.controls {
+  position: absolute; left: 0; right: 0; bottom: 26px; margin: 0 auto;
+  width: min(620px, calc(100% - 32px));
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  animation: rise 0.9s var(--ease) 0.3s both;
 }
-.exploring .hint { opacity: 1; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.scrubber { display: flex; align-items: center; gap: 14px; width: 100%; }
+.scrub-end { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); white-space: nowrap; }
+.scrub-play {
+  display: inline-flex; align-items: center; gap: 8px; flex: none;
+  font: inherit; font-size: 12px; letter-spacing: 0.03em; color: var(--ink);
+  padding: 8px 14px 8px 12px; border-radius: 999px; cursor: pointer; min-width: 104px;
+  background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.16);
+}
+.scrub-play:hover, .scrub-play:focus-visible { border-color: var(--accent); outline: none; }
+.icon-out, .icon-in, .icon-pause { width: 10px; height: 10px; position: relative; }
+.icon-out::before, .icon-in::before { content: ""; position: absolute; inset: 0; border: 1px solid var(--accent); border-radius: 2px; }
+.icon-out::before { transform: scale(0.55); box-shadow: 0 0 0 3px rgba(2, 218, 201, 0.25); }
+.icon-pause::before, .icon-pause::after { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.icon-pause::before { left: 1px; } .icon-pause::after { right: 1px; }
+
+.scrubber input[type="range"] {
+  -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 22px; background: transparent; cursor: pointer;
+}
+.scrubber input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--fill), rgba(255, 255, 255, 0.16) var(--fill));
+}
+.scrubber input[type="range"]::-moz-range-track { height: 2px; background: rgba(255, 255, 255, 0.16); }
+.scrubber input[type="range"]::-moz-range-progress { height: 2px; background: var(--accent); }
+.scrubber input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%;
+  background: var(--bg); border: 2px solid var(--accent);
+}
+.scrubber input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--accent); }
+.scrubber input[type="range"]:focus-visible { outline: none; }
+.scrubber input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(2, 218, 201, 0.25); }
+
+.hint { margin: 0; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.03em; pointer-events: none; text-align: center; }
+
+.part-label {
+  position: absolute; top: 72px; right: 36px; width: 260px;
+  padding: 16px 18px 14px; border-radius: 10px;
+  background: rgba(10, 12, 15, 0.72); border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-left: 2px solid var(--accent);
+}
+.part-label h2 { margin: 4px 0 6px; font-size: 16px; font-weight: 500; letter-spacing: -0.01em; }
+.part-path { margin: 0; font-size: 11px; color: var(--ink-faint); letter-spacing: 0.02em; padding-right: 18px; }
+.part-id { margin: 0; font-size: 11px; color: var(--ink-dim); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.part-close {
+  position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--ink-faint);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 4px;
+}
+.part-close:hover { color: var(--ink); }
 
 .disclaimer {
   position: absolute; right: 36px; bottom: 28px; margin: 0;
@@ -61,10 +112,18 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
 @media (max-width: 640px) {
   .brand { top: 18px; left: 16px; }
   .intro { left: 16px; right: 16px; bottom: 72px; }
-  .disclaimer { left: 16px; right: 16px; bottom: 16px; }
+  .disclaimer { display: none; }
   .hint { display: none; }
+  .scrub-end { display: none; }
+  .controls { bottom: 18px; }
+  .part-label { top: auto; bottom: 84px; left: 16px; right: 16px; width: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .intro, .hint { transition: none; }
+  .intro { transition: none; }
+  .controls { animation: none; }
 }
+
+/* While exploring, the concept-vehicle note moves to the top so it never collides with the controls. */
+.exploring .disclaimer { top: 30px; bottom: auto; }
+@media (max-width: 640px) { .exploring .disclaimer { display: none; } }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Stage } from "./scene/Stage";
+import { PartLabel } from "./ui/PartLabel";
+import { Scrubber } from "./ui/Scrubber";
 
 function usePrefersReducedMotion() {
   const query = "(prefers-reduced-motion: reduce)";
@@ -15,11 +17,12 @@ function usePrefersReducedMotion() {
 
 export function App() {
   const [exploring, setExploring] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   return (
     <main className={exploring ? "app exploring" : "app"}>
       <div className="canvas">
-        <Stage exploring={exploring} reducedMotion={reducedMotion} />
+        <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId} onSelect={setSelectedId} />
       </div>
 
       <header className="brand">
@@ -37,9 +40,14 @@ export function App() {
         </button>
       </section>
 
-      <footer className="hint" aria-hidden={!exploring}>
-        Drag to orbit · scroll to zoom · right-drag to pan
-      </footer>
+      {exploring && (
+        <footer className="controls">
+          <Scrubber reducedMotion={reducedMotion} />
+          <p className="hint">Drag to orbit · scroll to zoom · right-drag to pan · click a part</p>
+        </footer>
+      )}
+
+      {exploring && selectedId && <PartLabel id={selectedId} onClose={() => setSelectedId(null)} />}
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

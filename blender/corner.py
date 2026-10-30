@@ -1,0 +1,612 @@
+"""Front-right wheel corner, modelled for close inspection, exported to web/public/assets/corner-fr.glb.
+
+Run from the project root:  uv run --project blender python -I blender/corner.py
+
+Each object is named by its stable component id from web/src/vehicle/manifest.ts. Positions are the
+real assembled positions, in the app's coordinates (x forward, y up, z to the right). Dimensions follow
+web/src/vehicle/dimensions.ts.
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+from pathlib import Path
+
+import bpy  # must come first: it makes bmesh and mathutils importable
+import bmesh
+from mathutils import Matrix, Vector
+
+sys.path.insert(0, str(Path(__file__).parent))
+import kit  # noqa: E402
+from kit import TAU, box, cylinder, lathe, merge_into, new_object, polar_array, rod, sector, transform  # noqa: E402
+
+OUT = Path(__file__).resolve().parent.parent / "web" / "public" / "assets" / "corner-fr.glb"
+
+AXLE = Vector((1.437, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF)
+CALIPER_ANGLE = 2.2  # calliper sits behind and above the axle (radians, in the wheel plane)
+PCD = 0.057  # wheel-stud circle radius (5 x 114.3 mm)
+MOUNT_Z = 0.035  # hub mounting face, measured outwards from the wheel centre plane
+
+
+def at_axle(obj):
+    obj.data.transform(Matrix.Translation(AXLE))
+    return obj
+
+
+# ---- tyre ---------------------------------------------------------------------------------------------
+
+def tyre():
+    """275/45 R22: rounded shoulders, four circumferential grooves, shoulder blocks, sipes, sidewall marking."""
+    grooves = [-0.058, -0.02, 0.02, 0.058]
+    tread = []
+    z = -0.092
+    for g in grooves:
+        tread += [(0.405, z), (0.405, g - 0.006), (0.3955, g - 0.005), (0.3955, g + 0.005), (0.405, g + 0.006)]
+        z = g + 0.006
+    tread.append((0.405, 0.092))
+    side = [(0.283, -0.112), (0.292, -0.124), (0.31, -0.131), (0.335, -0.1335), (0.36, -0.132), (0.38, -0.126),
+            (0.394, -0.116), (0.401, -0.104), (0.404, -0.096)]
+    outer = side + tread + [(r, -z) for r, z in reversed(side)]
+    inner = [(0.288, 0.104), (0.33, 0.116), (0.372, 0.104), (0.388, 0.08), (0.39, 0.0), (0.388, -0.08), (0.372, -0.104), (0.33, -0.116), (0.288, -0.104)]
+    body = new_object("tyre", lathe(outer + inner, 256), "rubber-tyre")
+
+    # Lateral shoulder slots and angled sipes across the middle ribs.
+    def cutters():
+        bm = bmesh.new()
+        for side_sign, phase in ((1, 0.0), (-1, 0.5)):
+            for i in range(64):
+                a = TAU * (i + phase) / 64
+                slot = transform(box(0.024, 0.0075, 0.046), Matrix.Translation((0.408 * math.cos(a), 0.408 * math.sin(a), side_sign * 0.09)) @ Matrix.Rotation(a, 4, "Z"))
+                merge_into(bm, slot)
+        for i in range(96):
+            a = TAU * i / 96
+            for zc in (-0.039, 0.0, 0.039):
+                sipe = box(0.012, 0.0016, 0.024)
+                transform(sipe, Matrix.Translation((0.405 * math.cos(a), 0.405 * math.sin(a), zc)) @ Matrix.Rotation(a, 4, "Z") @ Matrix.Rotation(0.45, 4, "X"))
+                merge_into(bm, sipe)
+        return bm
+
+    body = kit.cut(body, new_object("cut", cutters(), "rubber-tyre"))
+
+    # Raised sidewall marking on the outer side (size only: no brand).
+    marks = []
+    for text, centre in (("275/45 R22 112Y", math.pi / 2), ("RADIAL TUBELESS", -math.pi / 2)):
+        curve = bpy.data.curves.new("mark", "FONT")
+        curve.body = text
+        curve.size = 0.019
+        curve.extrude = 0.0006
+        curve.align_x = "CENTER"
+        holder = bpy.data.objects.new("mark", curve)
+        bpy.context.scene.collection.objects.link(holder)
+        mark = kit.to_mesh(holder)
+        flip = 1 if centre > 0 else -1
+        for v in mark.data.vertices:
+            x, y, zz = v.co
+            r = 0.352 + flip * y
+            a = centre - flip * x / 0.352
+            v.co = (r * math.cos(a), r * math.sin(a), 0.1334 + zz)
+        mark.data.materials.clear()
+        mark.data.materials.append(kit.material("rubber-tyre"))
+        marks.append(mark)
+    body = kit.join("tyre", [kit.shade(body, 40), *marks])
+    kit.radial_uv(body, Vector((0, 0, 0)))
+    return at_axle(body)
+
+
+# ---- wheel --------------------------------------------------------------------------------------------
+
+def loft(sections: list[list[Vector]]) -> bmesh.types.BMesh:
+    """Solid through a series of 4-point cross-sections, capped at both ends."""
+    bm = bmesh.new()
+    rings = [[bm.verts.new(p) for p in s] for s in sections]
+    for a, b in zip(rings, rings[1:]):
+        for i in range(4):
+            k = (i + 1) % 4
+            bm.faces.new((a[i], a[k], b[k], b[i]))
+    bm.faces.new(rings[0])
+    bm.faces.new(list(reversed(rings[-1])))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return bm
+
+
+def spoke(angle: float, split: float):
+    """One leg of a split spoke: it leaves the hub beside its twin and fans away from it towards the
+    rim (a V), tapering, with the face gently dished outwards (a slightly concave wheel)."""
+    sections = []
+    n = 12
+    for i in range(n + 1):
+        t = i / n
+        r = 0.088 + t * 0.186
+        w = 0.03 - 0.008 * t
+        d = 0.032 - 0.012 * t
+        zc = 0.07 + 0.034 * t ** 1.4
+        a = angle + split * (0.035 + 0.1 * t ** 0.9)
+        u = Vector((math.cos(a), math.sin(a), 0))
+        v = Vector((-math.sin(a), math.cos(a), 0))
+        c = u * r + Vector((0, 0, zc))
+        sections.append([c - v * w / 2 - Vector((0, 0, d / 2)), c + v * w / 2 - Vector((0, 0, d / 2)),
+                         c + v * w / 2 + Vector((0, 0, d / 2)), c - v * w / 2 + Vector((0, 0, d / 2))])
+    return loft(sections)
+
+
+def wheel():
+    """22 x 9.5 forged wheel: five split spokes, diamond-cut face, real barrel profile, valve."""
+    outer = [(0.296, -0.122), (0.297, -0.112), (0.284, -0.106), (0.2794, -0.095), (0.281, -0.085), (0.274, -0.072),
+             (0.258, -0.055), (0.258, 0.02), (0.272, 0.05), (0.281, 0.072), (0.2794, 0.095), (0.284, 0.106), (0.297, 0.113), (0.296, 0.122)]
+    inner = [(r - 0.007, z) for r, z in reversed(outer)]
+    barrel = kit.bevel(new_object("barrel", lathe(outer + inner, 160), "alloy-painted"), 0.0015, 2)
+
+    hub = lathe([(0.034, MOUNT_Z), (0.096, MOUNT_Z), (0.098, 0.07), (0.093, 0.088), (0.04, 0.09), (0.034, 0.084)], 96)
+    hub = new_object("hub", hub, "alloy-painted")
+    holes = bmesh.new()
+    for i in range(5):
+        a = math.pi / 2 + TAU * i / 5
+        c = Vector((PCD * math.cos(a), PCD * math.sin(a), 0.06))
+        merge_into(holes, transform(cylinder(0.0105, 0.08, 32), Matrix.Translation(c)))
+        merge_into(holes, transform(cylinder(0.0105, 0.012, 32, r2=0.0145), Matrix.Translation(c + Vector((0, 0, 0.0255)))))
+    hub = kit.bevel(kit.cut(hub, new_object("holes", holes, "alloy-painted")), 0.0018, 3)
+
+    spokes = bmesh.new()
+    for i in range(5):
+        base = math.pi / 2 + math.pi / 5 + TAU * i / 5
+        merge_into(spokes, spoke(base, -1))
+        merge_into(spokes, spoke(base, 1))
+    spokes = kit.bevel(new_object("spokes", spokes, "alloy-painted"), 0.0032, 3, 25)
+
+    cap = new_object("cap", lathe([(0.0005, 0.097), (0.028, 0.094), (0.031, 0.089), (0.031, 0.084), (0.0005, 0.084)], 64), "gloss-black")
+    valve = rod(Vector((0, 0.262, 0.062)), Vector((0, 0.285, 0.098)), 0.004, 16)
+    valve = new_object("valve", valve, "steel-chrome")
+
+    obj = kit.join("wheel", [kit.shade(o, 30) for o in (barrel, hub, spokes)] + [kit.shade(cap, 40), kit.shade(valve, 40)])
+    # Diamond-cut (machined) outer face of the spokes, hub and rim lip.
+    kit.assign_by_normal(obj, "alloy-machined", Vector((0, 0, 1)), 0.8, region=lambda c: c.z > 0.04 and Vector((c.x, c.y)).length < 0.3)
+    kit.radial_uv(obj, Vector((0, 0, 0)))
+    return at_axle(obj)
+
+
+def wheel_nut(n: int):
+    a = math.pi / 2 + TAU * (n - 1) / 5
+    hexa = new_object("hex", cylinder(0.0108, 0.017, 6), "steel-chrome")
+    hexa = kit.bevel(hexa, 0.0012, 2, 40)
+    seat = new_object("seat", transform(cylinder(0.0098, 0.007, 32, r2=0.0072), Matrix.Translation((0, 0, -0.012))), "steel-chrome")
+    dome = new_object("dome", transform(kit.sphere(0.0092, 3), Matrix.Translation((0, 0, 0.0085)) @ Matrix.Diagonal((1, 1, 0.75, 1))), "steel-chrome")
+    obj = kit.join("nut", [kit.shade(hexa, 30), kit.shade(seat, 30), kit.shade(dome, 60)])
+    obj.data.transform(Matrix.Translation((PCD * math.cos(a), PCD * math.sin(a), 0.0905 + 0.0155)))
+    kit.box_uv(obj)
+    return at_axle(obj)
+
+
+# ---- brakes -------------------------------------------------------------------------------------------
+
+RING_Z = MOUNT_Z - 0.055  # centre plane of the disc's friction ring
+
+
+def brake_disc():
+    """380 x 34 mm two-piece floating disc: ventilated iron ring with curved vanes and slots,
+    anodised aluminium hat, ten bobbins."""
+    parts = []
+    for z0, z1 in ((RING_Z - 0.017, RING_Z - 0.006), (RING_Z + 0.006, RING_Z + 0.017)):
+        plate = new_object("plate", lathe([(0.112, z0), (0.19, z0), (0.19, z1), (0.112, z1)], 160), "iron-cast")
+        slots = bmesh.new()
+        face = z1 if z1 > RING_Z else z0
+        for i in range(8):
+            a = TAU * i / 8
+            s = transform(box(0.055, 0.0032, 0.004), Matrix.Translation((0.152 * math.cos(a), 0.152 * math.sin(a), face)) @ Matrix.Rotation(a + 0.55, 4, "Z"))
+            merge_into(slots, s)
+        plate = kit.bevel(kit.cut(plate, new_object("slots", slots, "iron-cast")), 0.001, 2)
+        plate = kit.shade(plate, 30)
+        kit.assign_by_normal(plate, "iron-friction", Vector((0, 0, 1 if z1 > RING_Z else -1)), 0.95)
+        parts.append(plate)
+    vanes = bmesh.new()
+    for i in range(48):
+        a = TAU * i / 48
+        vane = transform(box(0.072, 0.0055, 0.0125), Matrix.Translation((0.151 * math.cos(a), 0.151 * math.sin(a), RING_Z)) @ Matrix.Rotation(a + 0.42, 4, "Z"))
+        merge_into(vanes, vane)
+    parts.append(kit.shade(kit.bevel(new_object("vanes", vanes, "iron-cast"), 0.001, 1), 30))
+
+    hat = lathe([(0.035, MOUNT_Z - 0.007), (0.035, MOUNT_Z), (0.098, MOUNT_Z), (0.105, MOUNT_Z - 0.006), (0.105, RING_Z + 0.014),
+                 (0.114, RING_Z + 0.014), (0.114, RING_Z + 0.008), (0.099, RING_Z + 0.008), (0.099, MOUNT_Z - 0.007)], 128)
+    hat = new_object("hat", hat, "aluminium-anodised")
+    holes = bmesh.new()
+    for i in range(5):
+        a = math.pi / 2 + TAU * i / 5
+        merge_into(holes, transform(cylinder(0.0075, 0.03, 24), Matrix.Translation((PCD * math.cos(a), PCD * math.sin(a), MOUNT_Z))))
+    for i in range(10):
+        a = TAU * (i + 0.5) / 10
+        merge_into(holes, rod(Vector((0.09 * math.cos(a), 0.09 * math.sin(a), MOUNT_Z - 0.022)), Vector((0.115 * math.cos(a), 0.115 * math.sin(a), MOUNT_Z - 0.022)), 0.0065, 24))
+    hat = kit.shade(kit.bevel(kit.cut(hat, new_object("holes", holes, "aluminium-anodised")), 0.0012, 2), 30)
+    parts.append(hat)
+
+    bobbins = bmesh.new()
+    for i in range(10):
+        a = TAU * i / 10
+        c = Vector((0.1105 * math.cos(a), 0.1105 * math.sin(a), RING_Z + 0.011))
+        merge_into(bobbins, transform(cylinder(0.0055, 0.016, 20), Matrix.Translation(c)))
+        merge_into(bobbins, transform(cylinder(0.0078, 0.0025, 20), Matrix.Translation(c + Vector((0, 0, 0.009)))))
+    parts.append(kit.shade(new_object("bobbins", bobbins, "steel-zinc"), 40))
+
+    obj = kit.join("disc", parts)
+    kit.radial_uv(obj, Vector((0, 0, 0)))
+    return at_axle(obj)
+
+
+def caliper():
+    """Six-piston monobloc calliper: one-piece body bridging the disc, inspection window,
+    piston bosses, mounting lugs with bolts, bleed nipples, pad pin."""
+    c = CALIPER_ANGLE
+    z_in, z_out = RING_Z - 0.068, RING_Z + 0.068
+    # Cast body: the main block plus piston bosses and mounting lugs, merged and smoothed like a casting.
+    rough = sector(0.13, 0.233, c - 0.56, c + 0.56, z_in, z_out, 64)
+    for k in (-0.3, 0.0, 0.3):
+        a = c + k
+        p = Vector((0.172 * math.cos(a), 0.172 * math.sin(a), 0))
+        merge_into(rough, transform(cylinder(0.023, 0.01, 48), Matrix.Translation(p + Vector((0, 0, z_out)))))
+        merge_into(rough, transform(cylinder(0.023, 0.01, 48), Matrix.Translation(p + Vector((0, 0, z_in)))))
+    for k in (-0.62, 0.62):
+        a = c + k
+        merge_into(rough, transform(box(0.046, 0.034, 0.026), Matrix.Translation((0.168 * math.cos(a), 0.168 * math.sin(a), z_in + 0.011)) @ Matrix.Rotation(a, 4, "Z")))
+    body = kit.cast_finish(new_object("body", rough, "caliper-paint"), 0.0019, 12, 0.5)
+    # Machined after casting: the disc slot and the pad inspection window.
+    pocket = new_object("pocket", sector(0.09, 0.199, c - 0.43, c + 0.43, RING_Z - 0.034, RING_Z + 0.034, 64), "caliper-paint")
+    window = new_object("window", sector(0.19, 0.25, c - 0.22, c + 0.22, RING_Z - 0.02, RING_Z + 0.02, 32), "caliper-paint")
+    body = kit.shade(kit.cut(body, pocket, window), 50)
+
+    hardware = bmesh.new()
+    for k in (-0.62, 0.62):
+        a = c + k
+        p = Vector((0.168 * math.cos(a), 0.168 * math.sin(a), z_in - 0.004))
+        merge_into(hardware, transform(cylinder(0.0105, 0.008, 6), Matrix.Translation(p)))
+        merge_into(hardware, transform(cylinder(0.0115, 0.0018, 32), Matrix.Translation(p + Vector((0, 0, 0.004)))))
+    for k, z in ((-0.4, z_in + 0.02), (0.4, z_out - 0.02)):
+        a = c + k
+        u = Vector((math.cos(a), math.sin(a), 0))
+        merge_into(hardware, rod(u * 0.231 + Vector((0, 0, z)), u * 0.243 + Vector((0, 0, z)), 0.0042, 16))
+        merge_into(hardware, rod(u * 0.229 + Vector((0, 0, z)), u * 0.236 + Vector((0, 0, z)), 0.0062, 6))
+    u = Vector((math.cos(c), math.sin(c), 0))
+    merge_into(hardware, rod(u * 0.207 + Vector((0, 0, z_in + 0.015)), u * 0.207 + Vector((0, 0, z_out - 0.01)), 0.0035, 16))
+    hw = kit.shade(kit.bevel(new_object("hardware", hardware, "steel-zinc"), 0.0006, 1), 40)
+    obj = kit.join("caliper", [body, hw])
+    kit.box_uv(obj)
+    return at_axle(obj)
+
+
+def brake_pad(side: str):
+    """Backing plate with ears and a friction block with a centre slot and chamfered ends."""
+    c = CALIPER_ANGLE
+    s = -1 if side == "inner" else 1
+    face = RING_Z + s * 0.017
+    fz0, fz1 = sorted((face, face + s * 0.011))
+    bz0, bz1 = sorted((face + s * 0.011, face + s * 0.016))
+    block = new_object("block", sector(0.133, 0.189, c - 0.36, c + 0.36, fz0, fz1, 32), "pad-friction")
+    slot = new_object("slot", sector(0.12, 0.2, c - 0.006, c + 0.006, face - 0.004, face + 0.004, 2), "pad-friction")
+    block = kit.shade(kit.bevel(kit.cut(block, slot), 0.002, 2, 35), 35)
+    plate = new_object("plate", sector(0.128, 0.195, c - 0.42, c + 0.42, bz0, bz1, 32), "steel-dark")
+    plate = kit.shade(kit.bevel(plate, 0.0012, 2), 35)
+    obj = kit.join("pad", [block, plate])
+    kit.box_uv(obj)
+    return at_axle(obj)
+
+
+def brake_shield():
+    """Pressed-steel dust shield with a rolled lip, cut away around the calliper."""
+    z = RING_Z - 0.028
+    prof = [(0.076, z - 0.0008), (0.2, z - 0.0008), (0.2055, z + 0.004), (0.2055, z + 0.014), (0.204, z + 0.014),
+            (0.204, z + 0.0045), (0.1995, z + 0.0008), (0.076, z + 0.0008)]
+    obj = new_object("shield", lathe(prof, 160), "steel-dark")
+    window = new_object("w", sector(0.11, 0.25, CALIPER_ANGLE - 0.72, CALIPER_ANGLE + 0.72, z - 0.02, z + 0.03, 24), "steel-dark")
+    obj = kit.shade(kit.cut(obj, window), 40)
+    kit.radial_uv(obj, Vector((0, 0, 0)))
+    return at_axle(obj)
+
+
+# ---- hub, bearing, knuckle ----------------------------------------------------------------------------
+
+def hub():
+    """Hub flange with scallops, five pressed-in studs, pilot spigot and splined bore."""
+    flange_z = MOUNT_Z - 0.007
+    prof = [(0.017, -0.062), (0.031, -0.062), (0.031, flange_z - 0.014), (0.07, flange_z - 0.011), (0.077, flange_z - 0.006),
+            (0.077, flange_z), (0.036, flange_z), (0.036, flange_z + 0.012), (0.031, flange_z + 0.014), (0.017, flange_z + 0.014)]
+    body = new_object("hub", lathe(prof, 96), "steel-machined")
+    scallops = bmesh.new()
+    for i in range(5):
+        a = math.pi / 2 + math.pi / 5 + TAU * i / 5
+        merge_into(scallops, transform(cylinder(0.019, 0.05, 40), Matrix.Translation((0.083 * math.cos(a), 0.083 * math.sin(a), flange_z))))
+    body = kit.shade(kit.bevel(kit.cut(body, new_object("scallops", scallops, "steel-machined")), 0.0015, 2), 32)
+    teeth = polar_array(lambda: transform(box(0.004, 0.003, 0.09), Matrix.Translation((0.0175, 0, -0.012))), 24)
+    teeth = kit.shade(new_object("splines", teeth, "steel-machined"), 40)
+    studs = bmesh.new()
+    for i in range(5):
+        a = math.pi / 2 + TAU * i / 5
+        p = Vector((PCD * math.cos(a), PCD * math.sin(a), 0))
+        merge_into(studs, transform(cylinder(0.0064, 0.06, 24), Matrix.Translation(p + Vector((0, 0, flange_z + 0.026)))))
+        merge_into(studs, transform(cylinder(0.0085, 0.006, 24), Matrix.Translation(p + Vector((0, 0, flange_z - 0.009)))))
+        merge_into(studs, transform(cylinder(0.0064, 0.003, 24, r2=0.004), Matrix.Translation(p + Vector((0, 0, flange_z + 0.0575)))))
+    studs = kit.shade(new_object("studs", studs, "steel-zinc"), 40)
+    obj = kit.join("hub", [body, teeth, studs])
+    kit.radial_uv(obj, Vector((0, 0, 0)))
+    return at_axle(obj)
+
+
+def bearing():
+    """Third-generation hub bearing: flanged outer race, split inner race, two rows of balls, brass cages."""
+    z0, z1 = -0.055, -0.005
+    outer = new_object("outer", lathe([(0.0475, z0), (0.06, z0), (0.06, z1), (0.0475, z1)], 96), "bearing-steel")
+    ears = bmesh.new()
+    merge_into(ears, lathe([(0.059, -0.018), (0.07, -0.018), (0.07, -0.008), (0.059, -0.008)], 96))
+    for i in range(3):
+        a = math.pi / 6 + TAU * i / 3
+        merge_into(ears, transform(cylinder(0.014, 0.01, 40), Matrix.Translation((0.078 * math.cos(a), 0.078 * math.sin(a), -0.013))))
+    outer = kit.cut(outer, new_object("ears", ears, "bearing-steel"), union=True)
+    holes = bmesh.new()
+    for i in range(3):
+        a = math.pi / 6 + TAU * i / 3
+        merge_into(holes, transform(cylinder(0.006, 0.03, 24), Matrix.Translation((0.08 * math.cos(a), 0.08 * math.sin(a), -0.013))))
+    grooves = bmesh.new()
+    for zr in (-0.043, -0.017):
+        merge_into(grooves, lathe([(0.0425 + 0.0058 * math.cos(t), zr + 0.0058 * math.sin(t)) for t in (TAU * i / 16 for i in range(16))], 96))
+    outer = kit.cut(outer, new_object("holes", holes, "bearing-steel"), new_object("grooves", grooves, "bearing-steel"))
+    outer = kit.shade(kit.bevel(outer, 0.0008, 2), 35)
+    inner = new_object("inner", lathe([(0.031, z0 + 0.001), (0.037, z0 + 0.001), (0.037, z1 - 0.001), (0.031, z1 - 0.001)], 96), "bearing-steel")
+    inner = kit.shade(kit.bevel(inner, 0.0006, 1), 35)
+    balls = bmesh.new()
+    cages = bmesh.new()
+    for zr in (-0.043, -0.017):
+        for i in range(14):
+            a = TAU * (i + (0.5 if zr > -0.03 else 0)) / 14
+            merge_into(balls, transform(kit.sphere(0.0055, 2), Matrix.Translation((0.0425 * math.cos(a), 0.0425 * math.sin(a), zr))))
+        merge_into(cages, lathe([(0.0405, zr - 0.0042), (0.0445, zr - 0.0042), (0.0445, zr + 0.0042), (0.0405, zr + 0.0042)], 96))
+    balls = kit.shade(new_object("balls", balls, "bearing-steel"), 80)
+    pockets = bmesh.new()
+    for zr in (-0.043, -0.017):
+        for i in range(14):
+            a = TAU * (i + (0.5 if zr > -0.03 else 0)) / 14
+            merge_into(pockets, transform(kit.sphere(0.006, 2), Matrix.Translation((0.0425 * math.cos(a), 0.0425 * math.sin(a), zr))))
+    cages = kit.shade(kit.cut(new_object("cages", cages, "brass"), new_object("pockets", pockets, "brass")), 40)
+    obj = kit.join("bearing", [outer, inner, balls, cages])
+    kit.radial_uv(obj, Vector((0, 0, 0)))
+    return at_axle(obj)
+
+
+UPPER_JOINT = Vector((-0.03, 0.25, -0.075))  # relative to the wheel centre
+LOWER_JOINT = Vector((0.0, -0.17, -0.065))
+STEER_JOINT = Vector((-0.15, 0.0, -0.108))
+
+
+def knuckle():
+    """Cast aluminium upright: bearing boss, upper and lower ball-joint bosses, steering arm and
+    calliper lugs, merged and smoothed like a casting, then machined bores."""
+    bm = bmesh.new()
+    merge_into(bm, transform(cylinder(0.074, 0.055, 64), Matrix.Translation((0, 0, -0.0575))))
+    merge_into(bm, rod(Vector((-0.01, 0.05, -0.06)), UPPER_JOINT + Vector((0, -0.02, 0)), 0.021))
+    merge_into(bm, transform(cylinder(0.024, 0.036, 40), Matrix.Translation(UPPER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
+    merge_into(bm, rod(Vector((0.0, -0.05, -0.062)), LOWER_JOINT + Vector((0, 0.02, 0)), 0.026))
+    merge_into(bm, transform(cylinder(0.027, 0.04, 40), Matrix.Translation(LOWER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
+    merge_into(bm, rod(Vector((-0.05, 0.0, -0.07)), STEER_JOINT, 0.017, 32, 0.014))
+    merge_into(bm, transform(cylinder(0.018, 0.028, 32), Matrix.Translation(STEER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
+    for k in (-0.62, 0.62):
+        a = CALIPER_ANGLE + k
+        lug = Vector((0.168 * math.cos(a), 0.168 * math.sin(a), RING_Z - 0.09))
+        merge_into(bm, rod(Vector((0.06 * math.cos(a), 0.06 * math.sin(a), -0.07)), lug, 0.016))
+        merge_into(bm, transform(cylinder(0.017, 0.02, 32), Matrix.Translation(lug)))
+    body = kit.cast_finish(new_object("knuckle", bm, "aluminium-cast"), 0.0032, 8, 0.3)
+    bores = bmesh.new()
+    merge_into(bores, transform(cylinder(0.0605, 0.2, 96), Matrix.Translation((0, 0, -0.05))))
+    for p in (UPPER_JOINT, LOWER_JOINT, STEER_JOINT):
+        merge_into(bores, transform(cylinder(0.0085, 0.1, 32), Matrix.Translation(p) @ Matrix.Rotation(math.pi / 2, 4, "X")))
+    for k in (-0.62, 0.62):
+        a = CALIPER_ANGLE + k
+        merge_into(bores, transform(cylinder(0.0065, 0.1, 24), Matrix.Translation((0.168 * math.cos(a), 0.168 * math.sin(a), RING_Z - 0.09))))
+    face = transform(box(0.4, 0.4, 0.05), Matrix.Translation((0, 0, -0.03 + 0.025)))
+    body = kit.cut(body, new_object("bores", bores, "aluminium-cast"), new_object("face", face, "aluminium-cast"))
+    body = kit.shade(body, 45)
+    kit.assign_by_normal(body, "aluminium-machined", Vector((0, 0, 1)), 0.97)
+    kit.box_uv(body, 6)
+    return at_axle(body)
+
+
+def speed_sensor():
+    p = Vector((-0.055, 0.048, -0.07))
+    parts = [
+        new_object("body", transform(cylinder(0.008, 0.034, 32), Matrix.Translation(p)), "plastic-black"),
+        new_object("tab", transform(box(0.03, 0.016, 0.004), Matrix.Translation(p + Vector((0.014, 0, -0.012)))), "plastic-black"),
+        new_object("bolt", transform(cylinder(0.0055, 0.006, 6), Matrix.Translation(p + Vector((0.022, 0, -0.008)))), "steel-zinc"),
+        new_object("plug", transform(box(0.018, 0.014, 0.022), Matrix.Translation(p + Vector((0, 0, -0.026)))), "plastic-black"),
+    ]
+    parts = [kit.shade(kit.bevel(o, 0.0012, 2), 40) for o in parts]
+    cable = kit.tube_path([p + Vector((0, 0, -0.037)), p + Vector((-0.01, 0.03, -0.05)), p + Vector((-0.02, 0.09, -0.06)), p + Vector((-0.03, 0.15, -0.055))], 0.0032, 3)
+    cable.data.materials.append(kit.material("plastic-black"))
+    obj = kit.join("sensor", [*parts, kit.shade(cable, 60)])
+    kit.box_uv(obj)
+    return at_axle(obj)
+
+
+# ---- suspension ---------------------------------------------------------------------------------------
+
+def bushing(centre: Vector, axis: str = "X"):
+    """Rubber bush pressed into an eye: outer steel sleeve, rubber, inner sleeve with a through-bolt."""
+    rot = Matrix.Rotation(math.pi / 2, 4, "Y" if axis == "X" else "X")
+    m = Matrix.Translation(centre) @ rot
+    pieces = [
+        new_object("rubber", transform(lathe([(0.0095, -0.026), (0.02, -0.024), (0.02, 0.024), (0.0095, 0.026)], 48), m), "rubber"),
+        new_object("sleeve", transform(lathe([(0.0062, -0.031), (0.0095, -0.031), (0.0095, 0.031), (0.0062, 0.031)], 32), m), "steel-zinc"),
+        new_object("bolt", transform(cylinder(0.0062, 0.075, 24), m), "steel-zinc"),
+        new_object("head", transform(transform(cylinder(0.011, 0.007, 6), Matrix.Translation((0, 0, 0.038))), m), "steel-zinc"),
+        new_object("nut", transform(transform(cylinder(0.011, 0.008, 6), Matrix.Translation((0, 0, -0.038))), m), "steel-zinc"),
+    ]
+    return [kit.shade(kit.bevel(o, 0.0008, 1), 40) for o in pieces]
+
+
+def ball_joint(top: Vector, down: bool = False):
+    """Ball-joint housing with a pleated rubber boot and a tapered stud."""
+    m = Matrix.Translation(top) @ (Matrix.Rotation(math.pi, 4, "X") if down else Matrix.Identity(4)) @ Matrix.Rotation(-math.pi / 2, 4, "X")
+    boot = [(0.004, 0.0)] + [(0.018 + 0.004 * math.sin(i * 1.3), 0.002 + i * 0.0035) for i in range(9)] + [(0.008, 0.034), (0.004, 0.034)]
+    pieces = [
+        new_object("housing", transform(lathe([(0.004, -0.032), (0.026, -0.032), (0.026, -0.004), (0.004, -0.004)], 48), m), "aluminium-forged"),
+        new_object("boot", transform(lathe(boot, 48), m), "rubber"),
+        new_object("stud", transform(lathe([(0.0005, 0.03), (0.009, 0.03), (0.0065, 0.065), (0.0005, 0.065)], 32), m), "steel-zinc"),
+    ]
+    return [kit.shade(kit.bevel(o, 0.0008, 1), 40) for o in pieces]
+
+
+def wishbone(name: str, outer: Vector, inner_front: Vector, inner_rear: Vector, bar=(0.04, 0.026), brace: float | None = None):
+    """Forged wishbone: two legs of rounded section, a web near the ball joint, bushings at the frame."""
+    legs = [kit.tube_path([inner_front, outer], 0, profile="rect", size=bar), kit.tube_path([inner_rear, outer], 0, profile="rect", size=bar)]
+    web = bmesh.new()
+    a, b, c = outer, outer.lerp(inner_front, 0.42), outer.lerp(inner_rear, 0.42)
+    n = (b - a).cross(c - a).normalized() * 0.005
+    verts = [web.verts.new(p) for p in (a - n, b - n, c - n, a + n, b + n, c + n)]
+    web.faces.new((verts[0], verts[2], verts[1]))
+    web.faces.new((verts[3], verts[4], verts[5]))
+    for i, j in ((0, 1), (1, 2), (2, 0)):
+        web.faces.new((verts[i], verts[j], verts[j + 3], verts[i + 3]))
+    pieces = legs + [new_object("web", web, "aluminium-forged")]
+    for p in (inner_front, inner_rear):
+        pieces.append(new_object("eye", transform(cylinder(0.029, 0.056, 48), Matrix.Translation(p) @ Matrix.Rotation(math.pi / 2, 4, "Y")), "aluminium-forged"))
+    pieces.append(new_object("cup", transform(cylinder(0.028, 0.03, 48), Matrix.Translation(outer) @ Matrix.Rotation(math.pi / 2, 4, "X")), "aluminium-forged"))
+    if brace is not None:
+        f, r = inner_front.lerp(outer, brace), inner_rear.lerp(outer, brace)
+        pieces.append(kit.tube_path([f, r], 0, profile="rect", size=(0.03, 0.022)))
+        mid = (f + r) / 2
+        for dx in (-0.022, 0.022):
+            pieces.append(new_object("clevis", transform(box(0.008, 0.06, 0.05), Matrix.Translation(mid + Vector((dx, 0.03, 0)))), "aluminium-forged"))
+    for o in pieces:
+        if not o.data.materials:
+            o.data.materials.append(kit.material("aluminium-forged"))
+    body = kit.join("arm", pieces)
+    body = kit.cast_finish(body, 0.0028, 6, 0.32)
+    bores = bmesh.new()
+    for p in (inner_front, inner_rear):
+        merge_into(bores, transform(cylinder(0.02, 0.1, 40), Matrix.Translation(p) @ Matrix.Rotation(math.pi / 2, 4, "Y")))
+    body = kit.shade(kit.cut(body, new_object("bores", bores, "aluminium-forged")), 40)
+    extras = bushing(inner_front) + bushing(inner_rear) + ball_joint(outer + Vector((0, 0.015, 0)))
+    obj = kit.join(name, [body, *extras])
+    kit.box_uv(obj, 6)
+    return obj
+
+
+LOWER_EYE = Vector((AXLE.x, 0.29, 0.605))
+TOP = Vector((AXLE.x - 0.012, 0.93, 0.56))
+DAMPER_FRAME = Matrix.Translation(LOWER_EYE) @ Vector((0, 1, 0)).rotation_difference((TOP - LOWER_EYE).normalized()).to_matrix().to_4x4()
+
+
+def damper():
+    """Monotube damper: lower eye with bush, painted body, threaded sleeve, notched spring perch,
+    chrome rod and a polyurethane bump stop. Built along +y, then aimed at the top mount."""
+    def along_y(prof):  # lathe around y instead of z
+        return transform(lathe(prof, 64), Matrix.Rotation(-math.pi / 2, 4, "X"))
+    thread = [(0.0268, 0.2)] + [p for i in range(50) for p in ((0.029, 0.2 + i * 0.002 + 0.001), (0.0268, 0.2 + (i + 1) * 0.002))] + [(0.0245, 0.3), (0.0245, 0.2)]
+    bump = [(0.009, 0.4)] + [(0.017 + 0.005 * abs(math.sin(i * 0.8)), 0.4 + i * 0.006) for i in range(12)] + [(0.009, 0.472)]
+    pieces = [
+        new_object("body", along_y([(0.0005, 0.02), (0.025, 0.02), (0.025, 0.355), (0.0215, 0.362), (0.0005, 0.362)]), "damper-paint"),
+        new_object("thread", along_y(thread), "steel-zinc"),
+        new_object("perch", along_y([(0.0285, 0.275), (0.066, 0.275), (0.066, 0.283), (0.0285, 0.285)]), "aluminium-anodised"),
+        new_object("lock", along_y([(0.0285, 0.288), (0.04, 0.288), (0.04, 0.298), (0.0285, 0.298)]), "aluminium-anodised"),
+        new_object("rod", along_y([(0.0005, 0.36), (0.009, 0.36), (0.009, 0.66), (0.0005, 0.66)]), "steel-chrome"),
+        new_object("bump", along_y(bump), "polyurethane"),
+        new_object("eye", transform(cylinder(0.024, 0.042, 48), Matrix.Rotation(math.pi / 2, 4, "Y")), "damper-paint"),
+    ]
+    notches = bmesh.new()
+    for i in range(4):
+        a = TAU * i / 4
+        merge_into(notches, transform(box(0.012, 0.012, 0.008), Matrix.Translation((0.066 * math.cos(a), 0.293, 0.066 * math.sin(a))) @ Matrix.Rotation(-a, 4, "Y")))
+    pieces[3] = kit.cut(pieces[3], new_object("notches", notches, "aluminium-anodised"))
+    pieces = [kit.shade(kit.bevel(o, 0.0009, 2), 35) for o in pieces]
+    pieces += bushing(Vector((0, 0, 0)))
+    obj = kit.join("damper", pieces)
+    obj.data.transform(DAMPER_FRAME)
+    kit.box_uv(obj, 6)
+    return obj
+
+
+def spring():
+    obj = kit.helix(0.058, 0.0068, 0.283, 0.618, 6.4)
+    obj.data.materials.append(kit.material("spring-paint"))
+    obj = kit.shade(obj, 70)
+    obj.data.transform(DAMPER_FRAME)
+    kit.box_uv(obj, 6)
+    return obj
+
+
+def top_mount():
+    def along_y(prof, seg=64):
+        return transform(lathe(prof, seg), Matrix.Rotation(-math.pi / 2, 4, "X"))
+    pieces = [
+        new_object("seat", along_y([(0.03, 0.618), (0.068, 0.618), (0.072, 0.626), (0.068, 0.628), (0.03, 0.624)]), "steel-dark"),
+        new_object("rubber", along_y([(0.012, 0.626), (0.05, 0.628), (0.052, 0.648), (0.012, 0.65)]), "rubber"),
+        new_object("plate", along_y([(0.012, 0.648), (0.08, 0.648), (0.08, 0.654), (0.012, 0.654)], 3), "steel-dark"),  # three-cornered plate
+        new_object("nut", transform(cylinder(0.012, 0.012, 6), Matrix.Translation((0, 0.662, 0)) @ Matrix.Rotation(math.pi / 2, 4, "X")), "steel-zinc"),
+    ]
+    studs = bmesh.new()
+    for i in range(3):
+        a = math.pi / 3 + TAU * i / 3
+        merge_into(studs, transform(cylinder(0.005, 0.03, 20), Matrix.Translation((0.05 * math.cos(a), 0.666, 0.05 * math.sin(a))) @ Matrix.Rotation(math.pi / 2, 4, "X")))
+    pieces.append(new_object("studs", studs, "steel-zinc"))
+    pieces = [kit.shade(kit.bevel(o, 0.0012, 2), 40) for o in pieces]
+    obj = kit.join("top", pieces)
+    obj.data.transform(DAMPER_FRAME)
+    kit.box_uv(obj, 6)
+    return obj
+
+
+def link(name: str, a: Vector, b: Vector, r: float, adjuster: bool = False, gaiter: bool = False):
+    """A rod with ball joints: drop links and the track rod."""
+    pieces = [new_object("rod", rod(a, b, r, 32), "steel-zinc")]
+    d = (b - a).normalized()
+    for p, down in ((a, True), (b, False)):
+        pieces += ball_joint(p, down)
+    if adjuster:
+        m = b - d * 0.06
+        pieces.append(new_object("nut", transform(cylinder(0.013, 0.012, 6), Matrix.Translation(m) @ kit.align_z(d)), "steel-zinc"))
+        pieces.append(new_object("end", rod(b - d * 0.055, b, r * 1.6, 32), "aluminium-forged"))
+    if gaiter:
+        prof = [(r + 0.002, 0.0)] + [(0.019 + 0.009 * abs(math.sin(i * 0.9)), 0.004 + i * 0.008) for i in range(11)] + [(r + 0.002, 0.096)]
+        pieces.append(new_object("gaiter", transform(lathe(prof, 48), Matrix.Translation(a) @ kit.align_z(d)), "rubber"))
+    pieces = [kit.shade(o, 40) for o in pieces]
+    obj = kit.join(name, pieces)
+    kit.box_uv(obj, 6)
+    return obj
+
+
+# ---- build --------------------------------------------------------------------------------------------
+
+def build():
+    kit.reset()
+    parts = {
+        "tyre-fr": tyre(),
+        "wheel-fr": wheel(),
+        **{f"wheel-nut-fr-{n}": wheel_nut(n) for n in range(1, 6)},
+        "brake-disc-fr": brake_disc(),
+        "caliper-fr": caliper(),
+        "brake-pad-inner-fr": brake_pad("inner"),
+        "brake-pad-outer-fr": brake_pad("outer"),
+        "brake-shield-fr": brake_shield(),
+        "hub-fr": hub(),
+        "wheel-bearing-fr": bearing(),
+        "knuckle-fr": knuckle(),
+        "wheel-speed-sensor-fr": speed_sensor(),
+        "lower-arm-fr": wishbone("lower", AXLE + LOWER_JOINT, Vector((AXLE.x + 0.17, 0.24, 0.40)), Vector((AXLE.x - 0.17, 0.24, 0.40)), brace=0.586),
+        "upper-arm-fr": wishbone("upper", AXLE + UPPER_JOINT, Vector((AXLE.x + 0.17, 0.62, 0.47)), Vector((AXLE.x - 0.17, 0.62, 0.47)), bar=(0.032, 0.022)),
+        "coilover-fr": damper(),
+        "spring-fr": spring(),
+        "top-mount-fr": top_mount(),
+        "drop-link-fr": link("drop", Vector((AXLE.x - 0.08, 0.36, 0.62)), Vector((AXLE.x - 0.035, 0.52, 0.59)), 0.006),
+        "tie-rod-fr": link("tie", Vector((AXLE.x - 0.2, 0.4, 0.45)), AXLE + STEER_JOINT, 0.0085, adjuster=True, gaiter=True),
+    }
+    # Remove any helper objects left behind, then name and centre each part.
+    keep = {o.name for o in parts.values()}
+    for o in list(bpy.data.objects):
+        if o.name not in keep:
+            bpy.data.objects.remove(o)
+    for pid, obj in parts.items():
+        kit.finish(obj, pid)
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    kit.export_glb(str(OUT))
+    tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in parts.values())
+    print(f"exported {len(parts)} parts, {tris:,} triangles -> {OUT} ({OUT.stat().st_size / 1e6:.1f} MB)")
+    for pid, obj in parts.items():
+        print(f"  {pid:24s} {sum(len(p.vertices) - 2 for p in obj.data.polygons):>8,} tris  {[m.name for m in obj.data.materials]}")
+
+
+if __name__ == "__main__":
+    build()
