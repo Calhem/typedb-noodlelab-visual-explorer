@@ -17,7 +17,7 @@ from typing import Annotated
 from fastapi import FastAPI, Path
 from fastapi.responses import JSONResponse
 
-from explorer import queries
+from explorer import queries, questions
 from explorer.db import READ, RecordingTransaction, connect, settings
 
 log = logging.getLogger("explorer.api")
@@ -160,6 +160,14 @@ def create_app(db=None):
     @app.get("/api/types/{label}")
     def type_detail(label: Id):
         return answer(queries.type_detail, label)
+
+    @app.get("/api/questions")
+    def question_list():
+        return {"data": questions.question_list(None), "typeql": [], "timings-ms": []}
+
+    @app.get("/api/questions/{question_id}")
+    def question(question_id: Id):
+        return answer(questions.run, question_id)
 
     @app.get("/api/assemblies/{assembly_id}")
     def assembly(assembly_id: Id):
