@@ -10,7 +10,7 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { explodedVolume } from "./framing";
 import { progress } from "./progress";
-import { quality, settings, useQualityTier, type Tier } from "./settings";
+import { HALF_RES_AO_ABOVE, quality, settings, useQualityTier, type Tier } from "./settings";
 import { Vehicle } from "./Vehicle";
 
 function Turntable({ spinning, children }: { spinning: boolean; children: React.ReactNode }) {
@@ -160,11 +160,15 @@ function Studio() {
 
 /** Post-processing for the current quality tier (see settings.ts). Steps down a tier when frames are slow. */
 function Effects({ tier }: { tier: Tier }) {
+  const { size, viewport } = useThree();
   if (!settings.effects || tier === "low") return null;
+  // Occlusion cost grows with pixels; on very large canvases the high tier computes it at half resolution.
+  const pixels = size.width * size.height * viewport.dpr * viewport.dpr;
+  const halfRes = tier !== "high" || (settings.ao ? settings.ao === "half" : pixels > HALF_RES_AO_ABOVE);
   return (
     <EffectComposer multisampling={tier === "high" ? 4 : 2}>
       {/* Ambient occlusion: soft darkening where surfaces meet (crevices, contact between parts). */}
-      <N8AO aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality={tier === "high" ? "high" : "medium"} halfRes={tier !== "high"} />
+      <N8AO aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality={tier === "high" ? "high" : "medium"} halfRes={halfRes} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   );
@@ -181,7 +185,7 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, insets,
   const tier = useQualityTier();
   return (
     <Canvas
-      dpr={tier === "high" ? [1, 2] : tier === "medium" ? [1, 1.5] : 1}
+      dpr={tier === "high" || tier === "medium" ? [1, 1.5] : 1}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.08 }}
       camera={{ position: [8.4, 1.75, 8.4], fov: 24, near: 0.1, far: 100 }}
       onPointerMissed={() => onSelect(null)}

@@ -2,9 +2,9 @@
 
 Runs a separate headless Chrome (the installed Google Chrome, real engine, Metal GPU on this Mac) through the
 DevTools Protocol; it never touches the user's own Chrome windows or profile. Needs the dev stack running.
-    uv run --with websocket-client python -I scripts/browser/perf.py
+    uv run --with websocket-client python -I scripts/browser/perf.py [results.json]
 """
-import json, sys, tempfile
+import json, os, sys, tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 from cdp import Browser
@@ -41,9 +41,10 @@ window.__frames = async (n = 150, animate = false) => {
 };
 """
 results = {}
-for tier in ("high", "medium"):
+# PERF_TIERS (default "high,medium") and PERF_QUERY (extra address options, e.g. "ao=half") narrow a run.
+for tier in os.environ.get("PERF_TIERS", "high,medium").split(","):
     b = Browser(SP + "/profile")
-    b.call("Page.navigate", url=f"http://127.0.0.1:5180/?quality={tier}")
+    b.call("Page.navigate", url=f"http://127.0.0.1:5180/?quality={tier}&{os.environ.get('PERF_QUERY', '')}")
     b.js("for (let i=0;i<60 && !(window.__vx && window.__select);i++) await new Promise(r=>setTimeout(r,500)); " + MEASURE + " await __wait(1500); return 1;")
     b.js("await __click('button', 'Explore the vehicle', 3000); document.querySelector('.explore .panel-close')?.click(); await __wait(1500); return 1;")
     r = {}
@@ -57,7 +58,8 @@ for tier in ("high", "medium"):
     r["exploding (animation), no highlight"] = b.js("return await __frames(150, true);")
     results[tier] = r
     b.close()
-print(json.dumps(results))
+if len(sys.argv) > 1:
+    open(sys.argv[1], "w").write(json.dumps(results, indent=1))   # optional: save the full results
 for tier, r in results.items():
     for k, v in r.items():
         print(f"{tier:6} {k:48} cpu {v['cpu']['p50']:5}/{v['cpu']['p90']:5}  gpu {v['gpu']['p50']:6}/{v['gpu']['p90']:6}  frame {v['interval']['p50']}/{v['interval']['p90']}")
