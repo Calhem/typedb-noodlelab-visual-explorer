@@ -61,9 +61,16 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/-hv-connector$/, /^hv-harness-/],
   [/-inverter$/, /^hv-harness-/],
 ];
-// The body's underside panel, which the drive units sit through by design; and the sills, whose simple boxes run
-// on into the wheel arches since the wheelbase change (a body-structure issue recorded in docs/c3a/README.md).
-const SKIP = new Set(["underbody", "sill-l", "sill-r"]);
+// The body's underside panel, which the drive units sit through by design.
+const SKIP = new Set(["underbody"]);
+
+/** Known clashes on the body-structure backlog (docs/body-structure-backlog.md). They are not ignored: the
+ * check reports them every run, and fails if one disappears (so the list is updated when the body is fixed)
+ * or if anything new appears. */
+const BACKLOG = [
+  "rear-halfshaft-l / sill-l", // B1: the sills run on into the rear wheel arches since the wheelbase change
+  "rear-halfshaft-r / sill-r",
+];
 
 describe("drive-unit packaging", () => {
   it("no drive-unit part passes through a neighbouring part", async () => {
@@ -100,6 +107,9 @@ describe("drive-unit packaging", () => {
         }
       }
     }
-    expect(clashes).toEqual([]);
+    const pairs = clashes.map((c) => c.split(":")[0]);
+    console.info(`packaging: ${pairs.length} clash(es); on the backlog: ${pairs.filter((p) => BACKLOG.includes(p)).join(", ") || "none"}`);
+    expect(clashes.filter((c) => !BACKLOG.includes(c.split(":")[0])), "new clashes").toEqual([]);
+    expect(pairs.filter((p) => BACKLOG.includes(p)).sort(), "backlog clashes still present (update the list when fixed)").toEqual([...BACKLOG].sort());
   }, 120_000);
 });
