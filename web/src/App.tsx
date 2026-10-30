@@ -27,7 +27,7 @@ export function App() {
 
       <header className="brand">
         <span className="brand-mark" aria-hidden />
-        <span>Vehicle Explorer</span>
+        <span>Noodlelab Visual Explorer</span>
         <span className="brand-sep">·</span>
         <span className="brand-sub">TypeDB</span>
       </header>
