@@ -168,3 +168,15 @@ def test_every_dependency_has_a_family_effect_and_functions(driver, database):
 @pytest.mark.parametrize("dep", [d for d in DEPS if "fallback" in d], ids=lambda d: f"{d['dependent']}<-{d['provider']}")
 def test_fallbacks_protect_a_loss(dep):
     assert dep["loss"] == "lost" and dep["fallback"]["backup"] != dep["provider"]
+
+
+def test_function_level_consequences_per_component(client):
+    """A failure takes functions, not whole components: the ESC module keeps its brake pressure when a
+    wheel-speed sensor fails; the failed part itself loses everything it provides."""
+    data = get(client, "/api/components/wheel-speed-sensor-fl/impact")["data"]
+    esc = next(c for c in data["components"] if c["id"] == "esc-module")
+    assert set(esc["lost"]) == {"anti-lock braking", "stability control"}
+    assert "brake pressure" in esc["kept"] and not esc["degraded"]
+    assert data["failed"]["functions"] == ["wheel speed"]
+    rack = next(c for c in get(client, "/api/components/eps-motor/impact")["data"]["components"] if c["id"] == "steering-rack")
+    assert rack["lost"] == ["steering assistance"] and "steering motion" in rack["kept"]

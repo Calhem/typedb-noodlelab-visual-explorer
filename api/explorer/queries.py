@@ -223,6 +223,16 @@ def component_impact(tx, component_id):
         for e in degraded if e["loss"] == "lost" and (e["from"] == component_id or (e["from"], e["needs"]) in lost_pairs)
         for b in e["fallback"] if b["id"] != component_id
     ]
+    # Every function each component has (as a provider or a dependent), to show what an affected part keeps.
+    functions = fetch(tx, """
+        match
+          $c isa component;
+          { dependency (dependent: $c, affected-function: $f); } or { dependency (provider: $c, required-function: $f); };
+        fetch { "id": $c.component-id, "name": $c.name, "function": $f.function-name };
+    """)
+    has = {}
+    for x in functions:
+        has.setdefault(x["id"], set()).add(x["function"])
     lost_keys = {(e["to"], e["function"]) for e in lost}
     reached = _steps_from(component_id, lost + degraded)
 
@@ -232,9 +242,23 @@ def component_impact(tx, component_id):
                 "via": e["from"], "via-function": e["needs"], "kind": e["kind"]}
     order = lambda x: (x["steps"], x["name"], x["function"])
     unique_fallbacks = {(f["id"], f["function"], f["backup"]): f for f in fallbacks}
+    lost_items = sorted((item(k) for k in reached if k in lost_keys), key=order)
+    degraded_items = sorted((item(k) for k in reached if k not in lost_keys), key=order)
+    # Per component: which of its functions are lost, degraded, or kept. A failure usually takes functions,
+    # not whole components (the failed part itself is the exception: it loses everything).
+    components = {}
+    for x in lost_items + degraded_items:
+        c = components.setdefault(x["id"], {"id": x["id"], "name": x["name"], "steps": x["steps"], "lost": [], "degraded": []})
+        c["lost" if (x["id"], x["function"]) in lost_keys else "degraded"].append(x["function"])
+        c["steps"] = min(c["steps"], x["steps"])
+    for c in components.values():
+        c["kept"] = sorted(has.get(c["id"], set()) - set(c["lost"]) - set(c["degraded"]))
+    failed_name = next((x["name"] for x in functions if x["id"] == component_id), None)
     return {
-        "lost": sorted((item(k) for k in reached if k in lost_keys), key=order),
-        "degraded": sorted((item(k) for k in reached if k not in lost_keys), key=order),
+        "failed": {"id": component_id, "name": failed_name, "functions": sorted(has.get(component_id, set()))},
+        "components": sorted(components.values(), key=lambda c: (0 if c["lost"] else 1, c["steps"], c["name"])),
+        "lost": lost_items,
+        "degraded": degraded_items,
         "fallbacks": sorted(unique_fallbacks.values(), key=lambda f: (f["name"], f["function"])),
     }
 
