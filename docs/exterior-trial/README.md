@@ -40,7 +40,7 @@ Final images: [front three-quarter](trial-front34.jpg), [side](trial-side.jpg), 
   bonnet with no faceting, seams or wobbles. The close-up of the front corner shows a crisp bonnet edge
   and a tight corner radius. This is the main thing the current browser-built body cannot do.
 - **Proportions and dimensions** follow the provisional targets exactly, and are easy to change: the
-  whole body is about 70 numbers.
+  whole body is about 320 numbers (12 rails x 9 points x 3 coordinates) plus a few creases.
 - **Integration is cheap**: about 80,000 triangles for the whole shell (fine for the web), built in a few
   seconds, reproducible, in the same pipeline as the Phase A parts.
 
