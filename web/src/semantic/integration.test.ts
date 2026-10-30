@@ -38,3 +38,37 @@ describe.runIf(process.env.TYPEDB_INTEGRATION === "1")("the web app against Type
     expect(assembly.data.path.map((a) => a.id)).toEqual(["corner-fl", "chassis", "vehicle"]);
   });
 });
+
+describe.runIf(process.env.TYPEDB_INTEGRATION === "1")("the semantic browser against TypeDB", () => {
+  const drawn = new Set(PARTS.map((p) => p.id));
+
+  it("the type hierarchy counts every part the app draws", async () => {
+    const { data } = await get<{ type: string; total: number }[]>("types");
+    expect(data.find((t) => t.type === "component")!.total).toBe(PARTS.length);
+  });
+
+  it("every system's members are parts the app draws", async () => {
+    const { data: systems } = await get<{ id: string }[]>("systems");
+    for (const s of systems) {
+      const { data } = await get<{ components: { id: string }[] }>(`systems/${s.id}`);
+      for (const c of data.components) expect(drawn.has(c.id), `${s.id}: ${c.id}`).toBe(true);
+    }
+  });
+
+  it("every assembly's parts are parts the app draws, and the tree's total is the whole vehicle", async () => {
+    const { data: tree } = await get<{ id: string; parent: string | null; total: number }[]>("assemblies");
+    expect(tree.find((a) => a.parent === null)!.total).toBe(PARTS.length);
+    const { data } = await get<{ "all-component-ids": string[] }>("assemblies/vehicle");
+    expect(new Set(data["all-component-ids"])).toEqual(drawn);
+  });
+
+  it("every question's highlighted parts are parts the app draws", async () => {
+    const { data: questions } = await get<{ id: string }[]>("questions");
+    // The 4-second single-failure question is checked against the failure oracle in api/tests instead.
+    for (const q of questions.filter((x) => x.id !== "propulsion-single-points")) {
+      const { data, typeql } = await get<{ highlight: string[] }>(`questions/${q.id}`);
+      expect(typeql.length, q.id).toBeGreaterThan(0);
+      for (const id of data.highlight) expect(drawn.has(id), `${q.id}: ${id}`).toBe(true);
+    }
+  });
+});
