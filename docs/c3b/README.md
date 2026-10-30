@@ -266,7 +266,7 @@ local server.
 | `3ff1611` | test(impact): open-differential scenarios and propulsion levels |
 | `aafb4e4` | docs: body-structure backlog (B1) |
 | `c7ecdad` | test(packaging): report backlog clashes instead of skipping the sills |
-| `2c69c07` | perf(questions): find single-failure candidates first |
+| `fe77b54` | perf(questions): find single-failure candidates first |
 | `2c69c07` | docs(backlog): single-failure query investigation |
 | `0a6bf5e` | docs: C3b battery and HV architecture, expected outcomes and sources |
 | `c8ee546` | feat(blender): model the battery pack and power electronics |
