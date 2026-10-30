@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { FRONT_AXLE_X } from "../vehicle/dimensions";
 import { PART_BY_ID } from "../vehicle/manifest";
 import { createStudioMaterials } from "../vehicle/studioMaterials";
 
@@ -55,7 +56,7 @@ describe("Blender front-right corner", () => {
   it("places every part near the front-right wheel, with no rotation baked into the node", () => {
     for (const n of nodes) {
       const [x, y, z] = n.translation;
-      expect(Math.abs(x - 1.437), n.name).toBeLessThan(0.35);
+      expect(Math.abs(x - FRONT_AXLE_X), n.name).toBeLessThan(0.35);
       expect(y, n.name).toBeGreaterThan(0);
       expect(y, n.name).toBeLessThan(1.1);
       expect(z, n.name).toBeGreaterThan(0.35);

@@ -182,7 +182,7 @@ const brakeControl: Part[] = [
   { id: "brake-booster", material: "cast",
     shape: { kind: "cylinder", radius: 0.085, length: 0.16, axis: "x" }, position: [1.14, 0.84, DRIVER_Z] },
   { id: "esc-module", material: "aluminium",
-    shape: { kind: "box", size: [0.15, 0.12, 0.14], radius: 0.02 }, position: [1.8, 0.7, 0.05] },
+    shape: { kind: "box", size: [0.15, 0.12, 0.14], radius: 0.02 }, position: [1.84, 0.7, 0.05] },
 ];
 
 const driveUnit = (key: "front" | "rear", x: number): Part[] => {
@@ -474,7 +474,7 @@ const thermal: Part[] = [
   { id: "battery-chiller", material: "aluminium",
     shape: { kind: "box", size: [0.14, 0.08, 0.1], radius: 0.01 }, position: [1.85, 0.46, -0.12] },
   { id: "heat-pump-compressor", material: "cast",
-    shape: { kind: "cylinder", radius: 0.06, length: 0.16, axis: "x" }, position: [1.8, 0.47, 0.18] },
+    shape: { kind: "cylinder", radius: 0.06, length: 0.16, axis: "x" }, position: [1.84, 0.47, 0.18] },
   { id: "hvac-module", material: "satin-black",
     shape: { kind: "box", size: [0.22, 0.2, 0.5], radius: 0.03 }, position: [0.72, 0.62, -0.1] },
   { id: "coolant-lines", material: "satin-black",

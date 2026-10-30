@@ -40,7 +40,7 @@ SHOTS = ROOT / "web" / "shots"
 WHEELBASE = 3.03
 FRONT_AXLE, REAR_AXLE = WHEELBASE / 2, -WHEELBASE / 2
 AXLE_Y, TRACK_HALF, TYRE_R = 0.405, 0.815, 0.403
-PHASE_A_AXLE_X = 1.437          # where the Phase A corner model sits
+PHASE_A_AXLE_X = 1.58           # where the Phase A corner model sits (FRONT_AXLE_X in dimensions.ts)
 
 
 def app(x: float, y: float, z: float) -> Vector:

@@ -1,8 +1,8 @@
 # Vehicle design targets (provisional)
 
-Status: **provisional**, approved by the owner on 30 October 2026 as design targets. They become fixed only
-when the redesigned exterior is approved. Until then the running app keeps its current dimensions
-(`web/src/vehicle/dimensions.ts`); nothing is moved yet.
+Status: **current engineering baseline** (owner, 30 October 2026). Applied to the app on 30 October 2026
+(docs/wheelbase/README.md): the axles moved (front +14.3 cm, rear -1.3 cm) and the body stayed. Still
+revisable when the exterior is revisited.
 
 Source: measured from the approved concept image (`docs/reference/concept-target.webp`), see
 `docs/exterior-feasibility.md`. About ±5% because of perspective in the image.
@@ -18,8 +18,8 @@ Source: measured from the approved concept image (`docs/reference/concept-target
 | Wheels | 22 inch | 22 inch | none |
 
 The whole change is the **front axle moving forward about 15 cm** (the rear axle stays where it is,
-within measurement error). The vehicle's origin is midway between the axles, so in app coordinates both
-axles move outwards by about 8 cm.
+within measurement error). As applied: front axle x 1.437 -> 1.58, rear axle x -1.437 -> -1.45; the origin
+is now a fixed body reference point.
 
 ## What it means for mechanical packaging
 

@@ -30,7 +30,7 @@ ASSET = "corner-fr"
 OUT = ROOT / "web" / "assets-src" / f"{ASSET}.glb"
 MAP = ROOT / "web" / "public" / "assets" / f"{ASSET}.map.json"
 
-AXLE = Vector((1.437, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF)
+AXLE = Vector((1.58, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF): web/src/vehicle/dimensions.ts
 CALIPER_ANGLE = 2.2  # calliper sits behind and above the axle (radians, in the wheel plane)
 PCD = 0.057  # wheel-stud circle radius (5 x 114.3 mm)
 MOUNT_Z = 0.035  # hub mounting face, measured outwards from the wheel centre plane
