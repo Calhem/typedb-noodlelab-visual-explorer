@@ -1,12 +1,63 @@
 # Docker Compose file for the TypeDB Noodlelab Visual Explorer.
-# Phase 2 (visual prototype) only needs the web dev server:
-#   docker compose up web-dev        then open http://127.0.0.1:5180
-# Node.js runs inside the container, so nothing needs installing on this computer.
+# Start everything:   docker compose up -d --build        then open http://127.0.0.1:5180
+# Stop everything:    docker compose down                 (TypeDB's data is kept in its volume)
+#
+#   typedb   TypeDB 3.14.1, the application's only database (docs/decisions/0001-typedb-sole-database.md)
+#   seed     one-off: creates the "vehicle" database from schema/ and data/seed/ if it doesn't exist yet
+#   api      the read-only semantic API (Python); reached only through the web server, no published port
+#   web-dev  the web app's development server; forwards /api requests to the api service
+#
+# Node.js and Python run inside containers, so nothing needs installing on this computer.
 # Published ports are bound to 127.0.0.1, so only this computer can connect.
 
 name: typedb-noodlelab-visual-explorer
 
+x-api: &api
+  build: ./api
+  environment:
+    TYPEDB_ADDRESS: typedb:1729        # the typedb service on Compose's private network
+    TYPEDB_DATABASE: vehicle
+    PYTHONPATH: /project/api           # the backend code, mounted below
+  volumes:
+    - .:/project:ro                    # code, schema and seed data, read-only
+
 services:
+  typedb:
+    image: typedb/typedb:3.14.1        # pinned exact version; change deliberately
+    container_name: noodlelab-typedb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1733:1729"          # driver port (TypeDB Studio and scripts on this computer)
+      - "127.0.0.1:8004:8000"          # HTTP port (TypeDB Studio)
+    volumes:
+      - noodlelab-typedb-data:/var/lib/typedb/data
+    healthcheck:
+      # The image has no curl or wget; bash's /dev/tcp checks the driver port is accepting.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/1729"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  seed:
+    <<: *api
+    container_name: noodlelab-seed
+    command: ["python", "-m", "explorer.seed", "--if-missing"]
+    restart: "no"
+    depends_on:
+      typedb:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    container_name: noodlelab-api
+    restart: unless-stopped
+    # --reload: restarts when the Python code changes (development only)
+    command: ["python", "-m", "uvicorn", "explorer.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/project/api/explorer"]
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
   web-dev:
     image: node:24.22.1-alpine
     container_name: noodlelab-web-dev
@@ -16,6 +67,7 @@ services:
       - "127.0.0.1:5180:5180"
     environment:
       PROJECT_ROOT: /project
+      API_URL: http://api:8000             # where the dev server forwards /api requests
     volumes:
       - ./web:/web
       - noodlelab-node-modules:/web/node_modules   # dependencies live in the container, not in the project folder
@@ -23,3 +75,4 @@ services:
 
 volumes:
   noodlelab-node-modules:
+  noodlelab-typedb-data:

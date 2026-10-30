@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import { Stage } from "./scene/Stage";
+import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
+import { ComponentPanel } from "./ui/ComponentPanel";
+import { Explore, type ExploreTab } from "./ui/Explore";
+import { useFocus } from "./ui/focus";
+import { Scrubber } from "./ui/Scrubber";
 
 function usePrefersReducedMotion() {
   const query = "(prefers-reduced-motion: reduce)";
@@ -13,20 +18,62 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
+/** Whether the semantic layer (API and TypeDB) answers: checked on load, every 20 seconds and with every answer. */
+function useTypeDBStatus() {
+  const [status, setStatus] = useState<"checking" | "available" | "unavailable">("checking");
+  useEffect(() => {
+    let live = true;
+    const check = () => semantic.health().then((ok) => live && setStatus(ok ? "available" : "unavailable"));
+    check();
+    const timer = setInterval(check, 20_000);
+    const onAnswer = (e: Event) => setStatus((e as CustomEvent<boolean>).detail ? "available" : "unavailable");
+    window.addEventListener(TYPEDB_STATUS_EVENT, onAnswer);
+    return () => {
+      live = false;
+      clearInterval(timer);
+      window.removeEventListener(TYPEDB_STATUS_EVENT, onAnswer);
+    };
+  }, []);
+  return status;
+}
+
 export function App() {
   const [exploring, setExploring] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const typedb = useTypeDBStatus();
+  const { focus, error: focusError, pending, request, cancel, clear } = useFocus();
+  const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
+  const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
+  // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
+  useEffect(() => {
+    const tabs: Partial<Record<string, ExploreTab>> = { system: "systems", assembly: "assemblies", type: "types", question: "questions" };
+    const tab = focus ? tabs[focus.kind] : undefined;
+    if (tab) {
+      setExploreTab(tab);
+      setExploreOpen(true);
+    }
+  }, [focus]);
+  // Development only: select a part from the console, for repeatable checks (see CLAUDE.md).
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); } });
+  }, []);
+
   return (
     <main className={exploring ? "app exploring" : "app"}>
       <div className="canvas">
-        <Stage exploring={exploring} reducedMotion={reducedMotion} />
+        <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
+          highlight={focus?.ids ?? null} onSelect={setSelectedId}
+          insets={{ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0 }} />
       </div>
 
       <header className="brand">
         <span className="brand-mark" aria-hidden />
         <span>Noodlelab Visual Explorer</span>
         <span className="brand-sep">·</span>
-        <span className="brand-sub">TypeDB</span>
+        <span className={`typedb-status ${typedb}`} role="status">
+          TypeDB {typedb === "available" ? "connected" : typedb === "unavailable" ? "unavailable" : "…"}
+        </span>
       </header>
 
       <section className="intro" aria-hidden={exploring}>
@@ -37,9 +84,38 @@ export function App() {
         </button>
       </section>
 
-      <footer className="hint" aria-hidden={!exploring}>
-        Drag to orbit · scroll to zoom · right-drag to pan
-      </footer>
+      {exploring && (focus || focusError) && (
+        <div className={focusError ? "focus-bar error" : "focus-bar"} role="status">
+          <span>{focusError ? focusError.message : focus!.title}</span>
+          {focus && (focus.kind === "impact" || focus.kind === "requirements") && (
+            <span className="focus-key">
+              <i className="primary" />{focus.kind === "impact" ? "loses a function" : "essential"}
+              <i className={focus.kind === "impact" ? "degraded" : "secondary"} />{focus.kind === "impact" ? "only degraded" : "backed up or supporting"}
+            </span>
+          )}
+          <button type="button" className="link" onClick={clear}>{focusError ? "Dismiss" : "Clear"}</button>
+        </div>
+      )}
+
+      {exploring && (
+        <footer className="controls">
+          <Scrubber reducedMotion={reducedMotion} />
+          <p className="hint">Drag to orbit · scroll to zoom · right-drag to pan · click a part</p>
+        </footer>
+      )}
+
+      {exploring && exploreOpen && (
+        <Explore pending={pending} onCancel={cancel} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
+          onClose={() => setExploreOpen(false)} />
+      )}
+      {exploring && !exploreOpen && (
+        <button type="button" className="explore-open" onClick={() => setExploreOpen(true)}>Explore TypeDB ›</button>
+      )}
+
+      {exploring && selectedId && (
+        <ComponentPanel id={selectedId} focus={focus} onSelect={setSelectedId} onFocus={request}
+          onClose={() => setSelectedId(null)} />
+      )}
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

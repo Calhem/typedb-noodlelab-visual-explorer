@@ -1,9 +1,11 @@
-// Checks that the component manifest is internally consistent and matches the built geometry.
+// Checks that the visual manifest is internally consistent, holds no semantic data and matches the built geometry.
 
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { buildVehicle } from "../scene/Vehicle";
+import { buildVehicle } from "../scene/buildVehicle";
 import { buildBodyPanels, PANEL_IDS } from "./body";
-import { ASSEMBLIES, ASSEMBLY_BY_ID, PARTS } from "./manifest";
+import groups from "./explosion-groups.json";
+import { PARTS } from "./manifest";
 
 describe("component manifest", () => {
   it("gives every part a unique, stable-looking id", () => {
@@ -12,19 +14,24 @@ describe("component manifest", () => {
     for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
   });
 
-  it("puts every part in a known assembly, and every assembly under a known parent", () => {
-    for (const p of PARTS) expect(ASSEMBLY_BY_ID.has(p.assembly), p.id).toBe(true);
-    const roots = ASSEMBLIES.filter((a) => a.parent === null);
-    expect(roots.map((a) => a.id)).toEqual(["vehicle"]);
-    for (const a of ASSEMBLIES) if (a.parent) expect(ASSEMBLY_BY_ID.has(a.parent), a.id).toBe(true);
+  it("holds no semantic data: names, types and assemblies come only from TypeDB", () => {
+    for (const p of PARTS) {
+      const keys = Object.keys(p).filter((k) => ["name", "assembly", "category", "type", "system"].includes(k));
+      expect(keys, p.id).toEqual([]);
+    }
   });
 
-  it("has no empty assemblies", () => {
-    const used = new Set<string>();
-    for (const p of PARTS) {
-      for (let a: string | null = p.assembly; a; a = ASSEMBLY_BY_ID.get(a)!.parent) used.add(a);
+  it("matches the explosion grouping generated from TypeDB, part for part", () => {
+    expect(Object.keys(groups.components).sort()).toEqual(PARTS.map((p) => p.id).sort());
+    const parent: Record<string, string | null> = groups.assemblies;
+    for (const a of Object.values(groups.components)) {
+      let at: string | null = a;
+      for (let n = 0; at !== "vehicle"; n++) {
+        expect(at, `assembly chain from ${a}`).not.toBeNull();
+        expect(n).toBeLessThan(10);
+        at = parent[at!] ?? null;
+      }
     }
-    for (const a of ASSEMBLIES) expect(used.has(a.id), a.id).toBe(true);
   });
 
   it("lists exactly the body panels the shell produces, each with real geometry", () => {
@@ -39,11 +46,13 @@ describe("component manifest", () => {
     for (const p of PARTS) if (p.shape.kind !== "panel") expect(p.position, p.id).toBeDefined();
   });
 
-  it("builds every part with finite geometry", () => {
+  it("builds every part with finite geometry, tagged with its id", () => {
     for (const b of buildVehicle()) {
-      const pos = b.geometry.getAttribute("position");
+      const mesh = b.object as THREE.Mesh;
+      const pos = mesh.geometry.getAttribute("position");
       expect(pos.count, b.id).toBeGreaterThan(0);
       for (let i = 0; i < pos.count; i += 7) expect(Number.isFinite(pos.getX(i) + pos.getY(i) + pos.getZ(i)), b.id).toBe(true);
+      b.object.traverse((o) => expect(o.userData.partId, b.id).toBe(b.id));
     }
   });
 });

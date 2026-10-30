@@ -47,8 +47,18 @@ describe("TypeDB is the only database", () => {
     for (const i of images.filter((i) => /typedb/i.test(i))) expect(i).toMatch(/^typedb\/typedb:3\./);
   });
 
-  it("has no database package in the Blender asset pipeline", () => {
-    const deps = read("blender/pyproject.toml").toLowerCase();
-    expect(FORBIDDEN_PYTHON.filter((p) => new RegExp(`["\\s]${p}[=<>~"\\s]`).test(deps))).toEqual([]);
+  it("has no database package in the Blender asset pipeline or the semantic API", () => {
+    for (const file of ["blender/pyproject.toml", "api/pyproject.toml"]) {
+      const deps = read(file).toLowerCase();
+      expect(FORBIDDEN_PYTHON.filter((p) => new RegExp(`["\\s]${p}[=<>~"\\s]`).test(deps)), file).toEqual([]);
+    }
+    expect(read("api/pyproject.toml")).toMatch(/"typedb-driver==3\./);
+  });
+
+  it("never reads the seed files at runtime: domain facts reach the web app only through the API", () => {
+    // an import or fetch of anything under data/seed, or of a YAML or TypeQL file
+    const loads = /(?:\bfrom\s*|\bimport\s*\(\s*|\bfetch\s*\(\s*)["'`][^"'`]*(?:data\/seed|\.ya?ml|\.tql)["'`]/;
+    const offenders = sourceFiles(join(root, "web/src")).filter((f) => loads.test(readFileSync(f, "utf8")));
+    expect(offenders).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { PanelId } from "./body";
 import { RIM_RADIUS, TYRE_WIDTH, WHEEL_RADIUS } from "./dimensions";
 
 export type Vec3 = [number, number, number];
@@ -11,6 +12,7 @@ export type Axis = "x" | "y" | "z";
 
 export type Shape =
   | { kind: "panel" } // a body panel: geometry comes from body.ts
+  | { kind: "panel-inner"; of: PanelId } // inner reinforcing panel: a slightly smaller copy of a body panel
   | { kind: "box"; size: Vec3; radius?: number }
   | { kind: "cylinder"; radius: number; length: number; axis: Axis; radiusEnd?: number; segments?: number }
   | { kind: "tube"; points: Vec3[]; radius: number } // points are relative to the part's position
@@ -18,16 +20,22 @@ export type Shape =
   | { kind: "rim" }
   | { kind: "disc"; radius: number }
   | { kind: "caliper" }
-  | { kind: "coilover"; length: number }
+  | { kind: "spring"; length: number } // coil spring, built along y
+  | { kind: "damper"; length: number } // damper body, rod and spring seats, along y
   | { kind: "arm"; inner: Vec3[]; outer: Vec3 } // A-shaped control arm: two inner pivots, one outer
   | { kind: "arch-liner" }
   | { kind: "battery-module" }
-  | { kind: "seat"; width: number }
+  | { kind: "seat"; width: number; piece: "cushion" | "back" | "headrest" | "frame" } // pieces share the seat's origin
   | { kind: "steering-wheel" }
   | { kind: "mirror" }
   | { kind: "lidar" }
   | { kind: "shark-fin" }
-  | { kind: "finned-box"; size: Vec3; fins: number };
+  | { kind: "finned-box"; size: Vec3; fins: number }
+  | { kind: "ring"; radius: number; inner: number; length: number; axis: Axis } // hollow cylinder (stator, bearing)
+  | { kind: "gear"; radius: number; teeth: number; thickness: number } // axis z
+  | { kind: "fan"; radius: number } // axis x
+  | { kind: "regulator"; height: number } // window lift: two rails and a motor, in the yz plane
+  | { kind: "slats"; size: Vec3; count: number }; // box made of parallel slats (radiator core, seat frame)
 
 const turn = (g: THREE.BufferGeometry, axis: Axis) => {
   // Cylinders and lathes are built along y; turn them to the requested axis.
@@ -109,8 +117,8 @@ function caliper() {
   return merge([body, bridge]);
 }
 
-/** Coil spring around a damper; built along y, centred. */
-function coilover(length: number) {
+/** Coil spring; built along y, centred. */
+function spring(length: number) {
   const turns = 7;
   const r = 0.055;
   const pts: THREE.Vector3[] = [];
@@ -120,7 +128,11 @@ function coilover(length: number) {
     const a = t * turns * Math.PI * 2;
     pts.push(new THREE.Vector3(Math.cos(a) * r, (t - 0.5) * length * 0.72, Math.sin(a) * r));
   }
-  const spring = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n * 2, 0.009, 8, false);
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n * 2, 0.009, 8, false);
+}
+
+/** Damper body and rod with the two spring seats; built along y, centred. */
+function damper(length: number) {
   const body = new THREE.CylinderGeometry(0.026, 0.026, length * 0.6, 20);
   body.translate(0, -length * 0.15, 0);
   const rod = new THREE.CylinderGeometry(0.01, 0.01, length * 0.5, 12);
@@ -129,7 +141,7 @@ function coilover(length: number) {
   seatLow.translate(0, -length * 0.37, 0);
   const seatHigh = new THREE.CylinderGeometry(0.07, 0.07, 0.012, 24);
   seatHigh.translate(0, length * 0.37, 0);
-  return merge([spring, body, rod, seatLow, seatHigh]);
+  return merge([body, rod, seatLow, seatHigh]);
 }
 
 function arm(inner: Vec3[], outer: Vec3) {
@@ -152,32 +164,48 @@ function archLiner() {
 }
 
 function batteryModule() {
-  const parts: THREE.BufferGeometry[] = [new RoundedBoxGeometry(0.4, 0.1, 0.56, 2, 0.008)];
+  const parts: THREE.BufferGeometry[] = [new RoundedBoxGeometry(0.21, 0.1, 0.56, 2, 0.008)];
   for (const z of [-0.2, 0.2]) {
     const terminal = new THREE.CylinderGeometry(0.012, 0.012, 0.02, 12);
-    terminal.translate(0.14, 0.06, z);
+    terminal.translate(0.06, 0.06, z);
     parts.push(terminal);
   }
   const busbar = new RoundedBoxGeometry(0.03, 0.006, 0.44, 1, 0.002);
-  busbar.translate(0.14, 0.072, 0);
+  busbar.translate(0.06, 0.072, 0);
   parts.push(busbar);
   return merge(parts);
 }
 
-function seat(width: number) {
-  const cushion = new RoundedBoxGeometry(0.5, 0.12, width, 4, 0.05);
-  cushion.translate(0, 0, 0);
-  const back = new RoundedBoxGeometry(0.12, 0.62, width, 4, 0.05);
-  back.rotateZ(0.22);
-  back.translate(-0.27, 0.3, 0);
-  const parts = [cushion, back];
-  if (width < 0.8) {
-    const head = new RoundedBoxGeometry(0.1, 0.18, width * 0.55, 4, 0.04);
-    head.rotateZ(0.22);
-    head.translate(-0.37, 0.7, 0);
-    parts.push(head);
+/** One piece of a seat. All pieces of a seat share its origin, so they assemble in place. */
+function seat(width: number, piece: "cushion" | "back" | "headrest" | "frame") {
+  switch (piece) {
+    case "cushion":
+      return new RoundedBoxGeometry(0.5, 0.11, width, 4, 0.05);
+    case "back": {
+      const back = new RoundedBoxGeometry(0.12, 0.62, width, 4, 0.05);
+      back.rotateZ(0.22);
+      back.translate(-0.27, 0.3, 0);
+      return back;
+    }
+    case "headrest": {
+      const head = new RoundedBoxGeometry(0.1, 0.18, Math.min(width * 0.55, 0.3), 4, 0.04);
+      head.rotateZ(0.22);
+      head.translate(-0.37, 0.7, 0);
+      return head;
+    }
+    case "frame": {
+      const parts: THREE.BufferGeometry[] = [];
+      for (const z of [-width / 2 + 0.06, width / 2 - 0.06]) {
+        const rail = new RoundedBoxGeometry(0.46, 0.03, 0.03, 1, 0.008);
+        rail.translate(0, -0.1, z);
+        parts.push(rail);
+        const riser = new RoundedBoxGeometry(0.03, 0.08, 0.03, 1, 0.008);
+        riser.translate(-0.15, -0.07, z);
+        parts.push(riser);
+      }
+      return merge(parts);
+    }
   }
-  return merge(parts);
 }
 
 function steeringWheel() {
@@ -235,6 +263,79 @@ function finnedBox(size: Vec3, fins: number) {
   return merge(parts);
 }
 
+function ring(radius: number, inner: number, length: number, axis: Axis) {
+  const pts = [
+    new THREE.Vector2(inner, -length / 2), new THREE.Vector2(radius, -length / 2),
+    new THREE.Vector2(radius, length / 2), new THREE.Vector2(inner, length / 2), new THREE.Vector2(inner, -length / 2),
+  ];
+  return turn(new THREE.LatheGeometry(pts, 48), axis);
+}
+
+function gear(radius: number, teeth: number, thickness: number) {
+  const shape = new THREE.Shape();
+  const depth = Math.min(0.012, radius * 0.12);
+  for (let i = 0; i < teeth * 4; i++) {
+    const a = (i / (teeth * 4)) * Math.PI * 2;
+    const r = i % 4 < 2 ? radius : radius - depth;
+    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  const hole = new THREE.Path();
+  hole.absarc(0, 0, radius * 0.25, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, curveSegments: 4 });
+  g.translate(0, 0, -thickness / 2);
+  return g;
+}
+
+function fan(radius: number) {
+  const parts: THREE.BufferGeometry[] = [ring(radius, radius - 0.012, 0.04, "x")];
+  const hub = new THREE.CylinderGeometry(radius * 0.25, radius * 0.25, 0.05, 24);
+  parts.push(turn(hub, "x"));
+  for (let i = 0; i < 7; i++) {
+    const blade = new RoundedBoxGeometry(0.006, radius * 0.7, radius * 0.28, 1, 0.002);
+    blade.rotateY(0.5);
+    blade.translate(0, radius * 0.55, 0);
+    blade.rotateX((i / 7) * Math.PI * 2);
+    parts.push(blade);
+  }
+  return merge(parts);
+}
+
+function regulator(height: number) {
+  const parts: THREE.BufferGeometry[] = [];
+  for (const x of [-0.16, 0.16]) {
+    const rail = new RoundedBoxGeometry(0.025, height, 0.012, 1, 0.004);
+    rail.translate(x, 0, 0);
+    parts.push(rail);
+  }
+  const cable = tubeBetween([[-0.16, height / 2 - 0.02, 0], [0, -height / 4, 0], [0.16, height / 2 - 0.02, 0]], 0.004, 6);
+  parts.push(cable);
+  const motor = new THREE.CylinderGeometry(0.035, 0.035, 0.05, 20);
+  turn(motor, "z").translate(0, -height / 4, 0);
+  parts.push(motor);
+  return merge(parts);
+}
+
+function slats(size: Vec3, count: number) {
+  const parts: THREE.BufferGeometry[] = [];
+  const frame = [
+    [size[0], 0.015, size[2], 0, size[1] / 2],
+    [size[0], 0.015, size[2], 0, -size[1] / 2],
+  ];
+  for (const [w, h, d, , y] of frame) {
+    const b = new THREE.BoxGeometry(w, h, d);
+    b.translate(0, y, 0);
+    parts.push(b);
+  }
+  for (let i = 0; i < count; i++) {
+    const slat = new THREE.BoxGeometry(size[0] * 0.6, size[1], 0.003);
+    slat.translate(0, 0, -size[2] / 2 + ((i + 0.5) / count) * size[2]);
+    parts.push(slat);
+  }
+  return merge(parts);
+}
+
 /** Build the triangles for a (non-panel) shape. */
 export function buildShape(shape: Shape): THREE.BufferGeometry {
   switch (shape.kind) {
@@ -252,8 +353,10 @@ export function buildShape(shape: Shape): THREE.BufferGeometry {
       return disc(shape.radius);
     case "caliper":
       return caliper();
-    case "coilover":
-      return coilover(shape.length);
+    case "spring":
+      return spring(shape.length);
+    case "damper":
+      return damper(shape.length);
     case "arm":
       return arm(shape.inner, shape.outer);
     case "arch-liner":
@@ -261,7 +364,7 @@ export function buildShape(shape: Shape): THREE.BufferGeometry {
     case "battery-module":
       return batteryModule();
     case "seat":
-      return seat(shape.width);
+      return seat(shape.width, shape.piece);
     case "steering-wheel":
       return steeringWheel();
     case "mirror":
@@ -272,7 +375,18 @@ export function buildShape(shape: Shape): THREE.BufferGeometry {
       return sharkFin();
     case "finned-box":
       return finnedBox(shape.size, shape.fins);
+    case "ring":
+      return ring(shape.radius, shape.inner, shape.length, shape.axis);
+    case "gear":
+      return gear(shape.radius, shape.teeth, shape.thickness);
+    case "fan":
+      return fan(shape.radius);
+    case "regulator":
+      return regulator(shape.height);
+    case "slats":
+      return slats(shape.size, shape.count);
     case "panel":
+    case "panel-inner":
       throw new Error("Body panels are built by body.ts");
   }
 }

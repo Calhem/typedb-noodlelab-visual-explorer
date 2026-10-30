@@ -9,8 +9,9 @@ Explain new terms in plain English, keep steps small, and verify each step works
 
 ## Approval gates
 Stop at the end of every milestone and report what's done, what failed and what's next.
-Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 exploded view + scrubber,
-2.3 selection + perspectives. Do not start TypeDB integration (Phase 3) until the visuals are approved.
+Current work: Phase B of docs/mechanical-upgrade-plan.md, in the owner's order: TypeDB integration (done,
+awaiting review), then a one-day Blender exterior trial (stop for review), then mechanical systems against
+the provisional dimensions in docs/design-targets.md. No commissioning or vendor contact.
 
 ## Rules
 - **TypeDB is the only database** (permanent: docs/decisions/0001-typedb-sole-database.md). No other
@@ -19,27 +20,62 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
   must get domain facts from TypeDB, and show an explicit error when TypeDB is unavailable.
 - The vehicle is original and unbranded. No manufacturer names, logos or claims of endorsement.
   Never present invented specifications as real; label the vehicle as a concept.
-- `web/src/vehicle/manifest.ts` is the single list of parts. Part ids are stable: never rename one.
-  Every displayed relationship must later be backed by TypeDB data; never fake query results in the frontend.
+- Component ids are stable: never rename one. `data/seed/components.yaml` (loaded into TypeDB) is where
+  components are defined; `web/src/vehicle/manifest.ts` only says how each id is drawn (shape, position,
+  material) and must hold no names, types or memberships. Tests keep the two id lists identical.
+- Everything the app displays about a component comes from a named TypeQL query through the API; never
+  fake query results or add domain data in the frontend.
 - Node.js is not installed on the host: run npm, tsc and vitest inside the `noodlelab-web-dev` container
   (`docker exec noodlelab-web-dev ...`). Docker's CLI is at `~/.docker/bin/docker`.
-- Ports: 5180 (web dev). Reserved for later: 1733 (TypeDB), 8004 (TypeDB Studio), 8092 (web).
+- Ports: 5180 (web dev), 1733 (TypeDB driver), 8004 (TypeDB HTTP, for Studio). Reserved: 8092 (web).
+  The API has no published port: the web dev server forwards /api to it.
   Other projects on this machine use 1729-1732, 8002-8003, 8090-8091. Bind everything to 127.0.0.1.
 - TypeDB is 3.x only (3.14.1). See the TypeDB notes in ../typedb-cyber-intel/CLAUDE.md; log TypeDB
   friction in ../typedb-cyber-intel/notes/typedb-feedback.md.
 
-## Git workflow
-- `main` holds reviewed, working states only. Every commit on `main` passes the tests and the production
-  build: `docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`.
+## TypeDB and the semantic API
+- Services (compose.yaml): `typedb` (noodlelab-typedb, data in the noodlelab-typedb-data volume), `seed`
+  (one-off, creates the `vehicle` database if missing), `api` (noodlelab-api, Python, reloads on code change).
+- Recreate the database after changing schema/ or data/seed/:
+  `docker compose run --rm --no-deps seed python -m explorer.seed --replace`.
+  Then regenerate the explosion grouping (an animation asset, checked against TypeDB by a test):
+  `docker compose run --rm --no-deps api python -m explorer.animation > web/src/vehicle/explosion-groups.json`.
+- Code: `schema/schema.tql` + `schema/functions.tql`; `data/seed/*.yaml` (placeholders `<c>`, `<a>`, `<s>`);
+  `api/explorer/seed.py` (validate, one insert, count check), `queries.py` (the only queries the API runs),
+  `api.py` (GET-only endpoints; 503 typedb-unavailable, 500 query-failed, 404, 422), `animation.py`.
+- Web side: `web/src/semantic/api.ts` (client), `web/src/ui/ComponentPanel.tsx`, `web/src/ui/focus.ts`
+  (perspectives: highlighted ids come from TypeDB answers).
+- Explorer (web/src/ui/Explore.tsx): Systems, Assemblies, Types, Questions; named questions live in
+  api/explorer/questions.py. Review screenshots and frame timing in a separate headless Chrome:
+  `uv run --with websocket-client python -I scripts/browser/review.py` (and `perf.py`).
+- TypeDB 3.14.1 planner bug QPL1: avoid `{ $x is $s; } or { <relation binding $x> };` (see queries.system; write-up and repro in docs/typedb-issues/).
+
+## Git workflow (permanent)
+Every piece of work follows this loop:
+1. Complete one meaningful, clearly scoped step.
+2. Run the checks (needs `docker compose up -d`):
+   - web: `docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`
+   - API and TypeDB: `docker exec noodlelab-api python -m pytest -q` (uses disposable `vehicle-test-*` databases)
+   - web against the live API: `docker exec -e TYPEDB_INTEGRATION=1 noodlelab-web-dev npx vitest run src/semantic`
+3. Commit with a conventional commit message: `type(scope): imperative summary`, where type is one of
+   feat, fix, docs, test, refactor, perf, build, chore (e.g. `feat(typedb): add component schema`).
+   Then a body saying what changed and why, ending with the co-author line.
+4. Push the commit to GitHub.
+5. Report the commit hash and the check results. Only call a push successful after confirming it
+   (`git ls-remote origin` shows the same hash).
+
+Branches:
+- `main` holds reviewed, working states only; every commit on it passes the checks.
 - In-progress and experimental work lives on a feature branch (`feature/<milestone>-<topic>`, e.g.
-  `feature/m2.2-mechanical`). Commit each completed, tested step there and push it; merge into `main`
-  only after the owner has reviewed it (normally at a phase checkpoint).
-- Commit messages: a short imperative summary, then a body saying what changed and why, ending with the
-  co-author line. Never commit secrets (`.env`) or review screenshots (`web/shots/`).
+  `feature/m2.2-mechanical`). Merge into `main` only after the owner approves (normally at a phase review).
+
+Also:
+- Never commit secrets (`.env`) or review screenshots (`web/shots/`).
 - Generated 3D assets (`web/public/assets/*.glb`) are committed because the app needs them (no Git LFS
   here); keep them compressed and regenerate rather than hand-edit.
-- Remote: private GitHub repository `Calhem/typedb-noodlelab-visual-explorer`. There is no `gh` CLI: use the
-  GitHub website in the browser pane; pushes use the macOS keychain credential helper.
+- Remote: **public** GitHub repository https://github.com/Calhem/typedb-noodlelab-visual-explorer (the owner
+  chose to keep it public, so never commit anything confidential). There is no `gh` CLI: use the GitHub
+  website in the browser pane; pushes use the macOS keychain credential helper.
 
 ## Blender pipeline (approved for mechanical systems; full rebuild follows docs/mechanical-upgrade-plan.md once approved)
 - `blender/` holds Python scripts that model parts with Blender's `bpy` (5.2.3, isolated uv env in
@@ -49,6 +85,8 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
   Material names in Blender are roles matched by `web/src/vehicle/studioMaterials.ts`.
 - `import bpy` must come before `import bmesh` / `mathutils`.
 - Comparison switches: `?corner=procedural` (old corner), `?fx=off` (no ambient occlusion / effects).
+- `blender/exterior_trial.py`: the time-boxed exterior trial (scripted subdivision body, renders in Blender to
+  web/shots/exterior-trial-*.png). Not used by the app; see docs/exterior-trial/README.md.
 
 ## Checking visuals in the Claude browser pane
 The pane throttles animation when it is in the background, and screenshots can lag one frame.
@@ -57,4 +95,6 @@ state), `window.__vxProgress`, and `await __shot(progress, turntableAngle?, came
 renders a settled frame. Call `__shot` twice before a screenshot. Click "Explore the vehicle" first.
 Emulated large viewports can freeze the pane; instead keep the pane's own size and call
 `__size(1440, 900, 1.5)` to render at a fixed resolution, `__focus(p, ids, azimuth, elevation, distance, only?)`
-for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored).
+for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored, includes the tier's effects), and
+`__select(id)` to select a part (opens the TypeDB panel),
+`await __perf()` for the checkpoint benchmark (frame time, triangles, draw calls; noisy in the pane).
