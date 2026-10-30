@@ -10,6 +10,10 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
 2.3 selection + perspectives. Do not start TypeDB integration (Phase 3) until the visuals are approved.
 
 ## Rules
+- **TypeDB is the only database** (permanent: docs/decisions/0001-typedb-sole-database.md). No other
+  database, database client or browser storage for application data; `web/src/architecture.test.ts`
+  enforces it. Static assets (GLB, textures, animation data) and seed files are allowed; the running app
+  must get domain facts from TypeDB, and show an explicit error when TypeDB is unavailable.
 - The vehicle is original and unbranded. No manufacturer names, logos or claims of endorsement.
   Never present invented specifications as real; label the vehicle as a concept.
 - `web/src/vehicle/manifest.ts` is the single list of parts. Part ids are stable: never rename one.
@@ -21,7 +25,33 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
 - TypeDB is 3.x only (3.14.1). See the TypeDB notes in ../typedb-cyber-intel/CLAUDE.md; log TypeDB
   friction in ../typedb-cyber-intel/notes/typedb-feedback.md.
 
+## Git workflow
+- `main` holds reviewed, working states only. Every commit on `main` passes the tests and the production
+  build: `docker exec vx-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`.
+- In-progress and experimental work lives on a feature branch (`feature/<milestone>-<topic>`, e.g.
+  `feature/m2.2-mechanical`). Commit each completed, tested step there and push it; merge into `main`
+  only after the owner has reviewed it (normally at a phase checkpoint).
+- Commit messages: a short imperative summary, then a body saying what changed and why, ending with the
+  co-author line. Never commit secrets (`.env`) or review screenshots (`web/shots/`).
+- Generated 3D assets (`web/public/assets/*.glb`) are committed because the app needs them (no Git LFS
+  here); keep them compressed and regenerate rather than hand-edit.
+- Remote: private GitHub repository `Calhem/typedb-vehicle-explorer`. There is no `gh` CLI: use the
+  GitHub website in the browser pane; pushes use the macOS keychain credential helper.
+
+## Blender pipeline (approved for mechanical systems; full rebuild follows docs/mechanical-upgrade-plan.md once approved)
+- `blender/` holds Python scripts that model parts with Blender's `bpy` (5.2.3, isolated uv env in
+  `blender/.venv`; it runs on the Mac, not Docker: there is no Linux ARM wheel). Rebuild the corner with
+  `uv run --project blender python -I blender/corner.py` → `web/public/assets/corner-fr.glb`.
+- Every top-level GLB node is named by a manifest component id; `web/src/scene/assets.test.ts` checks it.
+  Material names in Blender are roles matched by `web/src/vehicle/studioMaterials.ts`.
+- `import bpy` must come before `import bmesh` / `mathutils`.
+- Comparison switches: `?corner=procedural` (old corner), `?fx=off` (no ambient occlusion / effects).
+
 ## Checking visuals in the Claude browser pane
-The pane throttles animation when it is in the background. In development the app exposes the
-React Three Fiber state as `window.__vx`; render a frame on demand with
-`__vx.setFrameloop('never'); __vx.advance(performance.now())` before taking a screenshot.
+The pane throttles animation when it is in the background, and screenshots can lag one frame.
+In development the app installs helpers (`web/src/scene/devtools.ts`): `window.__vx` (React Three Fiber
+state), `window.__vxProgress`, and `await __shot(progress, turntableAngle?, cameraPolarAngle?)`, which
+renders a settled frame. Call `__shot` twice before a screenshot. Click "Explore the vehicle" first.
+Emulated large viewports can freeze the pane; instead keep the pane's own size and call
+`__size(1440, 900, 1.5)` to render at a fixed resolution, `__focus(p, ids, azimuth, elevation, distance, only?)`
+for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored).

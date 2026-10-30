@@ -12,9 +12,12 @@ services:
     command: ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5180"]
     ports:
       - "127.0.0.1:5180:5180"
+    environment:
+      PROJECT_ROOT: /project
     volumes:
       - ./web:/web
       - vx-node-modules:/web/node_modules   # dependencies live in the container, not in the project folder
+      - .:/project:ro                       # read-only view of the whole project, for the architecture tests
 
 volumes:
   vx-node-modules:

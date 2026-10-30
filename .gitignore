@@ -14,3 +14,12 @@ notes/
 .DS_Store
 .idea/
 .vscode/
+
+# Review screenshots saved by the dev server
+web/shots/
+
+# Blender environment
+blender/.venv/
+
+# Python caches
+__pycache__/
