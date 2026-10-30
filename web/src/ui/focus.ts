@@ -4,7 +4,7 @@
 // "secondary" (a function degraded; backed up or merely supporting).
 
 import { useCallback, useState } from "react";
-import { SemanticError, semantic, type Impact, type Requirement } from "../semantic/api";
+import { SemanticError, semantic, type AssemblyDetails, type Impact, type Requirement, type SystemDetails } from "../semantic/api";
 
 export type FocusKind = "assembly" | "system" | "impact" | "requirements";
 export type Level = "primary" | "secondary";
@@ -25,6 +25,9 @@ export interface Focus extends FocusRequest {
   "timings-ms": number[];
   impact?: Impact;
   requirements?: Requirement[];
+  /** the answer behind an assembly or system focus, so views can show it without asking again */
+  assembly?: AssemblyDetails;
+  system?: SystemDetails;
 }
 
 export type FocusError = { request: FocusRequest; kind: SemanticError["kind"]; message: string };
@@ -53,11 +56,11 @@ export function useFocus() {
       if (req.kind === "assembly") {
         const { data, typeql, "timings-ms": timings } = await semantic.assembly(req.key);
         const ids = levels(data["all-component-ids"].map((id) => [id, "primary"]));
-        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings });
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, assembly: data });
       } else if (req.kind === "system") {
         const { data, typeql, "timings-ms": timings } = await semantic.system(req.key);
         const ids = levels(data.components.map((c) => [c.id, "primary"]));
-        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings });
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, system: data });
       } else if (req.kind === "impact") {
         const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
         const ids = levels([[req.key, "primary"], ...data.lost.map((x): [string, Level] => [x.id, "primary"]),

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Stage } from "./scene/Stage";
 import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
 import { ComponentPanel } from "./ui/ComponentPanel";
+import { Explore, type ExploreTab } from "./ui/Explore";
 import { useFocus } from "./ui/focus";
 import { Scrubber } from "./ui/Scrubber";
 
@@ -42,6 +43,15 @@ export function App() {
   const reducedMotion = usePrefersReducedMotion();
   const typedb = useTypeDBStatus();
   const { focus, error: focusError, request, clear } = useFocus();
+  const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
+  const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
+  // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
+  useEffect(() => {
+    if (focus?.kind === "system" || focus?.kind === "assembly") {
+      setExploreTab(focus.kind === "system" ? "systems" : "assemblies");
+      setExploreOpen(true);
+    }
+  }, [focus]);
   // Development only: select a part from the console, for repeatable checks (see CLAUDE.md).
   useEffect(() => {
     if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); } });
@@ -89,6 +99,14 @@ export function App() {
           <Scrubber reducedMotion={reducedMotion} />
           <p className="hint">Drag to orbit · scroll to zoom · right-drag to pan · click a part</p>
         </footer>
+      )}
+
+      {exploring && exploreOpen && (
+        <Explore tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
+          onClose={() => setExploreOpen(false)} />
+      )}
+      {exploring && !exploreOpen && (
+        <button type="button" className="explore-open" onClick={() => setExploreOpen(true)}>Explore TypeDB ›</button>
       )}
 
       {exploring && selectedId && (

@@ -115,12 +115,15 @@ export interface AssemblyDetails extends Named {
   "all-component-ids": string[];
 }
 
-export interface SystemSummary extends Named { description: string | null; parent: string | null }
+export interface SystemSummary extends Named { description: string | null; parent: string | null; total: number }
+
+export interface AssemblyNode extends Named { parent: string | null; direct: number; total: number }
 
 export interface SystemDetails extends Named {
   description: string | null;
   subsystems: Named[];
-  components: Named[];
+  /** each member with every system it belongs to */
+  components: (Named & { systems: Named[] })[];
   "control-loops": { name: string; description: string | null; controller: string; sensors: string[]; actuators: string[] }[];
 }
 
@@ -139,6 +142,7 @@ export const semantic = {
   impact: (c: string, s?: AbortSignal) => ask<Impact>(`components/${id(c)}/impact`, s),
   requirements: (c: string, s?: AbortSignal) => ask<{ required: Requirement[] }>(`components/${id(c)}/requirements`, s),
   assembly: (a: string, s?: AbortSignal) => ask<AssemblyDetails>(`assemblies/${id(a)}`, s),
+  assemblies: (s?: AbortSignal) => ask<AssemblyNode[]>("assemblies", s),
   systems: (s?: AbortSignal) => ask<SystemSummary[]>("systems", s),
   system: (sys: string, s?: AbortSignal) => ask<SystemDetails>(`systems/${id(sys)}`, s),
 };
