@@ -108,3 +108,15 @@ Not recommended: options C and D.
 - Agree to start the TypeDB integration while the exterior is being resolved.
 - For the wheels: keep the Phase A wheel with a dark finish, or include a new wheel design in the
   exterior work?
+
+## Owner's decisions (30 October 2026)
+
+1. **No commission at this stage.** Establish how far our own pipeline gets first. Commissioning stays a
+   possible future option; no vendor contact and no procurement preparation.
+2. **Dimensions approved as provisional targets** (wheelbase 3.03 m, front overhang 0.76 m, height about
+   1.63 m, 22-inch wheels): see `docs/design-targets.md`. Not irreversible until the exterior is approved.
+3. **TypeDB integration first**, before any exterior work.
+4. **Then a time-boxed exterior trial** (about one working day) in Blender: reference silhouette,
+   body-side surfacing and realistic reflections, with comparison renders and a clear assessment. Stop
+   for review before attempting the complete exterior.
+5. **Wheels**: keep the Phase A geometry; try a darker finish to match the concept.
