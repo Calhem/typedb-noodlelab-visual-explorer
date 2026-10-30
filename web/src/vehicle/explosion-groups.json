@@ -171,6 +171,8 @@
   "drop-link-fr": "front-suspension",
   "drop-link-rl": "rear-suspension",
   "drop-link-rr": "rear-suspension",
+  "epb-actuator-rl": "corner-rl",
+  "epb-actuator-rr": "corner-rr",
   "eps-motor": "steering",
   "esc-module": "brake-control",
   "fender-l": "front-end",

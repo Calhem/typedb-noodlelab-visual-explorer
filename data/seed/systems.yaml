@@ -69,7 +69,7 @@ systems:
     parent: braking
     name: "Friction brakes"
     description: "Discs, callipers, pads and brake lines at each wheel."
-    members: [brake-disc-*, caliper-*, brake-pad-*, brake-hose-*, brake-shield-*]
+    members: [brake-disc-*, caliper-*, brake-pad-*, brake-hose-*, brake-shield-*, epb-actuator-*]
   - id: brake-control
     parent: braking
     name: "Brake control and stability"

@@ -45,6 +45,7 @@ connections:
   - {kind: mechanical, joint: ball-joint, ends: [tie-rod-f<s>, steering-rack], description: "Inner tie-rod joint"}
   - {kind: mechanical, joint: ball-joint, ends: [toe-link-r<s>, knuckle-r<s>]}
   - {kind: mechanical, joint: bushed, ends: [toe-link-r<s>, rear-subframe]}
+  - {kind: mechanical, joint: bolted, ends: [epb-actuator-r<s>, caliper-r<s>], description: "Motor-on-calliper parking brake"}
 
   # ---- Steering -------------------------------------------------------------------------------------------
   - {kind: mechanical, joint: bolted, ends: [steering-rack, front-subframe]}

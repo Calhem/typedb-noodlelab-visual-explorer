@@ -73,6 +73,8 @@ properties:
     description: "Rack-and-pinion steering gear: turns the rotation of the steering column into side-to-side movement of the tie rods."
   - match: eps-motor
     description: "Electric power-steering motor: adds assistance torque to the rack, commanded by the steering control unit."
+  - match: [epb-actuator-rl, epb-actuator-rr]
+    description: "Electric parking-brake actuator: a motor and gear unit on the rear calliper that drives the piston mechanically to hold the pads against the disc, without hydraulic pressure."
   - match: tie-rod-*
     description: "Tie rod: pushes and pulls the knuckle to steer the wheel."
 
