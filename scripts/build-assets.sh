@@ -1,5 +1,6 @@
 #!/bin/sh
-# Rebuild the Blender-modelled parts and compress them for the web app.
+# Rebuild the Blender-modelled parts (front-right corner, front and rear drive units) and compress them
+# for the web app.
 #   1. Blender (on this Mac, via uv) writes uncompressed models to web/assets-src/ and the visual
 #      mapping files (node -> component id) to web/public/assets/. -kv keeps texture coordinates even
 #      though the models carry no image textures: the app's generated textures need them..
@@ -11,6 +12,7 @@ cd "$(dirname "$0")/.."
 DOCKER="${DOCKER:-$HOME/.docker/bin/docker}"
 
 uv run --project blender python -I blender/corner.py
+uv run --project blender python -I blender/drive_unit.py
 
 for src in web/assets-src/*.glb; do
   name=$(basename "$src" .glb)

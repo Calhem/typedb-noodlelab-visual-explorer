@@ -581,21 +581,36 @@ TOP = Vector((AXLE.x - 0.012, 0.93, 0.56))
 DAMPER_FRAME = Matrix.Translation(LOWER_EYE) @ Vector((0, 1, 0)).rotation_difference((TOP - LOWER_EYE).normalized()).to_matrix().to_4x4()
 
 
+def fork():
+    """Damper fork: two legs from the lower cross-tube up past the drive shaft, joined by a clamp round the
+    damper body. Local frame: lower eye at the origin, damper axis +y, legs either side in x."""
+    bm = bmesh.new()
+    for x in (-0.076, 0.076):
+        merge_into(bm, rod(Vector((x, 0.0, 0.0)), Vector((x, 0.19, 0.0)), 0.012, 24))
+        merge_into(bm, rod(Vector((x, 0.19, 0.0)), Vector((x * 0.4, 0.215, 0.0)), 0.012, 24))
+        merge_into(bm, transform(cylinder(0.02, 0.03, 32), Matrix.Translation((x, 0, 0)) @ Matrix.Rotation(math.pi / 2, 4, "Y")))
+    merge_into(bm, transform(box(0.1, 0.022, 0.03), Matrix.Translation((0, 0.21, 0))))
+    merge_into(bm, transform(lathe([(0.025, 0.19), (0.034, 0.19), (0.034, 0.225), (0.025, 0.225)], 40), Matrix.Rotation(-math.pi / 2, 4, "X")))
+    return bm
+
+
 def damper():
-    """Monotube damper: lower eye with bush, painted body, threaded sleeve, notched spring perch,
-    chrome rod and a polyurethane bump stop. Built along +y, then aimed at the top mount."""
+    """Monotube damper: a forged fork whose two legs straddle the drive shaft (C3a: the shaft passes through
+    here), painted body clamped in the fork, threaded sleeve, notched spring perch, chrome rod and a
+    polyurethane bump stop. Built along +y, then aimed at the top mount."""
     def along_y(prof, seg=40):  # lathe around y instead of z
         return transform(lathe(prof, seg), Matrix.Rotation(-math.pi / 2, 4, "X"))
     thread = [(0.0268, 0.2)] + [p for i in range(40) for p in ((0.029, 0.2 + i * 0.0025 + 0.00125), (0.0268, 0.2 + (i + 1) * 0.0025))] + [(0.0245, 0.3), (0.0245, 0.2)]
     bump = [(0.009, 0.4)] + [(0.017 + 0.005 * abs(math.sin(i * 0.8)), 0.4 + i * 0.006) for i in range(12)] + [(0.009, 0.472)]
     pieces = [
-        new_object("body", along_y([(0.0005, 0.02), (0.025, 0.02), (0.025, 0.355), (0.0215, 0.362), (0.0005, 0.362)]), "damper-paint"),
+        new_object("body", along_y([(0.0005, 0.19), (0.025, 0.19), (0.025, 0.355), (0.0215, 0.362), (0.0005, 0.362)]), "damper-paint"),
         new_object("thread", along_y(thread), "steel-zinc"),
         new_object("perch", along_y([(0.0285, 0.275), (0.066, 0.275), (0.066, 0.283), (0.0285, 0.285)]), "aluminium-anodised"),
         new_object("lock", along_y([(0.0285, 0.288), (0.04, 0.288), (0.04, 0.298), (0.0285, 0.298)]), "aluminium-anodised"),
         new_object("rod", along_y([(0.0005, 0.36), (0.009, 0.36), (0.009, 0.66), (0.0005, 0.66)]), "steel-chrome"),
         new_object("bump", along_y(bump), "polyurethane"),
-        new_object("eye", transform(cylinder(0.024, 0.042, 48), Matrix.Rotation(math.pi / 2, 4, "Y")), "damper-paint"),
+        new_object("eye", transform(cylinder(0.022, 0.18, 48), Matrix.Rotation(math.pi / 2, 4, "Y")), "damper-paint"),
+        new_object("fork", fork(), "aluminium-forged"),
     ]
     notches = bmesh.new()
     for i in range(4):
