@@ -65,7 +65,7 @@ describe("Blender front-right corner", () => {
 
   it("uses only material names the web app knows how to render", () => {
     const t = new THREE.Texture();
-    const known = createStudioMaterials({ ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
+    const known = createStudioMaterials({ tread: t, treadCavity: t, ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
     for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
   });
 

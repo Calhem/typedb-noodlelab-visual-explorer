@@ -9,12 +9,14 @@ import * as THREE from "three";
 
 const SIZE = 1024;
 
-function canvasTexture(size: number, paint: (img: ImageData) => void, repeat = false): THREE.Texture {
+function canvasTexture(size: number, paint: (img: ImageData) => void, repeat = false, height = size, paintAfter?: (img: ImageData) => void): THREE.Texture {
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
+  canvas.width = size;
+  canvas.height = height;
   const ctx = canvas.getContext("2d")!;
-  const img = ctx.createImageData(size, size);
+  const img = ctx.createImageData(size, height);
   paint(img);
+  paintAfter?.(img);
   ctx.putImageData(img, 0, 0);
   const tex = new THREE.CanvasTexture(canvas);
   tex.flipY = false; // match glTF texture coordinates
@@ -89,7 +91,74 @@ function grain(base: number, depth: number, scale: number) {
   );
 }
 
+/**
+ * Tyre tread as a normal map (surface direction per pixel), one tread pitch wide and the full tyre width
+ * tall; the tyre's UVs repeat it 64 times round. Shoulder blocks get angled lateral slots (staggered
+ * between the two shoulders); the middle ribs get fine angled sipes. The circumferential grooves are real
+ * geometry. v runs across the tyre: the tread spans about 0.15 to 0.85.
+ */
+function treadTextures(): { normal: THREE.Texture; cavity: THREE.Texture } {
+  const W = 256;
+  const H = 1024;
+  const height = new Float32Array(W * H);
+  const smooth = (e0: number, e1: number, x: number) => {
+    const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+  };
+  for (let y = 0; y < H; y++) {
+    const v = y / H;
+    for (let x = 0; x < W; x++) {
+      const u = x / W;
+      let h = 1;
+      // shoulder slots: one per pitch on each shoulder, half a pitch apart, slanting outwards
+      for (const [v0, v1, phase, dir] of [[0.15, 0.275, 0.5, 1], [0.725, 0.85, 0.0, -1]] as const) {
+        if (v > v0 && v < v1) {
+          const along = dir > 0 ? v - v0 : v1 - v;
+          const centre = (phase + along * 0.55) % 1;
+          const d = Math.min(Math.abs(u - centre), 1 - Math.abs(u - centre));
+          h -= 0.75 * (1 - smooth(0.04, 0.065, d)) * smooth(0.0, 0.02, dir > 0 ? v1 - v : v - v0);
+        }
+      }
+      // sipes across the three middle ribs
+      if (v > 0.3 && v < 0.7 && !(Math.abs(v - 0.426) < 0.026 || Math.abs(v - 0.574) < 0.026)) {
+        const centre = (v * 1.6) % 0.5;
+        const d = Math.min(Math.abs((u % 0.5) - centre), 0.5 - Math.abs((u % 0.5) - centre));
+        h -= 0.45 * (1 - smooth(0.006, 0.012, d));
+      }
+      height[y * W + x] = h + 0.015 * (hash(x, y) - 0.5);
+    }
+  }
+  const normal = canvasTexture(W, (img) => img, true, H, (img) => {
+    const at = (x: number, y: number) => height[Math.min(H - 1, Math.max(0, y)) * W + ((x + W) % W)];
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const dx = (at(x + 1, y) - at(x - 1, y)) * 3;
+        const dy = (at(x, y + 1) - at(x, y - 1)) * 3;
+        const len = Math.hypot(dx, dy, 1);
+        const i = (y * W + x) * 4;
+        img.data[i] = (-dx / len) * 127.5 + 127.5;
+        img.data[i + 1] = (-dy / len) * 127.5 + 127.5;
+        img.data[i + 2] = (1 / len) * 127.5 + 127.5;
+        img.data[i + 3] = 255;
+      }
+    }
+  });
+  // Ambient occlusion (red channel): light reaches less far into slots and sipes, so they read darker.
+  const cavity = canvasTexture(W, (img) => img, true, H, (img) => {
+    for (let k = 0; k < W * H; k++) {
+      const v = Math.min(1, Math.max(0, 0.25 + 0.75 * height[k])) * 255;
+      img.data[k * 4] = v;
+      img.data[k * 4 + 1] = v;
+      img.data[k * 4 + 2] = v;
+      img.data[k * 4 + 3] = 255;
+    }
+  });
+  return { normal, cavity };
+}
+
 export interface StudioTextures {
+  tread: THREE.Texture;
+  treadCavity: THREE.Texture;
   ringsFine: THREE.Texture;
   ringsFriction: THREE.Texture;
   brushing: THREE.Texture;
@@ -100,7 +169,14 @@ export interface StudioTextures {
 
 /** Generate the surface textures (needs a browser: they are drawn on a canvas). */
 export function createStudioTextures(): StudioTextures {
+  const { normal: tread, cavity: treadCavity } = treadTextures();
+  for (const t of [tread, treadCavity]) {
+    t.repeat.set(64, 1);
+    t.wrapT = THREE.ClampToEdgeWrapping;
+  }
   return {
+    tread,
+    treadCavity,
     ringsFine: radialRoughness(0.2, 0.22),
     ringsFriction: radialRoughness(0.32, 0.3),
     brushing: radialAnisotropy(),
@@ -111,16 +187,17 @@ export function createStudioTextures(): StudioTextures {
 }
 
 export function createStudioMaterials(textures: StudioTextures = createStudioTextures()): Map<string, THREE.MeshPhysicalMaterial> {
-  const { ringsFine, ringsFriction, brushing, cast, forged, friction } = textures;
+  const { tread, treadCavity, ringsFine, ringsFriction, brushing, cast, forged, friction } = textures;
 
   const m = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
   const c = (hex: string) => new THREE.Color(hex);
   const library = new Map<string, THREE.MeshPhysicalMaterial>([
     // tyre: soft black rubber with a faint sheen on the sidewall, never pure black
     ["rubber-tyre", m({ color: c("#1d1e21"), roughness: 0.86, sheen: 0.35, sheenRoughness: 0.6, sheenColor: c("#5b6068"), roughnessMap: friction })],
+    ["rubber-tread", m({ color: c("#1b1c1f"), roughness: 0.9, normalMap: tread, normalScale: new THREE.Vector2(1.6, 1.6), aoMap: treadCavity, aoMapIntensity: 1, sheen: 0.2, sheenColor: c("#4b4f55") })],
     ["rubber", m({ color: c("#1b1c1f"), roughness: 0.78, sheen: 0.2, sheenColor: c("#4a4e55") })],
     // wheel: gunmetal metallic paint, lacquered, with a diamond-cut machined face
-    ["alloy-painted", m({ color: c("#5b6067"), metalness: 0.75, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.08 })],
+    ["alloy-painted", m({ color: c("#33373d"), metalness: 0.7, roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.08 })],
     ["alloy-machined", m({ color: c("#dadde0"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.8, anisotropyMap: brushing, clearcoat: 0.7, clearcoatRoughness: 0.05 })],
     ["gloss-black", m({ color: c("#101114"), metalness: 0.3, roughness: 0.12, clearcoat: 1 })],
     ["steel-chrome", m({ color: c("#eef0f2"), metalness: 1, roughness: 0.07 })],

@@ -43,45 +43,52 @@ def at_axle(obj):
 
 # ---- tyre ---------------------------------------------------------------------------------------------
 
+def tyre_uv(obj) -> None:
+    """Wrap-around UVs for the tyre: u runs once round the circumference; v runs across the tread
+    (tread faces) or up the sidewall (sidewall faces). The app tiles its tread texture 64 times round."""
+    mesh = obj.data
+    uv = kit.fresh_uv(mesh)
+    tread = [m.name for m in mesh.materials].index("rubber-tread") if "rubber-tread" in [m.name for m in mesh.materials] else -1
+    for p in mesh.polygons:
+        us = []
+        for li in p.loop_indices:
+            co = mesh.vertices[mesh.loops[li].vertex_index].co - AXLE
+            u = (math.atan2(co.y, co.x) / TAU) % 1.0
+            v = (co.z + 0.135) / 0.27 if p.material_index == tread else (math.hypot(co.x, co.y) - 0.28) / 0.13
+            us.append([li, u, v])
+        if max(u for _, u, _ in us) - min(u for _, u, _ in us) > 0.5:  # face straddles the seam
+            for item in us:
+                if item[1] < 0.5:
+                    item[1] += 1.0
+        for li, u, v in us:
+            uv.data[li].uv = (u, v)
+
+
 def tyre():
-    """275/45 R22: rounded shoulders, four circumferential grooves, shoulder blocks, sipes, sidewall marking."""
+    """275/45 R22. The shape (rounded shoulders, four circumferential grooves, rim-protector rib,
+    sidewall rings, raised size marking) is geometry; the tread blocks and sipes are a generated
+    surface texture in the app, which looks finer up close at a fraction of the triangles."""
     grooves = [-0.058, -0.02, 0.02, 0.058]
     tread = []
-    z = -0.092
+    z = -0.094
     for g in grooves:
-        tread += [(0.405, z), (0.405, g - 0.006), (0.3955, g - 0.005), (0.3955, g + 0.005), (0.405, g + 0.006)]
-        z = g + 0.006
-    tread.append((0.405, 0.092))
-    side = [(0.283, -0.112), (0.292, -0.124), (0.31, -0.131), (0.335, -0.1335), (0.36, -0.132), (0.38, -0.126),
-            (0.394, -0.116), (0.401, -0.104), (0.404, -0.096)]
-    outer = side + tread + [(r, -z) for r, z in reversed(side)]
+        tread += [(0.405, z), (0.405, g - 0.0065), (0.3955, g - 0.005), (0.3955, g + 0.005), (0.405, g + 0.0065)]
+        z = g + 0.0065
+    tread.append((0.405, 0.094))
+    side = [(0.283, -0.112), (0.287, -0.122), (0.291, -0.1335), (0.298, -0.1355), (0.305, -0.132),  # bead, rim protector rib
+            (0.318, -0.1325), (0.345, -0.1345), (0.366, -0.133), (0.368, -0.1345), (0.371, -0.1345), (0.373, -0.1325),  # sidewall ring
+            (0.385, -0.1265), (0.395, -0.117), (0.401, -0.106), (0.404, -0.098)]
+    outer = side + tread + [(r, -zz) for r, zz in reversed(side)]
     inner = [(0.288, 0.104), (0.33, 0.116), (0.372, 0.104), (0.388, 0.08), (0.39, 0.0), (0.388, -0.08), (0.372, -0.104), (0.33, -0.116), (0.288, -0.104)]
-    body = new_object("tyre", lathe(outer + inner, 256), "rubber-tyre")
-
-    # Lateral shoulder slots and angled sipes across the middle ribs.
-    def cutters():
-        bm = bmesh.new()
-        for side_sign, phase in ((1, 0.0), (-1, 0.5)):
-            for i in range(64):
-                a = TAU * (i + phase) / 64
-                slot = transform(box(0.024, 0.0075, 0.046), Matrix.Translation((0.408 * math.cos(a), 0.408 * math.sin(a), side_sign * 0.09)) @ Matrix.Rotation(a, 4, "Z"))
-                merge_into(bm, slot)
-        for i in range(96):
-            a = TAU * i / 96
-            for zc in (-0.039, 0.0, 0.039):
-                sipe = box(0.012, 0.0016, 0.024)
-                transform(sipe, Matrix.Translation((0.405 * math.cos(a), 0.405 * math.sin(a), zc)) @ Matrix.Rotation(a, 4, "Z") @ Matrix.Rotation(0.45, 4, "X"))
-                merge_into(bm, sipe)
-        return bm
-
-    body = kit.cut(body, new_object("cut", cutters(), "rubber-tyre"))
+    body = kit.shade(new_object("tyre", lathe(outer + inner, 192), "rubber-tyre"), 40)
+    kit.assign_by_normal(body, "rubber-tread", region=lambda c: abs(c.z) < 0.096 and Vector((c.x, c.y)).length > 0.393)
 
     # Raised sidewall marking on the outer side (size only: no brand).
     marks = []
     for text, centre in (("275/45 R22 112Y", math.pi / 2), ("RADIAL TUBELESS", -math.pi / 2)):
         curve = bpy.data.curves.new("mark", "FONT")
         curve.body = text
-        curve.size = 0.019
+        curve.size = 0.017
         curve.extrude = 0.0006
         curve.align_x = "CENTER"
         holder = bpy.data.objects.new("mark", curve)
@@ -92,24 +99,26 @@ def tyre():
             x, y, zz = v.co
             r = 0.352 + flip * y
             a = centre - flip * x / 0.352
-            v.co = (r * math.cos(a), r * math.sin(a), 0.1334 + zz)
+            v.co = (r * math.cos(a), r * math.sin(a), 0.1342 + zz)
         mark.data.materials.clear()
         mark.data.materials.append(kit.material("rubber-tyre"))
         marks.append(mark)
-    body = kit.join("tyre", [kit.shade(body, 40), *marks])
-    kit.radial_uv(body, Vector((0, 0, 0)))
-    return at_axle(body)
+    body = kit.join("tyre", [body, *marks])
+    at_axle(body)
+    tyre_uv(body)
+    return body
 
 
 # ---- wheel --------------------------------------------------------------------------------------------
 
 def loft(sections: list[list[Vector]]) -> bmesh.types.BMesh:
-    """Solid through a series of 4-point cross-sections, capped at both ends."""
+    """Solid through a series of matching cross-sections (any number of points), capped at both ends."""
     bm = bmesh.new()
     rings = [[bm.verts.new(p) for p in s] for s in sections]
+    n = len(sections[0])
     for a, b in zip(rings, rings[1:]):
-        for i in range(4):
-            k = (i + 1) % 4
+        for i in range(n):
+            k = (i + 1) % n
             bm.faces.new((a[i], a[k], b[k], b[i]))
     bm.faces.new(rings[0])
     bm.faces.new(list(reversed(rings[-1])))
@@ -117,57 +126,64 @@ def loft(sections: list[list[Vector]]) -> bmesh.types.BMesh:
     return bm
 
 
-def spoke(angle: float, split: float):
-    """One leg of a split spoke: it leaves the hub beside its twin and fans away from it towards the
-    rim (a V), tapering, with the face gently dished outwards (a slightly concave wheel)."""
+def face_z(r: float) -> float:
+    """Height of a spoke's centre line at radius r: the face dishes outwards towards the rim (concave wheel)."""
+    t = max(0.0, (r - 0.088) / 0.186)
+    return 0.072 + 0.032 * t ** 1.35
+
+
+def spoke_leg(angle: float, r0: float, r1: float, w0: float, w1: float, swing: float = 0.0):
+    """A faceted spoke: flat underside, sloping side facets and a raised central ridge (a five-sided section
+    that catches light along its length). `swing` bends it sideways towards the rim."""
     sections = []
     n = 12
     for i in range(n + 1):
         t = i / n
-        r = 0.088 + t * 0.186
-        w = 0.03 - 0.008 * t
-        d = 0.032 - 0.012 * t
-        zc = 0.07 + 0.034 * t ** 1.4
-        a = angle + split * (0.035 + 0.1 * t ** 0.9)
+        r = r0 + (r1 - r0) * t
+        w = w0 + (w1 - w0) * t
+        d = 0.031 - 0.011 * min(1.0, (r - 0.088) / 0.186)
+        a = angle + swing * t ** 1.1
         u = Vector((math.cos(a), math.sin(a), 0))
         v = Vector((-math.sin(a), math.cos(a), 0))
-        c = u * r + Vector((0, 0, zc))
-        sections.append([c - v * w / 2 - Vector((0, 0, d / 2)), c + v * w / 2 - Vector((0, 0, d / 2)),
-                         c + v * w / 2 + Vector((0, 0, d / 2)), c - v * w / 2 + Vector((0, 0, d / 2))])
+        c = u * r + Vector((0, 0, face_z(r)))
+        up = Vector((0, 0, 1))
+        sections.append([c - v * w / 2 - up * d / 2, c + v * w / 2 - up * d / 2, c + v * w * 0.4 + up * d * 0.28,
+                         c + up * d / 2, c - v * w * 0.4 + up * d * 0.28])
     return loft(sections)
 
 
 def wheel():
-    """22 x 9.5 forged wheel: five split spokes, diamond-cut face, real barrel profile, valve."""
+    """22 x 9.5 forged wheel: five sculpted Y-spokes with a raised ridge, diamond-cut faces over gunmetal
+    paint, recessed nut pockets, machined lip, real barrel profile with bead seats and drop centre, valve."""
     outer = [(0.296, -0.122), (0.297, -0.112), (0.284, -0.106), (0.2794, -0.095), (0.281, -0.085), (0.274, -0.072),
              (0.258, -0.055), (0.258, 0.02), (0.272, 0.05), (0.281, 0.072), (0.2794, 0.095), (0.284, 0.106), (0.297, 0.113), (0.296, 0.122)]
-    inner = [(r - 0.007, z) for r, z in reversed(outer)]
-    barrel = kit.bevel(new_object("barrel", lathe(outer + inner, 160), "alloy-painted"), 0.0015, 2)
+    inner = [(r - 0.007, zz) for r, zz in reversed(outer)]
+    barrel = kit.bevel(new_object("barrel", lathe(outer + inner, 192), "alloy-painted"), 0.0015, 2)
 
-    hub = lathe([(0.034, MOUNT_Z), (0.096, MOUNT_Z), (0.098, 0.07), (0.093, 0.088), (0.04, 0.09), (0.034, 0.084)], 96)
-    hub = new_object("hub", hub, "alloy-painted")
+    hub = new_object("hub", lathe([(0.034, MOUNT_Z), (0.1, MOUNT_Z), (0.102, 0.072), (0.097, 0.087), (0.042, 0.089), (0.034, 0.083)], 128), "alloy-painted")
     holes = bmesh.new()
     for i in range(5):
         a = math.pi / 2 + TAU * i / 5
-        c = Vector((PCD * math.cos(a), PCD * math.sin(a), 0.06))
-        merge_into(holes, transform(cylinder(0.0105, 0.08, 32), Matrix.Translation(c)))
-        merge_into(holes, transform(cylinder(0.0105, 0.012, 32, r2=0.0145), Matrix.Translation(c + Vector((0, 0, 0.0255)))))
-    hub = kit.bevel(kit.cut(hub, new_object("holes", holes, "alloy-painted")), 0.0018, 3)
+        c = Vector((PCD * math.cos(a), PCD * math.sin(a), 0))
+        merge_into(holes, transform(cylinder(0.0105, 0.12, 32), Matrix.Translation(c + Vector((0, 0, 0.06)))))
+        merge_into(holes, transform(cylinder(0.0168, 0.03, 48), Matrix.Translation(c + Vector((0, 0, 0.076 + 0.015)))))  # nut pocket
+    hub = kit.bevel(kit.cut(hub, new_object("holes", holes, "alloy-painted")), 0.0016, 3)
 
     spokes = bmesh.new()
     for i in range(5):
         base = math.pi / 2 + math.pi / 5 + TAU * i / 5
-        merge_into(spokes, spoke(base, -1))
-        merge_into(spokes, spoke(base, 1))
-    spokes = kit.bevel(new_object("spokes", spokes, "alloy-painted"), 0.0032, 3, 25)
+        merge_into(spokes, spoke_leg(base, 0.086, 0.152, 0.05, 0.044))  # trunk
+        for side in (-1, 1):
+            merge_into(spokes, spoke_leg(base + side * 0.04, 0.14, 0.274, 0.03, 0.022, side * 0.13))  # legs
+    spokes = kit.bevel(new_object("spokes", spokes, "alloy-painted"), 0.0026, 3, 22)
 
-    cap = new_object("cap", lathe([(0.0005, 0.097), (0.028, 0.094), (0.031, 0.089), (0.031, 0.084), (0.0005, 0.084)], 64), "gloss-black")
-    valve = rod(Vector((0, 0.262, 0.062)), Vector((0, 0.285, 0.098)), 0.004, 16)
-    valve = new_object("valve", valve, "steel-chrome")
+    cap = new_object("cap", lathe([(0.0005, 0.097), (0.024, 0.0955), (0.026, 0.093), (0.03, 0.092), (0.031, 0.089), (0.031, 0.084), (0.0005, 0.084)], 96), "gloss-black")
+    valve = new_object("valve", rod(Vector((0, 0.262, 0.062)), Vector((0, 0.285, 0.098)), 0.004, 16), "steel-chrome")
 
-    obj = kit.join("wheel", [kit.shade(o, 30) for o in (barrel, hub, spokes)] + [kit.shade(cap, 40), kit.shade(valve, 40)])
-    # Diamond-cut (machined) outer face of the spokes, hub and rim lip.
-    kit.assign_by_normal(obj, "alloy-machined", Vector((0, 0, 1)), 0.8, region=lambda c: c.z > 0.04 and Vector((c.x, c.y)).length < 0.3)
+    obj = kit.join("wheel", [kit.shade(o, 28) for o in (barrel, hub, spokes)] + [kit.shade(cap, 40), kit.shade(valve, 40)])
+    # Diamond-cut (machined) faces: the spoke tops and ridge facets, the hub face and the rim lip.
+    kit.assign_by_normal(obj, "alloy-machined", Vector((0, 0, 1)), 0.55, only="alloy-painted",
+                         region=lambda c: c.z > 0.066 and 0.04 < Vector((c.x, c.y)).length < 0.3)
     kit.radial_uv(obj, Vector((0, 0, 0)))
     return at_axle(obj)
 
@@ -186,7 +202,7 @@ def wheel_nuts():
         obj = first if n == 1 else bpy.data.objects.new(f"nut{n}", first.data)
         if n > 1:
             bpy.context.scene.collection.objects.link(obj)
-        obj.location = AXLE + Vector((PCD * math.cos(a), PCD * math.sin(a), 0.0905 + 0.0155))
+        obj.location = AXLE + Vector((PCD * math.cos(a), PCD * math.sin(a), 0.076 + 0.0155))  # seated in its pocket
         nuts.append(obj)
     return nuts
 

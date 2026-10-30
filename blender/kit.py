@@ -269,23 +269,39 @@ def join(name: str, objs: list[bpy.types.Object]) -> bpy.types.Object:
     return obj
 
 
-def assign_by_normal(obj, mat: str, direction: Vector, min_dot: float = 0.9, region=None) -> None:
-    """Give faces facing `direction` (and inside `region(center)` if given) a second material."""
+def assign_by_normal(obj, mat: str, direction: Vector | None = None, min_dot: float = 0.9, region=None, only: str | None = None) -> None:
+    """Give faces facing `direction` (any direction if None), inside `region(center)` if given, and
+    currently using material `only` if given, a different material."""
     mesh = obj.data
-    if mat not in [m.name for m in mesh.materials]:
+    names = [m.name for m in mesh.materials]
+    if mat not in names:
         mesh.materials.append(material(mat))
-    idx = [m.name for m in mesh.materials].index(mat)
-    d = direction.normalized()
+        names.append(mat)
+    idx = names.index(mat)
+    keep = names.index(only) if only in names else None
+    d = direction.normalized() if direction is not None else None
     for p in mesh.polygons:
-        if p.normal.dot(d) >= min_dot and (region is None or region(p.center)):
-            p.material_index = idx
+        if d is not None and p.normal.dot(d) < min_dot:
+            continue
+        if region is not None and not region(p.center):
+            continue
+        if only is not None and p.material_index != keep:
+            continue
+        p.material_index = idx
+
+
+def fresh_uv(mesh) -> bpy.types.MeshUVLoopLayer:
+    """A single, new UV layer (joined pieces such as text can bring their own empty one, which would win)."""
+    while mesh.uv_layers:
+        mesh.uv_layers.remove(mesh.uv_layers[0])
+    return mesh.uv_layers.new(name="UVMap")
 
 
 def radial_uv(obj, centre: Vector, span: float = 0.9) -> None:
     """Planar UVs across the wheel plane, centred on the axle: lets the app draw concentric
     machining marks and circular brushing on discs, hubs and wheel faces."""
     mesh = obj.data
-    uv = mesh.uv_layers.new(name="UVMap")
+    uv = fresh_uv(mesh)
     for loop in mesh.loops:
         co = mesh.vertices[loop.vertex_index].co
         uv.data[loop.index].uv = ((co.x - centre.x) / span + 0.5, (co.y - centre.y) / span + 0.5)
@@ -294,7 +310,7 @@ def radial_uv(obj, centre: Vector, span: float = 0.9) -> None:
 def box_uv(obj, scale: float = 4.0) -> None:
     """Simple box-projected UVs (1 unit = 1/scale metre), for tiling surface textures."""
     mesh = obj.data
-    uv = mesh.uv_layers.new(name="UVMap")
+    uv = fresh_uv(mesh)
     for p in mesh.polygons:
         n = p.normal
         ax = max(range(3), key=lambda k: abs(n[k]))
