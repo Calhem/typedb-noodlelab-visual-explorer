@@ -92,3 +92,64 @@ Small, targeted changes. No redesign:
 
 Recommendations 2 and 3 are the most valuable for a demonstration: they show TypeDB reasoning that is
 honest about degradation, which is exactly what an engineering audience will probe.
+
+---
+
+# C1: the corrected model and expected outcomes (written before implementation, 30 October 2026)
+
+Approved by the owner with one refinement: **no blanket rule that degradation never propagates.** A degraded
+function can make a higher-level function unavailable; propagation follows the affected function and the
+available fallbacks.
+
+## The model
+
+**States belong to functions, not whole components.** A component can have several functions (the ESC
+module provides *brake pressure*, *anti-lock braking* and *stability control*); a failure can take away one
+and leave the others. Functions are first-class entities in TypeDB (`vehicle-function`), shared across
+components (many parts carry *drive torque*).
+
+**Every dependency is a four-role relation:**
+`dependency (dependent: C, affected-function: F, provider: P, required-function: G)`:
+"C's function F needs P's function G". It is one of three subtypes, by family:
+`physical-dependency` (support, torque), `operational-dependency` (power, cooling, hydraulic) or
+`control-dependency` (control, data). Each has:
+
+- `loss-effect`: what happens to C's F when P's G is **lost**: `lost` or `degraded`.
+- `degradation-effect` (optional): what happens when P's G is only **degraded**: `lost`, `degraded`, or
+  (if absent) nothing. **This is how degradation propagates**, where engineering says it does (reduced
+  pack power reduces drive power), and only there.
+- Optionally a **fallback**: `fallback (protected: <the dependency>, backup: B)`. If P's G is lost but the
+  backup B still works, the effect is `degraded` instead of `lost` (the pedal still brakes without the
+  booster).
+
+**A failure** of component X means all of X's functions are lost. The impact is the fixed point of applying
+the rules above, starting from X. `lost` wins over `degraded` for the same function. The result has three
+parts: **lost** functions, **degraded** functions, and **fallbacks in use**.
+
+Single-failure analysis: a fallback is counted as available unless the backup itself is the failed part or
+loses a function in the same failure. (The tests check this independently for every component.)
+
+**New components needed by the fallbacks:** `brake-pedal` (type `driver-control`) and `master-cylinder`
+(type `brake-component`), both in the brake-control assembly. The braking path becomes: pedal and booster →
+master cylinder → ESC hydraulic unit → hoses → callipers. The pedal and the booster are each other's
+fallback for brake pressure.
+
+## Expected outcomes (the tests assert these)
+
+Notation: *component: function*. "Must not" lists what the answer must **not** contain.
+
+| # | Failure | Lost | Degraded | Fallback in use | Must not |
+|---|---|---|---|---|---|
+| 1 | **Wheel-speed sensor (front left)** | ESC module: anti-lock braking, stability control; VCU: traction control; AD computer: automated driving (it requires stability control) | | | any calliper: clamping force; any tyre: drive torque; ESC module: brake pressure |
+| 2 | **Brake booster** | AD computer: automated driving (automatic braking needs the booster) | master cylinder, ESC module, all hoses: brake pressure; all callipers: clamping force; all pads: friction braking | pedal for the master cylinder | any calliper or pad lost |
+| 3 | **12 V battery** | harness and every 12 V control unit; BMS: battery supervision → junction box: HV supply → PDU → both inverters → all four tyres: drive torque; ESC: anti-lock braking; booster: brake assistance; rack: steering assistance; AD | master cylinder, ESC, hoses, callipers, pads (manual braking via the pedal) | pedal for the master cylinder | any calliper or pad lost; tie rods: steering motion lost |
+| 4 | **Coolant pump** | coolant lines and manifold: coolant flow; cooling plate: cell cooling | all 16 modules: cell power; busbars, junction box, PDU, inverters, and through them all four tyres: drive torque (reduced power) | | any tyre: drive torque lost; any module lost |
+| 5 | **Power-steering motor** | rack: steering assistance; AD computer: automated driving | | | tie rods or rack: steering motion |
+| 6 | **Front gate driver** | front power module, stator, rotor, shaft, gears, front drive shafts, front hubs, wheels and tyres: drive torque | | | any rear part: drive torque |
+| 7 | **Battery module 5** (one of 16 in series) | left busbar: pack current → junction box → all propulsion (an open module stops the series string) | cooling plate: cell cooling (heat pump lost, so no chilling) | | any other module lost (the old artefact through the cooling loop) |
+| 8 | **ESC module** | its anti-lock braking and stability control; AD computer: automated driving | all hoses: brake pressure; callipers: clamping force; pads (valves fail open: unmodulated braking) | master cylinder for each hose | any calliper or pad lost |
+| 9 | **Front-left brake hose** | front-left calliper: clamping force; front-left pads: friction braking | | | any other wheel's brakes |
+| 10 | **Steering rack** | tie rods: steering motion; AD computer: automated driving | | | |
+
+The 12 V case (3) keeps the defensible part of the old 14-step chain, now worded as functions: the tyres lose
+*drive torque* (not "stop working"), braking is degraded rather than lost, and steering remains (heavier).
