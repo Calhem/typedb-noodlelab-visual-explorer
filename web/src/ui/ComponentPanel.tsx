@@ -100,7 +100,7 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
             <h3>Follow the dependencies</h3>
             <div className="chips">
               <button type="button" className={chipClass(focus, "impact", id)} onClick={() => onFocus({ kind: "impact", key: id, anchor: id })}>
-                If this fails, what stops working?
+                If this fails, what is affected?
               </button>
               <button type="button" className={chipClass(focus, "requirements", id)} onClick={() => onFocus({ kind: "requirements", key: id, anchor: id })}>
                 What does it need to work?

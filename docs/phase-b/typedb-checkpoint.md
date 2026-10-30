@@ -1,6 +1,9 @@
 # Phase B checkpoint: first working TypeDB integration (30 October 2026)
 
-Status: **for review.** Branch `feature/m2.2-mechanical`; nothing merged into `main`.
+Status: **approved by the owner (30 October 2026).** Branch `feature/m2.2-mechanical`; nothing merged into `main`.
+
+> Update: the "what stops working" wording below overstates some answers. See
+> [docs/dependency-semantics.md](../dependency-semantics.md); the app now says "affected".
 
 ## In one paragraph
 

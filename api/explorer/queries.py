@@ -181,7 +181,8 @@ def _walk(start, edges):
 
 
 def component_impact(tx, component_id):
-    """Multi-step: everything that stops working if this component fails (following dependencies)."""
+    """Multi-step: everything affected if this component fails, following dependencies (see docs/dependency-semantics.md:
+    today every edge is treated as a total loss, which overstates some answers)."""
     cid = string(component_id)
     if not rows(tx, f"match $c isa component, has component-id {cid};"):
         raise NotFound(f"component {component_id}")

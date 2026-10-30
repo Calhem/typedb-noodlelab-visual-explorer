@@ -33,7 +33,8 @@ fun system_components($s: system) -> { component }:
          let $c in system_components($sub); };
   return { $c };
 
-# Failure impact: every component that stops working if $start fails, with the step that reaches it
+# Failure impact: every component affected if $start fails (every edge treated as a total loss; see
+# docs/dependency-semantics.md), with the step that reaches it
 # (the provider it depends on directly), so the chain can be shown. A component reached by several
 # routes comes back once per route.
 fun impact_edges($start: component) -> { component, component }:

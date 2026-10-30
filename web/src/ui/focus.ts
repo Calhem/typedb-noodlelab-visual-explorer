@@ -45,7 +45,7 @@ export function useFocus() {
       } else if (req.kind === "impact") {
         const { data, typeql } = await semantic.impact(req.key);
         const ids = new Set([req.key, ...data.affected.map((a) => a.id)]);
-        setFocus({ ...req, title: `If it fails: ${data.affected.length} components stop working`, ids, typeql, reached: data.affected });
+        setFocus({ ...req, title: `If it fails: ${data.affected.length} components affected`, ids, typeql, reached: data.affected });
       } else {
         const { data, typeql } = await semantic.requirements(req.key);
         const ids = new Set([req.key, ...data.required.map((a) => a.id)]);
