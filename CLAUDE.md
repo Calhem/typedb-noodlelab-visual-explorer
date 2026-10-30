@@ -82,6 +82,8 @@ Also:
   Material names in Blender are roles matched by `web/src/vehicle/studioMaterials.ts`.
 - `import bpy` must come before `import bmesh` / `mathutils`.
 - Comparison switches: `?corner=procedural` (old corner), `?fx=off` (no ambient occlusion / effects).
+- `blender/exterior_trial.py`: the time-boxed exterior trial (scripted subdivision body, renders in Blender to
+  web/shots/exterior-trial-*.png). Not used by the app; see docs/exterior-trial/README.md.
 
 ## Checking visuals in the Claude browser pane
 The pane throttles animation when it is in the background, and screenshots can lag one frame.
