@@ -51,3 +51,9 @@ def test_seed_problems_are_reported_before_loading():
     assert "unknown component 'no-such-part'" in text
     assert "'caliper-fr' appears more than once" in text
     assert "pattern 'nothing-*' matches no component" in text
+
+
+def test_answers_report_a_timing_for_each_query(client):
+    body = get(client, "/api/components/hub-fr/relationships")
+    assert len(body["timings-ms"]) == len(body["typeql"]) == 5
+    assert all(isinstance(t, (int, float)) and t >= 0 for t in body["timings-ms"])

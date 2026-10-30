@@ -8,6 +8,8 @@
 export interface Answer<T> {
   data: T;
   typeql: string[];
+  /** how long each query took in TypeDB (ms), in the same order as `typeql` */
+  "timings-ms": number[];
 }
 
 export type Failure = "unavailable" | "not-found" | "failed";

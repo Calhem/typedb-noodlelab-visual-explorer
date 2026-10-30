@@ -1,8 +1,9 @@
 """The semantic HTTP API (FastAPI). Read-only: every endpoint is a GET, opens only READ transactions and runs
 only the named queries in explorer/queries.py. The browser never sends TypeQL and never sees credentials.
 
-Every answer has the shape {"data": ..., "typeql": [...]}, where "typeql" lists the exact queries that
-produced it, in the order they ran (recorded as they ran, parameters included).
+Every answer has the shape {"data": ..., "typeql": [...], "timings-ms": [...]}: "typeql" lists the exact
+queries that produced it, in the order they ran (recorded as they ran, parameters included), and
+"timings-ms" how long each took in TypeDB, measured to its last answer.
 
 If TypeDB is unreachable, every endpoint answers 503 with {"error": "typedb-unavailable"}: there is no
 fallback data. The connection is opened on first use and reopened after a failure, so the API recovers
@@ -73,12 +74,12 @@ class Database:
                 self._driver = None
 
     def read(self, question, *args):
-        """Run one named question in a READ transaction; returns (answer, queries that ran)."""
+        """Run one named question in a READ transaction; returns (answer, the queries that ran, their timings in ms)."""
         driver = self.driver()
         try:
             with driver.transaction(self.name, READ) as tx:
                 recorder = RecordingTransaction(tx)
-                return question(recorder, *args), recorder.queries
+                return question(recorder, *args), recorder.queries, recorder.timings_ms
         except queries.NotFound:
             raise
         except Exception as error:
@@ -109,8 +110,8 @@ def create_app(db=None):
         return JSONResponse(status_code=404, content={"error": "not-found", "message": f"No {error} in TypeDB."})
 
     def answer(question, *args):
-        data, typeql = db.read(question, *args)
-        return {"data": data, "typeql": typeql}
+        data, typeql, timings = db.read(question, *args)
+        return {"data": data, "typeql": typeql, "timings-ms": timings}
 
     @app.get("/api/health")
     def health():

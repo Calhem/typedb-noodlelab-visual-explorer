@@ -5,6 +5,7 @@ Adapted from Project Apex's apex/db.py (same author).
 
 import os
 import textwrap
+import time
 from pathlib import Path
 
 from typedb.driver import Credentials, DriverOptions, DriverTlsConfig, TransactionType, TypeDB
@@ -50,12 +51,24 @@ def string(value):
 
 def fetch(tx, query):
     """Run a fetch query inside an open transaction; returns a list of JSON-like documents."""
-    return list(tx.query(query).resolve().as_concept_documents())
+    start = time.perf_counter()
+    out = list(tx.query(query).resolve().as_concept_documents())
+    _note(tx, start)
+    return out
 
 
 def rows(tx, query):
     """Run a match/reduce query inside an open transaction; returns a list of answer rows."""
-    return list(tx.query(query).resolve().as_concept_rows())
+    start = time.perf_counter()
+    out = list(tx.query(query).resolve().as_concept_rows())
+    _note(tx, start)
+    return out
+
+
+def _note(tx, start):
+    """Record how long the last query took (until every answer was read), if the transaction is recording."""
+    if isinstance(tx, RecordingTransaction):
+        tx.timings_ms.append(round((time.perf_counter() - start) * 1000, 1))
 
 
 class RecordingTransaction:
@@ -68,6 +81,7 @@ class RecordingTransaction:
     def __init__(self, tx):
         self._tx = tx
         self.queries = []
+        self.timings_ms = []     # one per query, in the same order (time to the last answer)
 
     def query(self, text):
         self.queries.append(textwrap.dedent(text).strip())
