@@ -78,11 +78,12 @@ export function useFocus() {
         setFocus({ ...req, title: data.summary, ids, typeql, "timings-ms": timings, question: data });
       } else if (req.kind === "impact") {
         const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
-        const ids = levels([[req.key, "primary"], ...data.lost.map((x): [string, Level] => [x.id, "primary"]),
-          ...data.degraded.map((x): [string, Level] => [x.id, "secondary"])]);
-        const title = data.lost.length + data.degraded.length === 0
-          ? "If it fails: no other function is affected"
-          : `If it fails: ${plural(data.lost.length, "function")} lost, ${data.degraded.length} degraded`;
+        // Teal: the part loses at least one function. Amber: its functions are only degraded.
+        const ids = levels([[req.key, "primary"], ...data.components.map((c): [string, Level] => [c.id, c.lost.length ? "primary" : "secondary"])]);
+        const losing = data.components.filter((c) => c.lost.length).length;
+        const title = data.components.length === 0
+          ? "If it fails: no other part is affected"
+          : `If it fails: ${plural(losing, "part")} lose a function, ${data.components.length - losing} only degraded`;
         setFocus({ ...req, title, ids, typeql, "timings-ms": timings, impact: data });
       } else {
         const { data, typeql, "timings-ms": timings } = await semantic.requirements(req.key);

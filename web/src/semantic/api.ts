@@ -98,7 +98,13 @@ export interface ComponentRelationships {
 /** A (component, function) reached from a failure or a requirement walk. */
 export interface Reached extends Named { function: string; steps: number; via: string; kind: string }
 
+/** One affected component: which of its functions are lost or degraded, and which it keeps. */
+export interface AffectedComponent extends Named { steps: number; lost: string[]; degraded: string[]; kept: string[] }
+
 export interface Impact {
+  /** the failed part loses every function it has */
+  failed: { id: string; name: string | null; functions: string[] };
+  components: AffectedComponent[];
   lost: (Reached & { "via-function": string })[];
   degraded: (Reached & { "via-function": string })[];
   fallbacks: (Named & { function: string; provider: string; "provider-name": string; needs: string; backup: string;

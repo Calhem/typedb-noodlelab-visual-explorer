@@ -2,7 +2,7 @@
 // sits (assembly), what it does (systems), how it is joined and what it depends on. Every value comes from the
 // semantic API; "TypeQL" shows the exact queries behind the panel.
 
-import { semantic, type Answer, type Dependency, type Impact, type Requirement } from "../semantic/api";
+import { semantic, type AffectedComponent, type Answer, type Dependency, type Impact, type Requirement } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
 import { attributeLabel, attributeValue, connectionKind, words } from "./format";
@@ -182,25 +182,36 @@ function DependencyList({ title, items, side, onSelect }: { title: string; items
   );
 }
 
+/** A failure, function by function: the failed part loses everything; other parts usually lose or degrade only
+ * some of their functions and keep the rest. */
 function ImpactList({ impact, onSelect }: { impact: Impact; onSelect: (id: string) => void }) {
-  const row = (x: Impact["lost"][number]) => (
-    <li key={`${x.id}-${x.function}`}>
-      <button type="button" className="link" onClick={() => onSelect(x.id)}>{x.name}</button>
-      <span className="muted"> {x.function} · {x.steps} {x.steps === 1 ? "step" : "steps"}</span>
+  const { failed, components, fallbacks } = impact;
+  const losing = components.filter((c) => c.lost.length);
+  const degraded = components.filter((c) => !c.lost.length);
+  const row = (c: AffectedComponent) => (
+    <li key={c.id} className="affected">
+      <button type="button" className="link" onClick={() => onSelect(c.id)}>{c.name}</button>
+      {c.lost.length > 0 && <span className="fn lost"> loses {c.lost.join(", ")}</span>}
+      {c.degraded.length > 0 && <span className="fn degraded"> {c.lost.length ? "; " : ""}degraded {c.degraded.join(", ")}</span>}
+      {c.kept.length > 0 && <span className="fn kept">; keeps {c.kept.join(", ")}</span>}
     </li>
   );
-  if (!impact.lost.length && !impact.degraded.length) return <p className="muted">No other function is affected, according to TypeDB.</p>;
   return (
     <div className="impact">
-      {impact.lost.length > 0 && <><h4 className="lost">Lost ({impact.lost.length})</h4><ol className="reached">{impact.lost.map(row)}</ol></>}
-      {impact.degraded.length > 0 && <><h4 className="degraded">Degraded ({impact.degraded.length})</h4><ol className="reached">{impact.degraded.map(row)}</ol></>}
-      {impact.fallbacks.length > 0 && (
+      <p className="muted failed-note">
+        The failed part loses all its functions{failed.functions.length ? `: ${failed.functions.join(", ")}` : ""}. Other parts usually lose
+        or degrade only some of theirs.
+      </p>
+      {!components.length && <p className="muted">No other part is affected, according to TypeDB.</p>}
+      {losing.length > 0 && <><h4 className="lost">Lose a function ({losing.length})</h4><ol className="reached">{losing.map(row)}</ol></>}
+      {degraded.length > 0 && <><h4 className="degraded">Only degraded ({degraded.length})</h4><ol className="reached">{degraded.map(row)}</ol></>}
+      {fallbacks.length > 0 && (
         <><h4>Fallback in use</h4>
           <ul className="reached">
-            {impact.fallbacks.map((f) => (
+            {fallbacks.map((f) => (
               <li key={`${f.id}-${f.function}-${f.backup}`} title={f.description}>
                 <button type="button" className="link" onClick={() => onSelect(f.backup)}>{f["backup-name"]}</button>
-                <span className="muted"> keeps {f.name}: {f.function}</span>
+                <span className="muted"> keeps {f.name}: {f.function} (degraded)</span>
               </li>
             ))}
           </ul></>
