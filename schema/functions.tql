@@ -1,0 +1,50 @@
+# Functions: named, reusable query logic stored in the database. The recursive ones walk relationships
+# to any depth, which is how "multi-step" questions are answered.
+
+define
+
+# Every assembly above $a, at any depth (sub-assembly > assembly > ... > vehicle).
+fun assembly_ancestors($a: assembly) -> { assembly }:
+  match
+    { assembly-membership (assembly: $parent, member: $a); }
+    or { let $mid in assembly_ancestors($a); assembly-membership (assembly: $parent, member: $mid); };
+  return { $parent };
+
+# Every component inside $a, including those in its sub-assemblies.
+fun assembly_components($a: assembly) -> { component }:
+  match
+    { assembly-membership (assembly: $a, member: $c); $c isa component; }
+    or { assembly-membership (assembly: $a, member: $sub); $sub isa assembly;
+         let $c in assembly_components($sub); };
+  return { $c };
+
+# Every system that $s is part of, at any depth.
+fun system_ancestors($s: system) -> { system }:
+  match
+    { system-membership (system: $parent, member: $s); }
+    or { let $mid in system_ancestors($s); system-membership (system: $parent, member: $mid); };
+  return { $parent };
+
+# Every component taking part in $s, directly or through its subsystems.
+fun system_components($s: system) -> { component }:
+  match
+    { system-membership (system: $s, member: $c); $c isa component; }
+    or { system-membership (system: $s, member: $sub); $sub isa system;
+         let $c in system_components($sub); };
+  return { $c };
+
+# Failure impact: every component that stops working if $start fails, with the step that reaches it
+# (the provider it depends on directly), so the chain can be shown. A component reached by several
+# routes comes back once per route.
+fun impact_edges($start: component) -> { component, component }:
+  match
+    { dependency (provider: $start, dependent: $to); $from is $start; }
+    or { let $prev, $from in impact_edges($start); dependency (provider: $from, dependent: $to); };
+  return { $from, $to };
+
+# The reverse walk: everything $end relies on, directly or indirectly, with each step.
+fun requirement_edges($end: component) -> { component, component }:
+  match
+    { dependency (dependent: $end, provider: $to); $from is $end; }
+    or { let $from_prev, $from in requirement_edges($end); dependency (dependent: $from, provider: $to); };
+  return { $from, $to };

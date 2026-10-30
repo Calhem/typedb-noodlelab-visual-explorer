@@ -1,0 +1,191 @@
+# Descriptions and engineering properties of components.
+#
+# CONCEPT DESIGN TARGETS for an original, unbranded vehicle: plausible for a premium dual-motor 800 V
+# electric SUV, but invented. Never present them as measured or real-world data.
+#
+# Each entry applies to every component whose id matches one of the "match" patterns (* = anything).
+# The other keys are attribute names from schema/schema.tql; TypeDB only accepts an attribute on the
+# component types that own it.
+
+properties:
+  # ---- Wheel ends -----------------------------------------------------------------------------------------
+  - match: tyre-*
+    description: "Low-profile performance tyre on a 22-inch rim, with four circumferential grooves and an asymmetric shoulder."
+    size-designation: "275/45 R22"
+    diameter-mm: 806
+  - match: [wheel-fl, wheel-fr, wheel-rl, wheel-rr]
+    description: "Forged aluminium wheel with five Y-shaped spokes and a diamond-cut face."
+    size-designation: "22 x 9.5J"
+    diameter-mm: 559
+    material-name: "forged aluminium"
+  - match: [brake-disc-fl, brake-disc-fr]
+    description: "Two-piece floating disc: a ventilated, slotted iron friction ring on an aluminium hat, joined by ten bobbins so the ring can expand freely."
+    diameter-mm: 380
+    thickness-mm: 34
+    material-name: "grey cast iron ring, aluminium hat"
+  - match: [brake-disc-rl, brake-disc-rr]
+    description: "Ventilated one-piece rear brake disc."
+    diameter-mm: 360
+    thickness-mm: 28
+    material-name: "grey cast iron"
+  - match: [caliper-fl, caliper-fr]
+    description: "Six-piston fixed monobloc calliper: one cast body with three opposed pistons each side, clamping the pads onto the disc."
+    piston-count: 6
+    material-name: "cast aluminium"
+  - match: [caliper-rl, caliper-rr]
+    description: "Four-piston fixed rear calliper."
+    piston-count: 4
+    material-name: "cast aluminium"
+  - match: brake-pad-*
+    description: "Friction pad: a steel backing plate carrying the friction block that presses on the disc."
+  - match: brake-hose-*
+    description: "Flexible brake hose with a banjo fitting, carrying brake fluid from the hard lines to the calliper while the wheel steers and moves."
+  - match: "hub-??"
+    description: "Wheel hub: the flange the brake disc and wheel bolt to, carried by the wheel bearing."
+  - match: wheel-bearing-*
+    description: "Double-row angular-contact ball bearing with a flanged outer race, letting the hub turn in the knuckle."
+    material-name: "bearing steel"
+  - match: knuckle-*
+    description: "Cast suspension knuckle (upright): carries the wheel bearing and calliper and links the wheel to the suspension arms."
+    material-name: "cast aluminium"
+  - match: wheel-nut-*
+    description: "Conical-seat wheel nut; five clamp the wheel to the hub."
+    material-name: "steel"
+  - match: hub-nut-*
+    description: "Axle nut: holds the hub on the drive shaft's splined end."
+    material-name: "steel"
+  - match: wheel-speed-sensor-*
+    description: "Magnetic sensor reading the toothed ring on the hub: wheel speed for anti-lock braking, stability and traction control, and automated driving."
+
+  # ---- Suspension and steering --------------------------------------------------------------------------
+  - match: coilover-*
+    description: "Damper: a hydraulic shock absorber that controls how fast the suspension moves."
+  - match: spring-*
+    description: "Coil spring carrying the vehicle's weight at this corner."
+    material-name: "spring steel"
+  - match: [lower-arm-*, upper-arm-*]
+    description: "Suspension wishbone: locates the knuckle, with rubber bushes at the body end and a ball joint at the wheel end."
+    material-name: "forged aluminium"
+  - match: [front-anti-roll-bar, rear-anti-roll-bar]
+    description: "Torsion bar linking left and right wheels to reduce body roll in corners."
+    material-name: "spring steel"
+  - match: steering-rack
+    description: "Rack-and-pinion steering gear: turns the rotation of the steering column into side-to-side movement of the tie rods."
+  - match: eps-motor
+    description: "Electric power-steering motor: adds assistance torque to the rack, commanded by the steering control unit."
+  - match: tie-rod-*
+    description: "Tie rod: pushes and pulls the knuckle to steer the wheel."
+
+  # ---- Drive units ----------------------------------------------------------------------------------------
+  - match: front-motor
+    description: "Front traction motor: permanent-magnet synchronous machine in a cast housing; drives the front wheels."
+    peak-power-kw: 180
+    peak-torque-nm: 340
+    nominal-voltage-v: 800
+  - match: rear-motor
+    description: "Rear traction motor: permanent-magnet synchronous machine; the main drive motor."
+    peak-power-kw: 300
+    peak-torque-nm: 520
+    nominal-voltage-v: 800
+  - match: [front-stator, rear-stator]
+    description: "Stator: laminated steel core with hairpin copper windings; the inverter's currents in it create the rotating magnetic field."
+    material-name: "electrical steel, copper"
+  - match: [front-rotor, rear-rotor]
+    description: "Rotor with embedded permanent magnets, turned by the stator's rotating field."
+  - match: [front-gearbox, rear-gearbox]
+    description: "Single-speed reduction gearbox with an integrated open differential."
+    gear-ratio: 9.05
+  - match: [front-differential, rear-differential]
+    description: "Open differential: splits torque between the left and right drive shafts and lets them turn at different speeds in corners."
+  - match: [front-inverter, rear-inverter]
+    description: "Traction inverter: converts the battery's direct current into the three-phase alternating current that drives the motor."
+    nominal-voltage-v: 800
+  - match: front-inverter
+    peak-power-kw: 200
+  - match: rear-inverter
+    peak-power-kw: 330
+  - match: [front-power-module, rear-power-module]
+    description: "Silicon-carbide power module: the switches that build the motor's three-phase current."
+  - match: [front-gate-driver, rear-gate-driver]
+    description: "Gate-driver and control board: switches the power module according to the torque requested by the vehicle control unit."
+  - match: [front-dc-link-capacitor, rear-dc-link-capacitor]
+    description: "DC-link capacitor: smooths the high-voltage supply at the inverter input."
+  - match: [front-halfshaft-*, rear-halfshaft-*]
+    description: "Drive shaft with constant-velocity joints at each end, carrying torque from the differential to the wheel hub."
+
+  # ---- High-voltage battery and power distribution --------------------------------------------------------
+  - match: battery-module-*
+    description: "Battery module of prismatic lithium-ion cells; sixteen in series make the 800 V pack."
+    energy-capacity-kwh: 6.25
+    nominal-voltage-v: 50
+  - match: battery-enclosure
+    description: "Structural battery enclosure: an extruded aluminium tray that seals the pack and protects it in a side impact."
+    material-name: "extruded aluminium"
+  - match: [battery-busbar-l, battery-busbar-r]
+    description: "Copper busbar connecting one row of battery modules in series."
+    material-name: "copper"
+  - match: hv-junction-box
+    description: "High-voltage junction box: main contactors, fuses and the pre-charge circuit between the battery and the vehicle."
+    nominal-voltage-v: 800
+  - match: bms
+    description: "Battery management system: monitors cell voltages and temperatures, balances the cells and opens or closes the main contactors."
+  - match: pdu
+    description: "Power distribution unit: routes high voltage from the battery to the inverters, the DC-DC converter, the charger and the heat pump."
+    nominal-voltage-v: 800
+  - match: dc-dc
+    description: "DC-DC converter: steps 800 V down to 12 V to run the low-voltage electrics and charge the 12 V battery."
+    rated-power-kw: 3.5
+    nominal-voltage-v: 800
+  - match: obc
+    description: "On-board charger: converts AC from a charging point into DC for the battery."
+    rated-power-kw: 11
+    nominal-voltage-v: 800
+  - match: lv-battery
+    description: "12 V battery: powers the control units and safety systems, including the battery management system that closes the main contactors."
+    energy-capacity-kwh: 0.72
+    nominal-voltage-v: 12
+
+  # ---- Sensors and control ----------------------------------------------------------------------------------
+  - match: front-camera
+    description: "Forward camera behind the windscreen: lanes, signs, vehicles and pedestrians."
+    sensing-range-m: 200
+  - match: [rear-camera, side-camera-l, side-camera-r]
+    description: "Surround-view camera."
+    sensing-range-m: 60
+  - match: front-radar
+    description: "Long-range 77 GHz radar: distance and speed of vehicles ahead, in any weather."
+    sensing-range-m: 250
+  - match: corner-radar-*
+    description: "Short-range corner radar: blind spots and cross traffic."
+    sensing-range-m: 100
+  - match: lidar
+    description: "Roof lidar: a laser scanner building a 3D point cloud of the surroundings."
+    sensing-range-m: 250
+  - match: gnss-antenna
+    description: "Satellite positioning receiver and antenna."
+  - match: ad-compute
+    description: "Automated-driving computer: fuses the sensors, plans the path and commands steering, braking and drive torque."
+  - match: vcu
+    description: "Vehicle control unit: turns the accelerator pedal and driving mode into torque requests for the two drive units, including traction control."
+  - match: esc-module
+    description: "Electronic stability control: valve block and controller that modulate brake pressure at each wheel (anti-lock braking, stability control)."
+  - match: brake-booster
+    description: "Electromechanical brake booster: builds brake pressure from the pedal or on command from the automated-driving computer."
+  - match: steering-ecu
+    description: "Steering control unit: commands the power-steering motor from the driver's input or the automated-driving computer."
+  - match: gateway
+    description: "Central gateway: connects the vehicle's networks and filters messages between them."
+  - match: bcm
+    description: "Body control module: doors, windows, locks and lights."
+  - match: telematics
+    description: "Telematics unit: mobile connection for remote services and software updates."
+
+  # ---- Thermal ----------------------------------------------------------------------------------------------
+  - match: battery-cooling-plate
+    description: "Liquid cooling plate under the modules: carries heat away from the cells."
+  - match: coolant-pump
+    description: "Electric coolant pump circulating coolant through the battery and drive-unit circuits."
+  - match: battery-chiller
+    description: "Chiller: a heat exchanger where the heat pump's refrigerant cools the battery coolant."
+  - match: heat-pump-compressor
+    description: "High-voltage electric compressor for the heat pump (cabin heating and cooling, battery chilling)."

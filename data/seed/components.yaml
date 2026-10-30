@@ -1,0 +1,388 @@
+# Every component: stable id, TypeDB type (schema/schema.tql), name and the assembly it sits in.
+# Loaded into TypeDB by api/explorer/seed.py. Ids are stable: never rename one (docs/component-ids.md).
+# Engineering properties are in properties.yaml.
+
+components:
+  # front-end
+  - {id: bonnet, type: body-panel, assembly: front-end, name: "Bonnet"}
+  - {id: front-bumper, type: body-panel, assembly: front-end, name: "Front bumper"}
+  - {id: grille, type: trim-part, assembly: front-end, name: "Lower air intake"}
+  - {id: fender-l, type: body-panel, assembly: front-end, name: "Left front wing"}
+  - {id: fender-r, type: body-panel, assembly: front-end, name: "Right front wing"}
+  - {id: headlamp-l, type: lighting-unit, assembly: front-end, name: "Left headlamp"}
+  - {id: headlamp-r, type: lighting-unit, assembly: front-end, name: "Right headlamp"}
+  - {id: headlamp-lens-l, type: lighting-unit, assembly: front-end, name: "Left headlamp lens"}
+  - {id: headlamp-lens-r, type: lighting-unit, assembly: front-end, name: "Right headlamp lens"}
+  - {id: bonnet-inner, type: structural-member, assembly: front-end, name: "Bonnet inner panel"}
+  # rear-end
+  - {id: tailgate-inner, type: structural-member, assembly: rear-end, name: "Tailgate inner panel"}
+  # greenhouse
+  - {id: windscreen, type: glazing, assembly: greenhouse, name: "Windscreen"}
+  - {id: roof, type: glazing, assembly: greenhouse, name: "Panoramic roof"}
+  - {id: body-side-l, type: body-panel, assembly: greenhouse, name: "Left body side"}
+  - {id: body-side-r, type: body-panel, assembly: greenhouse, name: "Right body side"}
+  # body
+  - {id: rocker-l, type: trim-part, assembly: body, name: "Left sill trim"}
+  - {id: rocker-r, type: trim-part, assembly: body, name: "Right sill trim"}
+  # rear-end
+  - {id: tailgate, type: body-panel, assembly: rear-end, name: "Tailgate"}
+  - {id: tailgate-glass, type: glazing, assembly: rear-end, name: "Rear window"}
+  - {id: rear-bumper, type: body-panel, assembly: rear-end, name: "Rear bumper"}
+  - {id: rear-diffuser, type: trim-part, assembly: rear-end, name: "Rear diffuser"}
+  - {id: quarter-l, type: body-panel, assembly: rear-end, name: "Left rear quarter panel"}
+  - {id: quarter-r, type: body-panel, assembly: rear-end, name: "Right rear quarter panel"}
+  - {id: quarter-glass-l, type: glazing, assembly: rear-end, name: "Left rear quarter window"}
+  - {id: quarter-glass-r, type: glazing, assembly: rear-end, name: "Right rear quarter window"}
+  - {id: tail-lamp-l, type: lighting-unit, assembly: rear-end, name: "Left tail lamp"}
+  - {id: tail-lamp-r, type: lighting-unit, assembly: rear-end, name: "Right tail lamp"}
+  # door-fl
+  - {id: door-fl, type: body-panel, assembly: door-fl, name: "Front left door panel"}
+  # door-fr
+  - {id: door-fr, type: body-panel, assembly: door-fr, name: "Front right door panel"}
+  # door-rl
+  - {id: door-rl, type: body-panel, assembly: door-rl, name: "Rear left door panel"}
+  # door-rr
+  - {id: door-rr, type: body-panel, assembly: door-rr, name: "Rear right door panel"}
+  # door-fl
+  - {id: glass-fl, type: glazing, assembly: door-fl, name: "Front left door window"}
+  # door-fr
+  - {id: glass-fr, type: glazing, assembly: door-fr, name: "Front right door window"}
+  # door-rl
+  - {id: glass-rl, type: glazing, assembly: door-rl, name: "Rear left door window"}
+  # door-rr
+  - {id: glass-rr, type: glazing, assembly: door-rr, name: "Rear right door window"}
+  # door-fl
+  - {id: mirror-l, type: trim-part, assembly: door-fl, name: "Left door mirror"}
+  # door-fr
+  - {id: mirror-r, type: trim-part, assembly: door-fr, name: "Right door mirror"}
+  # structure
+  - {id: underbody, type: structural-member, assembly: structure, name: "Underbody aero shield"}
+  - {id: arch-liner-fl, type: structural-member, assembly: structure, name: "Front left wheel-arch liner"}
+  - {id: arch-liner-fr, type: structural-member, assembly: structure, name: "Front right wheel-arch liner"}
+  - {id: arch-liner-rl, type: structural-member, assembly: structure, name: "Rear left wheel-arch liner"}
+  - {id: arch-liner-rr, type: structural-member, assembly: structure, name: "Rear right wheel-arch liner"}
+  - {id: sill-l, type: structural-member, assembly: structure, name: "Left sill rail"}
+  - {id: sill-r, type: structural-member, assembly: structure, name: "Right sill rail"}
+  - {id: front-rail-l, type: structural-member, assembly: structure, name: "Left front longitudinal rail"}
+  - {id: front-rail-r, type: structural-member, assembly: structure, name: "Right front longitudinal rail"}
+  - {id: rear-rail-l, type: structural-member, assembly: structure, name: "Left rear longitudinal rail"}
+  - {id: rear-rail-r, type: structural-member, assembly: structure, name: "Right rear longitudinal rail"}
+  - {id: front-crash-beam, type: structural-member, assembly: structure, name: "Front crash beam"}
+  - {id: rear-crash-beam, type: structural-member, assembly: structure, name: "Rear crash beam"}
+  - {id: bulkhead, type: structural-member, assembly: structure, name: "Front bulkhead"}
+  # corner-fl
+  - {id: tyre-fl, type: tyre, assembly: corner-fl, name: "Front left tyre"}
+  - {id: wheel-fl, type: wheel, assembly: corner-fl, name: "Front left wheel"}
+  - {id: brake-disc-fl, type: brake-disc, assembly: corner-fl, name: "Front left brake disc"}
+  - {id: caliper-fl, type: brake-caliper, assembly: corner-fl, name: "Front left brake caliper"}
+  - {id: knuckle-fl, type: wheel-end-component, assembly: corner-fl, name: "Front left steering knuckle"}
+  - {id: wheel-speed-sensor-fl, type: wheel-speed-sensor, assembly: corner-fl, name: "Front left wheel-speed sensor"}
+  # corner-fr
+  - {id: tyre-fr, type: tyre, assembly: corner-fr, name: "Front right tyre"}
+  - {id: wheel-fr, type: wheel, assembly: corner-fr, name: "Front right wheel"}
+  - {id: brake-disc-fr, type: brake-disc, assembly: corner-fr, name: "Front right brake disc"}
+  - {id: caliper-fr, type: brake-caliper, assembly: corner-fr, name: "Front right brake caliper"}
+  - {id: knuckle-fr, type: wheel-end-component, assembly: corner-fr, name: "Front right steering knuckle"}
+  - {id: wheel-speed-sensor-fr, type: wheel-speed-sensor, assembly: corner-fr, name: "Front right wheel-speed sensor"}
+  # corner-rl
+  - {id: tyre-rl, type: tyre, assembly: corner-rl, name: "Rear left tyre"}
+  - {id: wheel-rl, type: wheel, assembly: corner-rl, name: "Rear left wheel"}
+  - {id: brake-disc-rl, type: brake-disc, assembly: corner-rl, name: "Rear left brake disc"}
+  - {id: caliper-rl, type: brake-caliper, assembly: corner-rl, name: "Rear left brake caliper"}
+  - {id: knuckle-rl, type: wheel-end-component, assembly: corner-rl, name: "Rear left steering knuckle"}
+  - {id: wheel-speed-sensor-rl, type: wheel-speed-sensor, assembly: corner-rl, name: "Rear left wheel-speed sensor"}
+  # corner-rr
+  - {id: tyre-rr, type: tyre, assembly: corner-rr, name: "Rear right tyre"}
+  - {id: wheel-rr, type: wheel, assembly: corner-rr, name: "Rear right wheel"}
+  - {id: brake-disc-rr, type: brake-disc, assembly: corner-rr, name: "Rear right brake disc"}
+  - {id: caliper-rr, type: brake-caliper, assembly: corner-rr, name: "Rear right brake caliper"}
+  - {id: knuckle-rr, type: wheel-end-component, assembly: corner-rr, name: "Rear right steering knuckle"}
+  - {id: wheel-speed-sensor-rr, type: wheel-speed-sensor, assembly: corner-rr, name: "Rear right wheel-speed sensor"}
+  # front-suspension
+  - {id: lower-arm-fl, type: suspension-component, assembly: front-suspension, name: "Front left lower control arm"}
+  - {id: coilover-fl, type: suspension-component, assembly: front-suspension, name: "Front left damper"}
+  - {id: spring-fl, type: suspension-component, assembly: front-suspension, name: "Front left coil spring"}
+  - {id: top-mount-fl, type: suspension-component, assembly: front-suspension, name: "Front left suspension top mount"}
+  - {id: lower-arm-fr, type: suspension-component, assembly: front-suspension, name: "Front right lower control arm"}
+  - {id: coilover-fr, type: suspension-component, assembly: front-suspension, name: "Front right damper"}
+  - {id: spring-fr, type: suspension-component, assembly: front-suspension, name: "Front right coil spring"}
+  - {id: top-mount-fr, type: suspension-component, assembly: front-suspension, name: "Front right suspension top mount"}
+  # rear-suspension
+  - {id: lower-arm-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left lower control arm"}
+  - {id: coilover-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left damper"}
+  - {id: spring-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left coil spring"}
+  - {id: top-mount-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left suspension top mount"}
+  - {id: lower-arm-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right lower control arm"}
+  - {id: coilover-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right damper"}
+  - {id: spring-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right coil spring"}
+  - {id: top-mount-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right suspension top mount"}
+  # front-suspension
+  - {id: front-subframe, type: structural-member, assembly: front-suspension, name: "Front subframe"}
+  # rear-suspension
+  - {id: rear-subframe, type: structural-member, assembly: rear-suspension, name: "Rear subframe"}
+  # front-suspension
+  - {id: front-anti-roll-bar, type: suspension-component, assembly: front-suspension, name: "Front anti-roll bar"}
+  # steering
+  - {id: steering-rack, type: steering-component, assembly: steering, name: "Steering rack"}
+  - {id: eps-motor, type: actuator, assembly: steering, name: "Electric power-steering motor"}
+  - {id: steering-ecu, type: control-unit, assembly: steering, name: "Steering control module"}
+  - {id: steering-column, type: steering-component, assembly: steering, name: "Steering column"}
+  - {id: steering-wheel, type: steering-component, assembly: steering, name: "Steering wheel"}
+  # brake-control
+  - {id: brake-booster, type: actuator, assembly: brake-control, name: "Electric brake booster"}
+  - {id: esc-module, type: control-unit, assembly: brake-control, name: "Stability control module (ABS/ESC)"}
+  # front-drive-unit
+  - {id: front-motor, type: electric-motor, assembly: front-drive-unit, name: "Front electric motor"}
+  - {id: front-gearbox, type: gearbox, assembly: front-drive-unit, name: "Front reduction gearbox"}
+  - {id: front-inverter, type: inverter, assembly: front-drive-unit, name: "Front inverter"}
+  - {id: front-halfshaft-l, type: drive-shaft, assembly: front-drive-unit, name: "Front left drive shaft"}
+  - {id: front-halfshaft-r, type: drive-shaft, assembly: front-drive-unit, name: "Front right drive shaft"}
+  # rear-drive-unit
+  - {id: rear-motor, type: electric-motor, assembly: rear-drive-unit, name: "Rear electric motor"}
+  - {id: rear-gearbox, type: gearbox, assembly: rear-drive-unit, name: "Rear reduction gearbox"}
+  - {id: rear-inverter, type: inverter, assembly: rear-drive-unit, name: "Rear inverter"}
+  - {id: rear-halfshaft-l, type: drive-shaft, assembly: rear-drive-unit, name: "Rear left drive shaft"}
+  - {id: rear-halfshaft-r, type: drive-shaft, assembly: rear-drive-unit, name: "Rear right drive shaft"}
+  # hv-battery
+  - {id: battery-enclosure, type: battery-component, assembly: hv-battery, name: "Battery enclosure"}
+  - {id: battery-lid, type: battery-component, assembly: hv-battery, name: "Battery lid"}
+  - {id: battery-cooling-plate, type: thermal-component, assembly: hv-battery, name: "Battery cooling plate"}
+  - {id: battery-module-1, type: battery-module, assembly: hv-battery, name: "Battery module 1"}
+  - {id: battery-module-2, type: battery-module, assembly: hv-battery, name: "Battery module 2"}
+  - {id: battery-module-3, type: battery-module, assembly: hv-battery, name: "Battery module 3"}
+  - {id: battery-module-4, type: battery-module, assembly: hv-battery, name: "Battery module 4"}
+  - {id: battery-module-5, type: battery-module, assembly: hv-battery, name: "Battery module 5"}
+  - {id: battery-module-6, type: battery-module, assembly: hv-battery, name: "Battery module 6"}
+  - {id: battery-module-7, type: battery-module, assembly: hv-battery, name: "Battery module 7"}
+  - {id: battery-module-8, type: battery-module, assembly: hv-battery, name: "Battery module 8"}
+  - {id: battery-module-9, type: battery-module, assembly: hv-battery, name: "Battery module 9"}
+  - {id: battery-module-10, type: battery-module, assembly: hv-battery, name: "Battery module 10"}
+  - {id: battery-module-11, type: battery-module, assembly: hv-battery, name: "Battery module 11"}
+  - {id: battery-module-12, type: battery-module, assembly: hv-battery, name: "Battery module 12"}
+  - {id: battery-module-13, type: battery-module, assembly: hv-battery, name: "Battery module 13"}
+  - {id: battery-module-14, type: battery-module, assembly: hv-battery, name: "Battery module 14"}
+  - {id: battery-module-15, type: battery-module, assembly: hv-battery, name: "Battery module 15"}
+  - {id: battery-module-16, type: battery-module, assembly: hv-battery, name: "Battery module 16"}
+  - {id: battery-busbar-l, type: battery-component, assembly: hv-battery, name: "Left battery busbar"}
+  - {id: battery-busbar-r, type: battery-component, assembly: hv-battery, name: "Right battery busbar"}
+  - {id: battery-crossmember-1, type: structural-member, assembly: hv-battery, name: "Battery crossmember 1"}
+  - {id: battery-crossmember-2, type: structural-member, assembly: hv-battery, name: "Battery crossmember 2"}
+  - {id: battery-crossmember-3, type: structural-member, assembly: hv-battery, name: "Battery crossmember 3"}
+  - {id: battery-side-rail-l, type: structural-member, assembly: hv-battery, name: "Left battery side rail"}
+  - {id: battery-side-rail-r, type: structural-member, assembly: hv-battery, name: "Right battery side rail"}
+  - {id: battery-coolant-manifold, type: thermal-component, assembly: hv-battery, name: "Battery coolant manifold"}
+  - {id: hv-junction-box, type: power-electronics, assembly: hv-battery, name: "High-voltage junction box"}
+  - {id: bms, type: control-unit, assembly: hv-battery, name: "Battery management system"}
+  # power-distribution
+  - {id: lv-battery, type: low-voltage-battery, assembly: power-distribution, name: "12-volt battery"}
+  - {id: pdu, type: power-electronics, assembly: power-distribution, name: "Power distribution unit"}
+  - {id: dc-dc, type: power-electronics, assembly: power-distribution, name: "DC-DC converter"}
+  - {id: obc, type: power-electronics, assembly: power-distribution, name: "On-board charger"}
+  - {id: hv-harness-front, type: wiring-harness, assembly: power-distribution, name: "Front high-voltage cable"}
+  - {id: hv-harness-rear, type: wiring-harness, assembly: power-distribution, name: "Rear high-voltage cable"}
+  - {id: lv-harness, type: wiring-harness, assembly: power-distribution, name: "Low-voltage wiring harness"}
+  # sensor-suite
+  - {id: front-camera, type: camera, assembly: sensor-suite, name: "Forward-facing camera"}
+  - {id: rear-camera, type: camera, assembly: sensor-suite, name: "Rear-view camera"}
+  # door-fl
+  - {id: side-camera-l, type: camera, assembly: door-fl, name: "Left side camera"}
+  # door-fr
+  - {id: side-camera-r, type: camera, assembly: door-fr, name: "Right side camera"}
+  # sensor-suite
+  - {id: front-radar, type: radar, assembly: sensor-suite, name: "Front long-range radar"}
+  - {id: corner-radar-fl, type: radar, assembly: sensor-suite, name: "Front left corner radar"}
+  - {id: corner-radar-fr, type: radar, assembly: sensor-suite, name: "Front right corner radar"}
+  - {id: corner-radar-rl, type: radar, assembly: sensor-suite, name: "Rear left corner radar"}
+  - {id: corner-radar-rr, type: radar, assembly: sensor-suite, name: "Rear right corner radar"}
+  - {id: lidar, type: lidar, assembly: sensor-suite, name: "Roof lidar"}
+  - {id: gnss-antenna, type: gnss-receiver, assembly: sensor-suite, name: "Satellite-navigation antenna"}
+  # electronics
+  - {id: ad-compute, type: compute-unit, assembly: electronics, name: "Automated-driving computer"}
+  - {id: vcu, type: control-unit, assembly: electronics, name: "Vehicle control unit"}
+  - {id: bcm, type: control-unit, assembly: electronics, name: "Body control module"}
+  - {id: gateway, type: control-unit, assembly: electronics, name: "Central gateway"}
+  - {id: telematics, type: control-unit, assembly: electronics, name: "Telematics unit"}
+  # interior
+  - {id: seat-front-l, type: interior-component, assembly: interior, name: "Front left seat cushion"}
+  - {id: seat-back-front-l, type: interior-component, assembly: interior, name: "Front left seat back"}
+  - {id: headrest-front-l, type: interior-component, assembly: interior, name: "Front left headrest"}
+  - {id: seat-frame-front-l, type: interior-component, assembly: interior, name: "Front left seat frame"}
+  - {id: seat-front-r, type: interior-component, assembly: interior, name: "Front right seat cushion"}
+  - {id: seat-back-front-r, type: interior-component, assembly: interior, name: "Front right seat back"}
+  - {id: headrest-front-r, type: interior-component, assembly: interior, name: "Front right headrest"}
+  - {id: seat-frame-front-r, type: interior-component, assembly: interior, name: "Front right seat frame"}
+  - {id: seat-rear, type: interior-component, assembly: interior, name: "Rear bench cushion"}
+  - {id: seat-back-rear, type: interior-component, assembly: interior, name: "Rear bench back"}
+  - {id: seat-frame-rear, type: interior-component, assembly: interior, name: "Rear bench frame"}
+  - {id: headrest-rear-l, type: interior-component, assembly: interior, name: "Rear left headrest"}
+  - {id: headrest-rear-r, type: interior-component, assembly: interior, name: "Rear right headrest"}
+  - {id: dashboard, type: interior-component, assembly: interior, name: "Dashboard"}
+  # body-frame
+  - {id: a-pillar-l, type: structural-member, assembly: body-frame, name: "Left A-pillar"}
+  - {id: b-pillar-l, type: structural-member, assembly: body-frame, name: "Left B-pillar"}
+  - {id: c-pillar-l, type: structural-member, assembly: body-frame, name: "Left C-pillar"}
+  - {id: d-pillar-l, type: structural-member, assembly: body-frame, name: "Left D-pillar"}
+  - {id: roof-rail-l, type: structural-member, assembly: body-frame, name: "Left roof rail"}
+  - {id: a-pillar-r, type: structural-member, assembly: body-frame, name: "Right A-pillar"}
+  - {id: b-pillar-r, type: structural-member, assembly: body-frame, name: "Right B-pillar"}
+  - {id: c-pillar-r, type: structural-member, assembly: body-frame, name: "Right C-pillar"}
+  - {id: d-pillar-r, type: structural-member, assembly: body-frame, name: "Right D-pillar"}
+  - {id: roof-rail-r, type: structural-member, assembly: body-frame, name: "Right roof rail"}
+  - {id: front-header, type: structural-member, assembly: body-frame, name: "Front roof header"}
+  - {id: roof-bow-1, type: structural-member, assembly: body-frame, name: "Front roof bow"}
+  - {id: roof-bow-2, type: structural-member, assembly: body-frame, name: "Rear roof bow"}
+  - {id: rear-header, type: structural-member, assembly: body-frame, name: "Rear roof header"}
+  - {id: cross-car-beam, type: structural-member, assembly: body-frame, name: "Cross-car beam"}
+  # structure
+  - {id: cabin-floor, type: structural-member, assembly: structure, name: "Cabin floor panel"}
+  - {id: floor-crossmember-1, type: structural-member, assembly: structure, name: "Floor crossmember 1"}
+  - {id: floor-crossmember-2, type: structural-member, assembly: structure, name: "Floor crossmember 2"}
+  # door-fl
+  - {id: door-structure-fl, type: structural-member, assembly: door-fl, name: "Front left door inner structure"}
+  - {id: window-regulator-fl, type: actuator, assembly: door-fl, name: "Front left window lift"}
+  - {id: door-speaker-fl, type: interior-component, assembly: door-fl, name: "Front left door speaker"}
+  - {id: door-trim-fl, type: interior-component, assembly: door-fl, name: "Front left door trim panel"}
+  - {id: door-handle-fl, type: trim-part, assembly: door-fl, name: "Front left door handle"}
+  - {id: door-latch-fl, type: actuator, assembly: door-fl, name: "Front left door latch"}
+  - {id: door-seal-fl, type: trim-part, assembly: door-fl, name: "Front left door seal"}
+  # door-fr
+  - {id: door-structure-fr, type: structural-member, assembly: door-fr, name: "Front right door inner structure"}
+  - {id: window-regulator-fr, type: actuator, assembly: door-fr, name: "Front right window lift"}
+  - {id: door-speaker-fr, type: interior-component, assembly: door-fr, name: "Front right door speaker"}
+  - {id: door-trim-fr, type: interior-component, assembly: door-fr, name: "Front right door trim panel"}
+  - {id: door-handle-fr, type: trim-part, assembly: door-fr, name: "Front right door handle"}
+  - {id: door-latch-fr, type: actuator, assembly: door-fr, name: "Front right door latch"}
+  - {id: door-seal-fr, type: trim-part, assembly: door-fr, name: "Front right door seal"}
+  # door-rl
+  - {id: door-structure-rl, type: structural-member, assembly: door-rl, name: "Rear left door inner structure"}
+  - {id: window-regulator-rl, type: actuator, assembly: door-rl, name: "Rear left window lift"}
+  - {id: door-speaker-rl, type: interior-component, assembly: door-rl, name: "Rear left door speaker"}
+  - {id: door-trim-rl, type: interior-component, assembly: door-rl, name: "Rear left door trim panel"}
+  - {id: door-handle-rl, type: trim-part, assembly: door-rl, name: "Rear left door handle"}
+  - {id: door-latch-rl, type: actuator, assembly: door-rl, name: "Rear left door latch"}
+  - {id: door-seal-rl, type: trim-part, assembly: door-rl, name: "Rear left door seal"}
+  # door-rr
+  - {id: door-structure-rr, type: structural-member, assembly: door-rr, name: "Rear right door inner structure"}
+  - {id: window-regulator-rr, type: actuator, assembly: door-rr, name: "Rear right window lift"}
+  - {id: door-speaker-rr, type: interior-component, assembly: door-rr, name: "Rear right door speaker"}
+  - {id: door-trim-rr, type: interior-component, assembly: door-rr, name: "Rear right door trim panel"}
+  - {id: door-handle-rr, type: trim-part, assembly: door-rr, name: "Rear right door handle"}
+  - {id: door-latch-rr, type: actuator, assembly: door-rr, name: "Rear right door latch"}
+  - {id: door-seal-rr, type: trim-part, assembly: door-rr, name: "Rear right door seal"}
+  # corner-fl
+  - {id: hub-fl, type: wheel-end-component, assembly: corner-fl, name: "Front left wheel hub and bearing"}
+  - {id: brake-shield-fl, type: brake-component, assembly: corner-fl, name: "Front left brake dust shield"}
+  - {id: brake-hose-fl, type: brake-component, assembly: corner-fl, name: "Front left brake hose"}
+  - {id: hub-nut-fl, type: fastener, assembly: corner-fl, name: "Front left axle nut"}
+  - {id: wheel-bearing-fl, type: wheel-end-component, assembly: corner-fl, name: "Front left wheel bearing"}
+  - {id: brake-pad-inner-fl, type: brake-pad, assembly: corner-fl, name: "Front left inner brake pad"}
+  - {id: brake-pad-outer-fl, type: brake-pad, assembly: corner-fl, name: "Front left outer brake pad"}
+  - {id: wheel-nut-fl-1, type: fastener, assembly: corner-fl, name: "Front left wheel nut 1"}
+  - {id: wheel-nut-fl-2, type: fastener, assembly: corner-fl, name: "Front left wheel nut 2"}
+  - {id: wheel-nut-fl-3, type: fastener, assembly: corner-fl, name: "Front left wheel nut 3"}
+  - {id: wheel-nut-fl-4, type: fastener, assembly: corner-fl, name: "Front left wheel nut 4"}
+  - {id: wheel-nut-fl-5, type: fastener, assembly: corner-fl, name: "Front left wheel nut 5"}
+  # corner-fr
+  - {id: hub-fr, type: wheel-end-component, assembly: corner-fr, name: "Front right wheel hub and bearing"}
+  - {id: brake-shield-fr, type: brake-component, assembly: corner-fr, name: "Front right brake dust shield"}
+  - {id: brake-hose-fr, type: brake-component, assembly: corner-fr, name: "Front right brake hose"}
+  - {id: hub-nut-fr, type: fastener, assembly: corner-fr, name: "Front right axle nut"}
+  - {id: wheel-bearing-fr, type: wheel-end-component, assembly: corner-fr, name: "Front right wheel bearing"}
+  - {id: brake-pad-inner-fr, type: brake-pad, assembly: corner-fr, name: "Front right inner brake pad"}
+  - {id: brake-pad-outer-fr, type: brake-pad, assembly: corner-fr, name: "Front right outer brake pad"}
+  - {id: wheel-nut-fr-1, type: fastener, assembly: corner-fr, name: "Front right wheel nut 1"}
+  - {id: wheel-nut-fr-2, type: fastener, assembly: corner-fr, name: "Front right wheel nut 2"}
+  - {id: wheel-nut-fr-3, type: fastener, assembly: corner-fr, name: "Front right wheel nut 3"}
+  - {id: wheel-nut-fr-4, type: fastener, assembly: corner-fr, name: "Front right wheel nut 4"}
+  - {id: wheel-nut-fr-5, type: fastener, assembly: corner-fr, name: "Front right wheel nut 5"}
+  # corner-rl
+  - {id: hub-rl, type: wheel-end-component, assembly: corner-rl, name: "Rear left wheel hub and bearing"}
+  - {id: brake-shield-rl, type: brake-component, assembly: corner-rl, name: "Rear left brake dust shield"}
+  - {id: brake-hose-rl, type: brake-component, assembly: corner-rl, name: "Rear left brake hose"}
+  - {id: hub-nut-rl, type: fastener, assembly: corner-rl, name: "Rear left axle nut"}
+  - {id: wheel-bearing-rl, type: wheel-end-component, assembly: corner-rl, name: "Rear left wheel bearing"}
+  - {id: brake-pad-inner-rl, type: brake-pad, assembly: corner-rl, name: "Rear left inner brake pad"}
+  - {id: brake-pad-outer-rl, type: brake-pad, assembly: corner-rl, name: "Rear left outer brake pad"}
+  - {id: wheel-nut-rl-1, type: fastener, assembly: corner-rl, name: "Rear left wheel nut 1"}
+  - {id: wheel-nut-rl-2, type: fastener, assembly: corner-rl, name: "Rear left wheel nut 2"}
+  - {id: wheel-nut-rl-3, type: fastener, assembly: corner-rl, name: "Rear left wheel nut 3"}
+  - {id: wheel-nut-rl-4, type: fastener, assembly: corner-rl, name: "Rear left wheel nut 4"}
+  - {id: wheel-nut-rl-5, type: fastener, assembly: corner-rl, name: "Rear left wheel nut 5"}
+  # corner-rr
+  - {id: hub-rr, type: wheel-end-component, assembly: corner-rr, name: "Rear right wheel hub and bearing"}
+  - {id: brake-shield-rr, type: brake-component, assembly: corner-rr, name: "Rear right brake dust shield"}
+  - {id: brake-hose-rr, type: brake-component, assembly: corner-rr, name: "Rear right brake hose"}
+  - {id: hub-nut-rr, type: fastener, assembly: corner-rr, name: "Rear right axle nut"}
+  - {id: wheel-bearing-rr, type: wheel-end-component, assembly: corner-rr, name: "Rear right wheel bearing"}
+  - {id: brake-pad-inner-rr, type: brake-pad, assembly: corner-rr, name: "Rear right inner brake pad"}
+  - {id: brake-pad-outer-rr, type: brake-pad, assembly: corner-rr, name: "Rear right outer brake pad"}
+  - {id: wheel-nut-rr-1, type: fastener, assembly: corner-rr, name: "Rear right wheel nut 1"}
+  - {id: wheel-nut-rr-2, type: fastener, assembly: corner-rr, name: "Rear right wheel nut 2"}
+  - {id: wheel-nut-rr-3, type: fastener, assembly: corner-rr, name: "Rear right wheel nut 3"}
+  - {id: wheel-nut-rr-4, type: fastener, assembly: corner-rr, name: "Rear right wheel nut 4"}
+  - {id: wheel-nut-rr-5, type: fastener, assembly: corner-rr, name: "Rear right wheel nut 5"}
+  # front-suspension
+  - {id: upper-arm-fl, type: suspension-component, assembly: front-suspension, name: "Front left upper control arm"}
+  - {id: upper-arm-fr, type: suspension-component, assembly: front-suspension, name: "Front right upper control arm"}
+  # rear-suspension
+  - {id: upper-arm-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left upper control arm"}
+  - {id: upper-arm-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right upper control arm"}
+  # front-suspension
+  - {id: drop-link-fl, type: suspension-component, assembly: front-suspension, name: "Front left anti-roll bar link"}
+  - {id: drop-link-fr, type: suspension-component, assembly: front-suspension, name: "Front right anti-roll bar link"}
+  # rear-suspension
+  - {id: drop-link-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left anti-roll bar link"}
+  - {id: drop-link-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right anti-roll bar link"}
+  - {id: toe-link-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left toe link"}
+  - {id: toe-link-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right toe link"}
+  # steering
+  - {id: tie-rod-fl, type: steering-component, assembly: steering, name: "Front left track rod"}
+  - {id: tie-rod-fr, type: steering-component, assembly: steering, name: "Front right track rod"}
+  # rear-suspension
+  - {id: rear-anti-roll-bar, type: suspension-component, assembly: rear-suspension, name: "Rear anti-roll bar"}
+  # front-drive-unit
+  - {id: front-stator, type: motor-component, assembly: front-drive-unit, name: "Front motor stator"}
+  - {id: front-rotor, type: motor-component, assembly: front-drive-unit, name: "Front motor rotor"}
+  - {id: front-motor-end-cover, type: motor-component, assembly: front-drive-unit, name: "Front motor end cover"}
+  - {id: front-rotor-shaft, type: motor-component, assembly: front-drive-unit, name: "Front rotor shaft"}
+  - {id: front-motor-bearing-1, type: motor-component, assembly: front-drive-unit, name: "Front motor bearing 1"}
+  - {id: front-motor-bearing-2, type: motor-component, assembly: front-drive-unit, name: "Front motor bearing 2"}
+  - {id: front-reduction-gear, type: gearbox-component, assembly: front-drive-unit, name: "Front reduction gear"}
+  - {id: front-pinion, type: gearbox-component, assembly: front-drive-unit, name: "Front pinion gear"}
+  - {id: front-differential, type: gearbox-component, assembly: front-drive-unit, name: "Front differential"}
+  - {id: front-gate-driver, type: inverter-component, assembly: front-drive-unit, name: "Front inverter gate-driver board"}
+  - {id: front-inverter-busbars, type: inverter-component, assembly: front-drive-unit, name: "Front inverter busbars"}
+  - {id: front-gearbox-cover, type: gearbox-component, assembly: front-drive-unit, name: "Front gearbox cover"}
+  - {id: front-inverter-lid, type: inverter-component, assembly: front-drive-unit, name: "Front inverter lid"}
+  - {id: front-power-module, type: inverter-component, assembly: front-drive-unit, name: "Front inverter power module"}
+  - {id: front-dc-link-capacitor, type: inverter-component, assembly: front-drive-unit, name: "Front DC-link capacitor"}
+  # rear-drive-unit
+  - {id: rear-stator, type: motor-component, assembly: rear-drive-unit, name: "Rear motor stator"}
+  - {id: rear-rotor, type: motor-component, assembly: rear-drive-unit, name: "Rear motor rotor"}
+  - {id: rear-motor-end-cover, type: motor-component, assembly: rear-drive-unit, name: "Rear motor end cover"}
+  - {id: rear-rotor-shaft, type: motor-component, assembly: rear-drive-unit, name: "Rear rotor shaft"}
+  - {id: rear-motor-bearing-1, type: motor-component, assembly: rear-drive-unit, name: "Rear motor bearing 1"}
+  - {id: rear-motor-bearing-2, type: motor-component, assembly: rear-drive-unit, name: "Rear motor bearing 2"}
+  - {id: rear-reduction-gear, type: gearbox-component, assembly: rear-drive-unit, name: "Rear reduction gear"}
+  - {id: rear-pinion, type: gearbox-component, assembly: rear-drive-unit, name: "Rear pinion gear"}
+  - {id: rear-differential, type: gearbox-component, assembly: rear-drive-unit, name: "Rear differential"}
+  - {id: rear-gate-driver, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter gate-driver board"}
+  - {id: rear-inverter-busbars, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter busbars"}
+  - {id: rear-gearbox-cover, type: gearbox-component, assembly: rear-drive-unit, name: "Rear gearbox cover"}
+  - {id: rear-inverter-lid, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter lid"}
+  - {id: rear-power-module, type: inverter-component, assembly: rear-drive-unit, name: "Rear inverter power module"}
+  - {id: rear-dc-link-capacitor, type: inverter-component, assembly: rear-drive-unit, name: "Rear DC-link capacitor"}
+  # thermal
+  - {id: radiator, type: thermal-component, assembly: thermal, name: "Front heat exchanger"}
+  - {id: cooling-fan-l, type: thermal-component, assembly: thermal, name: "Left cooling fan"}
+  - {id: cooling-fan-r, type: thermal-component, assembly: thermal, name: "Right cooling fan"}
+  - {id: coolant-pump, type: thermal-component, assembly: thermal, name: "Coolant pump"}
+  - {id: battery-chiller, type: thermal-component, assembly: thermal, name: "Battery chiller"}
+  - {id: heat-pump-compressor, type: thermal-component, assembly: thermal, name: "Heat-pump compressor"}
+  - {id: hvac-module, type: thermal-component, assembly: thermal, name: "Cabin climate module"}
+  - {id: coolant-lines, type: thermal-component, assembly: thermal, name: "Battery coolant lines"}
+  # interior
+  - {id: centre-console, type: interior-component, assembly: interior, name: "Centre console"}
+  - {id: driver-display, type: interior-component, assembly: interior, name: "Driver display"}
+  - {id: centre-display, type: interior-component, assembly: interior, name: "Centre touchscreen"}
+  - {id: headliner, type: interior-component, assembly: interior, name: "Headliner"}

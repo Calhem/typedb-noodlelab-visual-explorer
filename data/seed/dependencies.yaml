@@ -1,0 +1,74 @@
+# Functional dependencies: the dependent cannot do its job without the provider.
+# Used for "what does this need?" and failure impact ("what stops working if this fails?").
+# Placeholders as in connections.yaml.
+#
+# Kinds: power, torque, control, data, hydraulic, cooling, support.
+# Deliberately left out: dependencies that only matter over hours (the 12 V battery being recharged by the
+# DC-DC converter), so impact answers stay about what fails immediately.
+
+dependencies:
+  # ---- Torque path, each axle: power module > stator > rotor > shaft > gears > drive shafts > hubs > wheels > tyres
+  - {dependent: "<a>-rotor", provider: "<a>-stator", kind: torque, description: "The rotor is turned by the stator's magnetic field"}
+  - {dependent: "<a>-rotor-shaft", provider: "<a>-rotor", kind: torque}
+  - {dependent: "<a>-rotor-shaft", provider: "<a>-motor-bearing-<n>", kind: support, each: {n: [1, 2]}}
+  - {dependent: "<a>-stator", provider: "<a>-motor", kind: support, description: "Housing holds the stator"}
+  - {dependent: "<a>-pinion", provider: "<a>-rotor-shaft", kind: torque}
+  - {dependent: "<a>-reduction-gear", provider: "<a>-pinion", kind: torque}
+  - {dependent: "<a>-differential", provider: "<a>-reduction-gear", kind: torque}
+  - {dependent: "<a>-halfshaft-<s>", provider: "<a>-differential", kind: torque}
+  - {dependent: hub-<c>, provider: "<a>-halfshaft-<s>", kind: torque}
+  - {dependent: wheel-<c>, provider: hub-<c>, kind: torque}
+  - {dependent: tyre-<c>, provider: wheel-<c>, kind: torque}
+
+  # ---- Electrical path to each drive unit
+  - {dependent: "<a>-stator", provider: "<a>-power-module", kind: power, description: "Three-phase current"}
+  - {dependent: "<a>-power-module", provider: "<a>-gate-driver", kind: control}
+  - {dependent: "<a>-power-module", provider: "<a>-dc-link-capacitor", kind: power}
+  - {dependent: "<a>-dc-link-capacitor", provider: "<a>-inverter-busbars", kind: power}
+  - {dependent: "<a>-inverter-busbars", provider: "hv-harness-<a>", kind: power}
+  - {dependent: "hv-harness-<a>", provider: pdu, kind: power}
+  - {dependent: "<a>-gate-driver", provider: vcu, kind: control, description: "Torque requests"}
+  - {dependent: pdu, provider: hv-junction-box, kind: power}
+  - {dependent: hv-junction-box, provider: battery-busbar-<s>, kind: power}
+  - {dependent: hv-junction-box, provider: bms, kind: control, description: "The BMS closes the main contactors"}
+  - {dependent: battery-busbar-l, provider: battery-module-<n>, kind: power, each: {n: [1, 3, 5, 7, 9, 11, 13, 15]}}
+  - {dependent: battery-busbar-r, provider: battery-module-<n>, kind: power, each: {n: [2, 4, 6, 8, 10, 12, 14, 16]}}
+  - {dependent: battery-module-<n>, provider: battery-cooling-plate, kind: cooling, each: {n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]}, description: "Without cooling the BMS limits and then stops the module"}
+  - {dependent: dc-dc, provider: pdu, kind: power}
+  - {dependent: obc, provider: pdu, kind: power}
+  - {dependent: heat-pump-compressor, provider: pdu, kind: power}
+
+  # ---- 12 V supply
+  - {dependent: lv-harness, provider: lv-battery, kind: power}
+  - {dependent: "<unit>", provider: lv-harness, kind: power, each: {unit: [bms, vcu, bcm, gateway, telematics, ad-compute, steering-ecu, esc-module, brake-booster, coolant-pump, cooling-fan-l, cooling-fan-r]}}
+
+  # ---- Braking
+  - {dependent: caliper-<c>, provider: brake-hose-<c>, kind: hydraulic}
+  - {dependent: brake-hose-<c>, provider: esc-module, kind: hydraulic}
+  - {dependent: esc-module, provider: brake-booster, kind: hydraulic, description: "Brake pressure from the booster"}
+  - {dependent: brake-pad-inner-<c>, provider: caliper-<c>, kind: support, description: "Clamping force from the pistons"}
+  - {dependent: brake-pad-outer-<c>, provider: caliper-<c>, kind: support, description: "Clamping force from the pistons"}
+  - {dependent: esc-module, provider: wheel-speed-sensor-<c>, kind: data, description: "Wheel speeds for anti-lock braking"}
+  - {dependent: vcu, provider: wheel-speed-sensor-<c>, kind: data, description: "Wheel speeds for traction control"}
+
+  # ---- Steering
+  - {dependent: steering-rack, provider: eps-motor, kind: torque, description: "Power assistance"}
+  - {dependent: eps-motor, provider: steering-ecu, kind: control}
+  - {dependent: tie-rod-f<s>, provider: steering-rack, kind: support}
+  - {dependent: steering-rack, provider: steering-column, kind: torque, description: "Driver input"}
+
+  # ---- Automated driving
+  - {dependent: ad-compute, provider: "<sensor>", kind: data, each: {sensor: [front-camera, rear-camera, side-camera-l, side-camera-r, front-radar, corner-radar-fl, corner-radar-fr, corner-radar-rl, corner-radar-rr, lidar, gnss-antenna]}}
+  - {dependent: ad-compute, provider: gateway, kind: data}
+  - {dependent: telematics, provider: gateway, kind: data}
+
+  # ---- Thermal
+  - {dependent: battery-cooling-plate, provider: battery-coolant-manifold, kind: cooling}
+  - {dependent: battery-coolant-manifold, provider: coolant-pump, kind: cooling}
+  - {dependent: battery-coolant-manifold, provider: battery-chiller, kind: cooling}
+  - {dependent: battery-chiller, provider: heat-pump-compressor, kind: cooling}
+  - {dependent: hvac-module, provider: heat-pump-compressor, kind: cooling}
+  - {dependent: radiator, provider: cooling-fan-<s>, kind: cooling, description: "Airflow at low speed"}
+
+  # ---- Body
+  - {dependent: "<unit>", provider: bcm, kind: control, each: {unit: [door-latch-fl, door-latch-fr, door-latch-rl, door-latch-rr, window-regulator-fl, window-regulator-fr, window-regulator-rl, window-regulator-rr, headlamp-l, headlamp-r, tail-lamp-l, tail-lamp-r]}}

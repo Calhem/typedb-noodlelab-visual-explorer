@@ -1,0 +1,29 @@
+# Control loops: a controller reads sensors and commands actuators to govern a system.
+# One relation with four roles, because that is how the engineering works: no pair of these makes
+# sense on its own. Component lists accept id patterns (* = anything).
+
+control-loops:
+  - name: "Anti-lock braking and stability control"
+    description: "Reads every wheel's speed and releases or adds brake pressure at individual wheels to stop them locking and keep the vehicle stable."
+    controller: esc-module
+    sensors: [wheel-speed-sensor-*]
+    actuators: [caliper-*, brake-booster]
+    system: brake-control
+  - name: "Traction control"
+    description: "Compares wheel speeds and cuts drive torque to an axle whose wheels start to spin."
+    controller: vcu
+    sensors: [wheel-speed-sensor-*]
+    actuators: [front-motor, rear-motor]
+    system: traction-control
+  - name: "Electric power steering"
+    description: "Adds steering assistance through the rack-mounted motor, from the driver's input or the automated-driving computer."
+    controller: steering-ecu
+    sensors: []
+    actuators: [eps-motor]
+    system: steering
+  - name: "Automated driving"
+    description: "Fuses cameras, radars, lidar, satellite positioning and wheel speeds, plans a path and commands steering, braking and drive torque."
+    controller: ad-compute
+    sensors: [front-camera, rear-camera, side-camera-*, front-radar, corner-radar-*, lidar, gnss-antenna, wheel-speed-sensor-*]
+    actuators: [eps-motor, brake-booster, front-motor, rear-motor]
+    system: automated-driving
