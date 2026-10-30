@@ -1,5 +1,8 @@
 # Project notes for AI coding agents
 
+Project: **TypeDB Noodlelab Visual Explorer** (`typedb-noodlelab-visual-explorer`). Noodlelab is the owner's
+umbrella name for experimental software projects.
+
 ## Who this is for
 The project owner has no programming background and is learning as we go.
 Explain new terms in plain English, keep steps small, and verify each step works before moving on.
@@ -18,8 +21,8 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
   Never present invented specifications as real; label the vehicle as a concept.
 - `web/src/vehicle/manifest.ts` is the single list of parts. Part ids are stable: never rename one.
   Every displayed relationship must later be backed by TypeDB data; never fake query results in the frontend.
-- Node.js is not installed on the host: run npm, tsc and vitest inside the `vx-web-dev` container
-  (`docker exec vx-web-dev ...`). Docker's CLI is at `~/.docker/bin/docker`.
+- Node.js is not installed on the host: run npm, tsc and vitest inside the `noodlelab-web-dev` container
+  (`docker exec noodlelab-web-dev ...`). Docker's CLI is at `~/.docker/bin/docker`.
 - Ports: 5180 (web dev). Reserved for later: 1733 (TypeDB), 8004 (TypeDB Studio), 8092 (web).
   Other projects on this machine use 1729-1732, 8002-8003, 8090-8091. Bind everything to 127.0.0.1.
 - TypeDB is 3.x only (3.14.1). See the TypeDB notes in ../typedb-cyber-intel/CLAUDE.md; log TypeDB
@@ -27,7 +30,7 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
 
 ## Git workflow
 - `main` holds reviewed, working states only. Every commit on `main` passes the tests and the production
-  build: `docker exec vx-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`.
+  build: `docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run && npx vite build"`.
 - In-progress and experimental work lives on a feature branch (`feature/<milestone>-<topic>`, e.g.
   `feature/m2.2-mechanical`). Commit each completed, tested step there and push it; merge into `main`
   only after the owner has reviewed it (normally at a phase checkpoint).
@@ -35,7 +38,7 @@ Phase 2 is the visual prototype (local data only): 2.1 assembled vehicle, 2.2 ex
   co-author line. Never commit secrets (`.env`) or review screenshots (`web/shots/`).
 - Generated 3D assets (`web/public/assets/*.glb`) are committed because the app needs them (no Git LFS
   here); keep them compressed and regenerate rather than hand-edit.
-- Remote: private GitHub repository `Calhem/typedb-vehicle-explorer`. There is no `gh` CLI: use the
+- Remote: private GitHub repository `Calhem/typedb-noodlelab-visual-explorer`. There is no `gh` CLI: use the
   GitHub website in the browser pane; pushes use the macOS keychain credential helper.
 
 ## Blender pipeline (approved for mechanical systems; full rebuild follows docs/mechanical-upgrade-plan.md once approved)

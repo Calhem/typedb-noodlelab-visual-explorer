@@ -1,4 +1,6 @@
-# TypeDB Vehicle Explorer
+# TypeDB Noodlelab Visual Explorer
+
+A Noodlelab project (Noodlelab is an umbrella name for experimental software projects).
 
 An interactive 3D demonstration of how TypeDB models a complex physical system. An original,
 unbranded autonomous electric SUV floats in a dark studio. It will separate into an exploded
@@ -31,7 +33,7 @@ Then open http://127.0.0.1:5180. The first start installs dependencies and takes
 Tests and type checks (with the container running):
 
 ```bash
-docker exec vx-web-dev sh -c "npx tsc -p . && npx vitest run"
+docker exec noodlelab-web-dev sh -c "npx tsc -p . && npx vitest run"
 ```
 
 ## How it is built

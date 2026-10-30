@@ -1,5 +1,5 @@
 [project]
-name = "vehicle-explorer-blender"
+name = "typedb-noodlelab-visual-explorer-blender"
 version = "0.1.0"
 description = "Blender scripts that generate the vehicle's mechanical parts as GLB files"
 requires-python = "==3.13.*"

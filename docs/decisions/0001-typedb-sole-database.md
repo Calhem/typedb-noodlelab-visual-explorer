@@ -5,7 +5,7 @@
 
 ## Decision
 
-TypeDB 3 is the sole database of the Vehicle Explorer. No other database or persistent data store is
+TypeDB 3 is the sole database of the TypeDB Noodlelab Visual Explorer. No other database or persistent data store is
 used for application data: no PostgreSQL, SQLite, MongoDB, Neo4j, Redis, DuckDB, browser IndexedDB, or
 similar. The application exists to show that a complex interactive system can be built with TypeDB as
 its only database.
