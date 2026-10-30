@@ -138,7 +138,7 @@ percentile; GPU time from WebGL timer queries):
 
 | Suite | Result |
 |---|---|
-| API and TypeDB (pytest, real server, disposable database) | **59 passed**: all earlier tests, plus browsing (tree, system totals, type counts and schema against oracles from the seed and schema files), the eight questions (each against an oracle; the single-failure question against the independent failure model), timings, function-level consequences |
+| API and TypeDB (pytest, real server, disposable database) | **58 passed**: all earlier tests, plus browsing (tree, system totals, type counts and schema against oracles from the seed and schema files), the eight questions (each against an oracle; the single-failure question against the independent failure model), timings, function-level consequences |
 | Web unit tests | **29 passed** |
 | Web against the live API | **7 passed**: every system member, assembly part and question highlight is a part the 3D scene draws; the type hierarchy's total equals the parts drawn |
 | Type check and production build | pass |
