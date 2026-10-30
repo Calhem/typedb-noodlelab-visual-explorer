@@ -120,3 +120,10 @@ Not recommended: options C and D.
    body-side surfacing and realistic reflections, with comparison renders and a clear assessment. Stop
    for review before attempting the complete exterior.
 5. **Wheels**: keep the Phase A geometry; try a darker finish to match the concept.
+
+## Trial outcome and decision (30 October 2026)
+
+The one-day scripted trial (docs/exterior-trial/README.md) gave clean, continuous surfaces at the target
+proportions but a generic character, not approaching the reference. The owner chose **Option A**: keep the
+current exterior for now, preserve the trial, and revisit the exterior after the mechanical and semantic
+work. No commissioning at this stage.

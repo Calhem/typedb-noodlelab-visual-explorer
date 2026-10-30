@@ -1,6 +1,8 @@
 # Exterior trial: scripted subdivision body (30 October 2026)
 
-Status: **for decision.** The trial stayed inside the agreed time box (one working day). Nothing in the app
+Status: **decided (30 October 2026): Option A.** Keep the current exterior; preserve this trial (script, renders,
+assessment) and revisit the exterior once the mechanical and semantic experience is more complete. Originally:
+**for decision.** The trial stayed inside the agreed time box (one working day). Nothing in the app
 has changed: the renders below come from Blender, and the app still shows the milestone 2.1 exterior.
 
 ![Reference, trial and current exterior from matching angles](compare-matching-angles.jpg)
@@ -94,3 +96,10 @@ needed sooner for a specific demo, B with a fixed 3-day budget is the realistic 
 Panel splitting (doors, bonnet and so on as separate parts with stable ids), door cuts, handles, real
 mirrors (the mirrors are placeholders), interior visible through glass, integration into the web app
 (Three.js) and its quality tiers, and the darker wheel finish in the app (it is only in these renders).
+
+## Preserved for later
+
+- `blender/exterior_trial.py` rebuilds the trial body and renders every view (the .blend is regenerated into
+  web/assets-src/, which is not committed).
+- The images in this folder (renders and the matching-angle comparison).
+- Related: `docs/exterior-feasibility.md`, `docs/reference/concept-target.webp`, `docs/design-targets.md`.
