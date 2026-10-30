@@ -361,6 +361,15 @@ components:
   - {id: drop-link-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right anti-roll bar link"}
   - {id: toe-link-rl, type: suspension-component, assembly: rear-suspension, name: "Rear left toe link"}
   - {id: toe-link-rr, type: suspension-component, assembly: rear-suspension, name: "Rear right toe link"}
+  # C3c step 2: rubber mounts between each subframe and the body (1 front-left, 2 front-right, 3 rear-left, 4 rear-right)
+  - {id: front-subframe-mount-1, type: subframe-mount, assembly: front-suspension, name: "Front subframe mount 1 (front left)"}
+  - {id: front-subframe-mount-2, type: subframe-mount, assembly: front-suspension, name: "Front subframe mount 2 (front right)"}
+  - {id: front-subframe-mount-3, type: subframe-mount, assembly: front-suspension, name: "Front subframe mount 3 (rear left)"}
+  - {id: front-subframe-mount-4, type: subframe-mount, assembly: front-suspension, name: "Front subframe mount 4 (rear right)"}
+  - {id: rear-subframe-mount-1, type: subframe-mount, assembly: rear-suspension, name: "Rear subframe mount 1 (front left)"}
+  - {id: rear-subframe-mount-2, type: subframe-mount, assembly: rear-suspension, name: "Rear subframe mount 2 (front right)"}
+  - {id: rear-subframe-mount-3, type: subframe-mount, assembly: rear-suspension, name: "Rear subframe mount 3 (rear left)"}
+  - {id: rear-subframe-mount-4, type: subframe-mount, assembly: rear-suspension, name: "Rear subframe mount 4 (rear right)"}
   # C3c additions: the electric parking brake acts at the rear callipers (docs/c3c)
   - {id: epb-actuator-rl, type: actuator, assembly: corner-rl, name: "Rear left parking-brake actuator"}
   - {id: epb-actuator-rr, type: actuator, assembly: corner-rr, name: "Rear right parking-brake actuator"}

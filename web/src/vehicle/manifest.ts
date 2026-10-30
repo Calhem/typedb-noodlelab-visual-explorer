@@ -138,7 +138,7 @@ const corners: Part[] = CORNERS.flatMap((c): Part[] => {
       position: [c.x + Math.cos(caliperAngle) * (discR - 0.03), AXLE_Y + Math.sin(caliperAngle) * (discR - 0.03), c.z * (TRACK_HALF - 0.08)],
       rotation: [0, c.z > 0 ? 0 : Math.PI, caliperAngle - Math.PI / 2] },
     { id: `knuckle-${c.key}`, material: "cast",
-      shape: { kind: "box", size: [0.09, 0.3, 0.06], radius: 0.02 }, position: [c.x, AXLE_Y, c.z * (TRACK_HALF - 0.15)] },
+      shape: { kind: "box", size: [0.09, 0.3, 0.06], radius: 0.02 }, position: [c.x - (c.front ? 1 : -1) * 0.06, AXLE_Y, c.z * (TRACK_HALF - 0.11)] },
     { id: `wheel-speed-sensor-${c.key}`, material: "electronics", shape: { kind: "cylinder", radius: 0.012, length: 0.06, axis: "z" },
       position: [c.x - fx * 0.057, AXLE_Y + 0.12, c.z * (TRACK_HALF - 0.093)] },
     // rear callipers carry the electric parking brake's actuator on their inboard half
@@ -156,25 +156,38 @@ const suspension: Part[] = [
         shape: { kind: "arm", inner: [[0.17, -0.028, -c.z * 0.174], [-0.17, -0.028, -c.z * 0.174]], outer: [0, -0.048, c.z * 0.086] },
         position: [c.x, 0.268, c.z * 0.574] },
       { id: `coilover-${c.key}`, material: "steel",
-        shape: { kind: "damper", length: 0.44 }, position: [c.x, 0.64, c.z * 0.59], rotation: [c.z * 0.12, 0, 0] },
+        shape: { kind: "damper", length: 0.44 }, position: [c.x, 0.64, c.z * 0.55], rotation: [c.z * 0.12, 0, 0] },
       { id: `spring-${c.key}`, material: "alloy",
-        shape: { kind: "spring", length: 0.44 }, position: [c.x - fx * 0.05, 0.72, c.z * 0.6], rotation: [c.z * 0.12, 0, 0] },
+        shape: { kind: "spring", length: 0.44 }, position: [c.x - fx * 0.05, 0.72, c.z * 0.56], rotation: [c.z * 0.12, 0, 0] },
       { id: `top-mount-${c.key}`, material: "cast",
-        shape: { kind: "cylinder", radius: 0.065, length: 0.035, axis: "y" }, position: [c.x - fx * 0.05, 0.96, c.z * 0.575], rotation: [c.z * 0.12, 0, 0] },
+        shape: { kind: "cylinder", radius: 0.065, length: 0.035, axis: "y" }, position: [c.x - fx * 0.05, 0.96, c.z * 0.535], rotation: [c.z * 0.12, 0, 0] },
     ];
   }),
-  { id: "front-subframe", material: "cast",
-    shape: { kind: "box", size: [0.5, 0.06, 0.9], radius: 0.02 }, position: [FRONT_AXLE_X, 0.22, 0] },
-  { id: "rear-subframe", material: "cast",
-    shape: { kind: "box", size: [0.5, 0.06, 0.9], radius: 0.02 }, position: [REAR_AXLE_X, 0.22, 0] },
-  { id: "front-anti-roll-bar", material: "steel",
-    shape: { kind: "tube", radius: 0.012, points: [[0.12, 0.06, -0.62], [-0.02, 0, -0.5], [-0.04, 0, 0], [-0.02, 0, 0.5], [0.12, 0.06, 0.62]] },
-    position: [FRONT_AXLE_X - 0.2, 0.3, 0] },
+  // Subframes, their body mounts and the anti-roll bars (blender/chassis.py has the detailed models). Both axles
+  // share one layout in "front-relative" dx (positive forwards at the front, rearwards at the rear).
+  ...(["front", "rear"] as const).flatMap((a): Part[] => {
+    const at = (dx: number, y: number, z: number): Vec3 => [a === "front" ? FRONT_AXLE_X + dx : REAR_AXLE_X - dx, y, z];
+    const fwd = a === "front" ? 1 : -1;
+    return [
+      { id: `${a}-subframe`, material: "cast",
+        shape: { kind: "box", size: [0.62, a === "front" ? 0.06 : 0.2, 0.9], radius: 0.02 }, position: at(0, a === "front" ? 0.24 : 0.3, 0) },
+      { id: `${a}-anti-roll-bar`, material: "steel",
+        ...absTube([at(-0.15, 0.3, -0.6), at(-0.24, 0.29, -0.4), at(-0.28, 0.28, -0.34), at(-0.28, 0.28, 0.34), at(-0.24, 0.29, 0.4), at(-0.15, 0.3, 0.6)], 0.012) },
+      ...[1, 2, 3, 4].map((n): Part => {
+        const dx = (n <= 2 ? fwd : -fwd) * 0.3;
+        const top = fwd * dx < 0 ? 0.35 : 0.45; // body brackets: lower for the pair nearer the cabin
+        return { id: `${a}-subframe-mount-${n}`, material: "satin-black",
+          shape: { kind: "cylinder", radius: 0.035, length: top - 0.18, axis: "y" },
+          position: at(dx + (dx > 0 ? 0.04 : -0.02), (top + 0.18) / 2, (n % 2 ? -1 : 1) * 0.36) };
+      }),
+    ];
+  }),
 ];
 
 const steering: Part[] = [
   { id: "steering-rack", material: "aluminium",
-    shape: { kind: "cylinder", radius: 0.03, length: 0.9, axis: "z" }, position: [FRONT_AXLE_X - 0.2, 0.4, 0] },
+    // inner tie-rod joints at +/-0.44 m, 0.40 m high: chosen for low bump steer (C3c step 2)
+    shape: { kind: "cylinder", radius: 0.03, length: 0.88, axis: "z" }, position: [FRONT_AXLE_X - 0.2, 0.4, 0] },
   { id: "eps-motor", material: "cast",
     shape: { kind: "cylinder", radius: 0.055, length: 0.16, axis: "x" }, position: [FRONT_AXLE_X - 0.31, 0.42, 0.18] },
   { id: "steering-ecu", material: "electronics",
@@ -292,7 +305,7 @@ const battery: Part[] = [
 
 const power: Part[] = [
   { id: "lv-battery", material: "satin-black",
-    shape: { kind: "box", size: [0.24, 0.18, 0.17], radius: 0.015 }, position: [1.95, 0.675, -0.36] },
+    shape: { kind: "box", size: [0.24, 0.18, 0.17], radius: 0.015 }, position: [1.95, 0.675, -0.34] },
   { id: "lv-fuse-box", material: "satin-black",
     shape: { kind: "box", size: [0.14, 0.07, 0.1], radius: 0.008 }, position: [1.95, 0.705, -0.17] },
   { id: "pdu", material: "electronics",
@@ -307,7 +320,8 @@ const power: Part[] = [
   // unit, and the rear inverter through the pack's internal rear feed. The DC charge harness runs from the
   // charge port, under the rear-left drive shaft, to the pack's rear charging outlet.
   { id: "hv-harness-front", material: "hv-orange",
-    ...absTube([[1.17, 0.29, -0.4], [1.25, 0.37, -0.38], [1.29, 0.6, -0.3], [1.36, 0.773, -0.17]], 0.014) },
+    // up over the rear-left subframe mount, clear of the front-left tyre's sweep at full lock
+    ...absTube([[1.17, 0.29, -0.4], [1.21, 0.38, -0.4], [1.29, 0.6, -0.32], [1.36, 0.773, -0.17]], 0.014) },
   { id: "hv-harness-rear", material: "hv-orange",
     ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
   { id: "hv-harness-aux", material: "hv-orange",
@@ -317,7 +331,8 @@ const power: Part[] = [
       [-1.1, 0.345, -0.12], [-1.02, 0.3, -0.1]], 0.012) },
   { id: "lv-harness", material: "satin-black",
     // along the left sill, then inboard of the rear-left damper and over the drive shaft to the rear compartment
-    ...absTube([[1.95, 0.7, -0.17], [1.3, 0.75, -0.6], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.0, 0.44, -0.6], [-1.2, 0.47, -0.42],
+    // high and inboard of the front-left spring, then down along the left sill
+    ...absTube([[1.95, 0.7, -0.17], [1.85, 0.8, -0.33], [1.3, 0.87, -0.42], [1.0, 0.75, -0.62], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.0, 0.44, -0.6], [-1.2, 0.47, -0.42],
       [-1.45, 0.52, -0.4], [-1.7, 0.55, -0.5], [-1.9, 0.62, -0.5]], 0.012) },
 ];
 
@@ -474,24 +489,22 @@ const wheelDetail: Part[] = CORNERS.flatMap((c): Part[] => {
 const upperArms: Part[] = [
   ...CORNERS.map((c): Part => ({
     id: `upper-arm-${c.key}`, material: "aluminium",
-    shape: { kind: "arm", inner: [[0.17, -0.048, -c.z * 0.135], [-0.17, -0.048, -c.z * 0.135]], outer: [(c.front ? -1 : 1) * 0.03, -0.013, c.z * 0.135] },
-    position: [c.x, 0.668, c.z * 0.605],
+    shape: { kind: "arm", inner: [[0.23, -0.03, -c.z * 0.095], [-0.23, -0.03, -c.z * 0.095]], outer: [(c.front ? -1 : 1) * 0.03, -0.02, c.z * 0.095] },
+    position: [c.x, 0.65, c.z * 0.565],
   })),
   ...CORNERS.map((c): Part => {
-    const xe = c.front ? FRONT_AXLE_X - 0.08 : REAR_AXLE_X + 0.08;
-    return { id: `drop-link-${c.key}`, material: "steel", ...absTube([[xe, 0.36, c.z * 0.62], [xe, 0.5, c.z * 0.62]], 0.008) };
+    const fx = c.front ? 1 : -1; // from the anti-roll bar's end to the damper bracket (blender/corner.py)
+    return { id: `drop-link-${c.key}`, material: "steel",
+      ...absTube([[c.x - fx * 0.15, 0.3, c.z * 0.6], [c.x - fx * 0.07, 0.5, c.z * 0.55]], 0.008) };
   }),
   ...SIDES.map((s): Part => ({
     id: `toe-link-r${s.key}`, material: "steel",
-    ...absTube([[REAR_AXLE_X + 0.2, 0.4, s.z * 0.45], [REAR_AXLE_X + 0.15, 0.405, s.z * 0.707]], 0.011),
+    ...absTube([[REAR_AXLE_X + 0.2, 0.4, s.z * 0.44], [REAR_AXLE_X + 0.15, 0.405, s.z * 0.69]], 0.011),
   })),
   ...SIDES.map((s): Part => ({
     id: `tie-rod-f${s.key}`, material: "steel",
-    ...absTube([[FRONT_AXLE_X - 0.2, 0.4, s.z * 0.45], [FRONT_AXLE_X - 0.12, 0.4, s.z * 0.68]], 0.012),
+    ...absTube([[FRONT_AXLE_X - 0.2, 0.4, s.z * 0.44], [FRONT_AXLE_X - 0.15, 0.405, s.z * 0.69]], 0.012),
   })),
-  { id: "rear-anti-roll-bar", material: "steel",
-    shape: { kind: "tube", radius: 0.011, points: [[-0.12, 0.06, -0.62], [0.02, 0, -0.5], [0.04, 0, 0], [0.02, 0, 0.5], [-0.12, 0.06, 0.62]] },
-    position: [REAR_AXLE_X + 0.2, 0.3, 0] },
 ];
 
 const driveUnitDetail = (key: DriveKey, x: number): Part[] => {

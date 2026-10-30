@@ -88,13 +88,14 @@ systems:
     parent: suspension
     name: "Front suspension"
     description: "Double-wishbone front suspension."
-    members: [lower-arm-f*, upper-arm-f*, coilover-f*, spring-f*, top-mount-f*, drop-link-f*, front-anti-roll-bar, front-subframe]
+    members: [lower-arm-f*, upper-arm-f*, coilover-f*, spring-f*, top-mount-f*, drop-link-f*, front-anti-roll-bar, front-subframe,
+              front-subframe-mount-*]
   - id: rear-suspension
     parent: suspension
     name: "Rear suspension"
     description: "Multi-link rear suspension."
     members: [lower-arm-r*, upper-arm-r*, toe-link-r*, coilover-r*, spring-r*, top-mount-r*, drop-link-r*, rear-anti-roll-bar,
-              rear-subframe]
+              rear-subframe, rear-subframe-mount-*]
   - id: wheel-ends
     parent: suspension
     name: "Wheel ends"

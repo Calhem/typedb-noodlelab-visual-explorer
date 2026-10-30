@@ -127,6 +127,7 @@ describe.each([
 describe.each([
   ["hv-battery", 47],
   ["power-electronics", 6],
+  ["chassis", 12],
 ] as const)("Blender %s", (name, count) => {
   const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
   const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>

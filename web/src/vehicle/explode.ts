@@ -159,6 +159,7 @@ const PART_RULES: Rule[] = [
   [/^top-mount-/, (s) => m([0, 0.75, s * 0.3], [0, 0.15, 0])],
   [/^drop-link-/, (s) => m([0, 0.15, s * 0.15])],
   [/^toe-link-/, (s) => m([0, -0.05, s * 0.25])],
+  [/-subframe-mount-/, (_s, c) => m([0, -0.3, Math.sign(c[2]) * 0.22], [0, -0.06, 0])],
   [/-subframe$/, () => m([0, -0.45, 0])],
   [/^front-anti-roll-bar$/, () => m([0.3, -0.18, 0])],
   [/^rear-anti-roll-bar$/, () => m([-0.3, -0.18, 0])],

@@ -77,6 +77,7 @@ entity brake-caliper sub brake-component, owns piston-count, plays control-loop:
 entity brake-pad sub brake-component;
 entity wheel-end-component sub chassis-component;         # hub, bearing, knuckle
 entity suspension-component sub chassis-component;
+entity subframe-mount sub chassis-component;           # rubber mounts carrying a subframe on the body
 entity steering-component sub chassis-component;
 entity fastener sub component;
 entity driver-control sub component;                 # pedals and other direct driver inputs

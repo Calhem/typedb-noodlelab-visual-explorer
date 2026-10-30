@@ -5,54 +5,13 @@
 // voxels are within about a voxel of each other. Parts designed to touch (a drive shaft in its hub, a mount on
 // the subframe, the harness in its connector) are listed as contacts. Loads the real compressed models.
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { describe, expect, it } from "vitest";
 import { PART_BY_ID } from "../vehicle/manifest";
 import { buildVehicle } from "./buildVehicle";
+import { loadParts, voxels } from "./clearance";
 
 const VOXEL = 0.006; // metres
-const asset = (name: string) => fileURLToPath(new URL(`../../public/assets/${name}`, import.meta.url));
-
-async function loadParts(name: string) {
-  await MeshoptDecoder.ready;
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const buf = readFileSync(asset(`${name}.glb`));
-  const gltf = await loader.parseAsync(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), "");
-  const map: { nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
-  gltf.scene.updateMatrixWorld(true);
-  return new Map(gltf.scene.children.map((n) => [map.nodes[n.name], n]));
-}
-
-/** Voxels touched by an object's surface (triangles sampled at a third of a voxel). */
-function voxels(object: THREE.Object3D) {
-  const out = new Set<string>();
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), p = new THREE.Vector3();
-  object.updateMatrixWorld(true);
-  object.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const pos = mesh.geometry.getAttribute("position");
-    const index = mesh.geometry.getIndex();
-    const tri = index ? index.count / 3 : pos.count / 3;
-    const at = (i: number) => (index ? index.getX(i) : i);
-    for (let t = 0; t < tri; t++) {
-      a.fromBufferAttribute(pos, at(3 * t)).applyMatrix4(mesh.matrixWorld);
-      b.fromBufferAttribute(pos, at(3 * t + 1)).applyMatrix4(mesh.matrixWorld);
-      c.fromBufferAttribute(pos, at(3 * t + 2)).applyMatrix4(mesh.matrixWorld);
-      const n = Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / (VOXEL / 3));
-      for (let i = 0; i <= n; i++)
-        for (let j = 0; j <= n - i; j++) {
-          p.copy(a).multiplyScalar(1 - (i + j) / n).addScaledVector(b, i / n).addScaledVector(c, j / n);
-          out.add(`${Math.floor(p.x / VOXEL)},${Math.floor(p.y / VOXEL)},${Math.floor(p.z / VOXEL)}`);
-        }
-    }
-  });
-  return out;
-}
 
 /** Designed contacts: [drive-unit id pattern, neighbour id pattern]. */
 const CONTACTS: [RegExp, RegExp][] = [
@@ -69,6 +28,11 @@ const CONTACTS: [RegExp, RegExp][] = [
   // C3c: the tie rod's inner joint on the rack end; the drop link's lower joint on the anti-roll bar's end
   [/^tie-rod-f[lr]$/, /^steering-rack$/],
   [/^drop-link-/, /-anti-roll-bar$/],
+  // C3c step 2: the lower arms' bushes bolted in the subframe's clevis brackets; the toe links' inner joints in
+  // their brackets; the subframe mounts bolted to the front rails
+  [/^lower-arm-/, /^(front|rear)-subframe$/],
+  [/^toe-link-r[lr]$/, /^rear-subframe$/],
+  [/^front-subframe-mount-/, /^front-rail-[lr]$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
@@ -76,17 +40,17 @@ const SKIP = new Set(["underbody"]);
 /** Known clashes, each listed with where it is tracked. They are not ignored: the check prints every one on every
  * run, fails if anything new appears, and fails if a listed group no longer occurs (so the list is kept current).
  * B1-B4: docs/body-structure-backlog.md (the simple body structure; fixed by the body reconstruction).
- * C3c-2: placeholder suspension parts replaced in C3c step 2 (this list must be empty at the end of C3c). */
+ * (C3c step 1's temporary group C3c-2, placeholder suspension parts, was resolved in step 2.) */
 const KNOWN: [string, RegExp][] = [
   ["B1", /^.+-(fl|fr|rl|rr)(-\d)? \/ sill-[lr]$|^rear-halfshaft-[lr] \/ sill-[lr]$/],
   ["B2", /^(upper-arm|spring|coilover|drop-link)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
-  ["B3", /^(tyre|wheel|knuckle|toe-link)-r[lr] \/ cabin-floor$/],
+  ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
   ["B4", /^tyre-r[lr] \/ door-(structure|trim)-r[lr]$/],
-  ["C3c-2", /^coilover-(fl|fr|rl|rr) \/ (front|rear)-anti-roll-bar$|^lower-arm-(fl|fr|rl|rr) \/ (front|rear)-subframe$/],
+  ["B6", /^upper-arm-r[lr] \/ seat-(rear|back-rear)$/],
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
 
 describe("mechanical packaging", () => {
   it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {
@@ -110,7 +74,7 @@ describe("mechanical packaging", () => {
     const near = neighbours.map((b) => ({ id: b.id, asset: assetOf.get(b.id) ?? "", box: new THREE.Box3().setFromObject(b.object).expandByScalar(VOXEL),
       cells: null as Set<string> | null, object: b.object }));
     const cells = new Map<string, Set<string>>();
-    const cellsOf = (id: string, o: THREE.Object3D) => { if (!cells.has(id)) cells.set(id, voxels(o)); return cells.get(id)!; };
+    const cellsOf = (id: string, o: THREE.Object3D) => { if (!cells.has(id)) cells.set(id, voxels(o, VOXEL)); return cells.get(id)!; };
     const contact = (a: string, b: string) => CONTACTS.some(([p, q]) => (p.test(a) && q.test(b)) || (p.test(b) && q.test(a)));
     const clashes: string[] = [];
     for (const [id, object] of units) {

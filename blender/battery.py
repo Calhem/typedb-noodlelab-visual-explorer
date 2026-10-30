@@ -421,7 +421,7 @@ def finned_unit(name, size, centre, fins_axis="x", fins=8, connectors=()):
 
 
 def lv_battery():
-    c = (1.95, 0.66, -0.36)  # inboard of the left front rail
+    c = (1.95, 0.66, -0.34)  # inboard of the left front rail and the front-left upper arm's pivot
     case = bx((0.24, 0.17, 0.17), c, "plastic-black", 0.006, "lvb-case")
     lid_ = bx((0.244, 0.012, 0.174), (c[0], c[1] + 0.09, c[2]), "plastic-black", 0.004, "lvb-lid")
     posts = bmesh.new()
