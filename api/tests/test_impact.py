@@ -166,10 +166,44 @@ def test_13_front_disconnect(client):
     assert not rear_or_front(lost | degraded, "rear")
 
 
-def test_14_rear_left_side_gear(client):
+def propulsion(client, cid):
+    p = get(client, f"/api/components/{cid}/impact")["data"]["propulsion"]
+    return {a["system"]: a["state"] for a in p["axles"]}, p["vehicle"]
+
+
+def test_14_rear_left_side_gear_open_differential(client):
+    """Revised in C3b: an open differential cannot drive either wheel when one side spins free."""
     lost, degraded, _ = impact(client, "rear-side-gear-l")
-    assert lost == {("rear-halfshaft-l", "drive torque"), ("hub-rl", "drive torque"), ("wheel-rl", "drive torque"), ("tyre-rl", "drive torque")}
-    assert not degraded
+    assert {("rear-differential", "drive torque"), ("rear-spider-gears", "drive torque"), ("rear-side-gear-r", "drive torque"),
+            ("rear-halfshaft-l", "drive torque"), ("rear-halfshaft-r", "drive torque"), ("rear-halfshaft-l", "reaction path")} <= lost
+    assert {(f"{p}-{c}", "drive torque") for p in ("hub", "wheel", "tyre") for c in ("rl", "rr")} <= lost
+    assert ("rear-halfshaft-r", "reaction path") not in lost
+    assert not {k for k in lost | degraded if k[1] in ("wheel rotation", "clamping force", "friction braking", "steering motion")}
+    assert not rear_or_front(lost | degraded, "front")
+    assert propulsion(client, "rear-side-gear-l") == ({"front-axle-drive": "kept", "rear-axle-drive": "lost"}, "reduced")
+
+
+def test_17_front_right_drive_shaft(client):
+    lost, degraded, _ = impact(client, "front-halfshaft-r")
+    assert {("tyre-fl", "drive torque"), ("tyre-fr", "drive torque"), ("front-differential", "drive torque")} <= lost
+    assert not {k for k in lost | degraded if k[1] in ("wheel rotation", "clamping force", "friction braking", "steering motion")}
+    assert not rear_or_front(lost | degraded, "rear")
+    assert propulsion(client, "front-halfshaft-r") == ({"front-axle-drive": "lost", "rear-axle-drive": "kept"}, "reduced")
+    hub = next(c for c in get(client, "/api/components/front-halfshaft-r/impact")["data"]["components"] if c["id"] == "hub-fl")
+    assert hub["lost"] == ["drive torque"] and "wheel rotation" in hub["kept"]
+
+
+def test_18_rear_left_wheel_bearing(client):
+    lost, degraded, _ = impact(client, "wheel-bearing-rl")
+    assert lost == {("hub-rl", "wheel rotation")} and not degraded
+    assert propulsion(client, "wheel-bearing-rl") == ({"front-axle-drive": "kept", "rear-axle-drive": "kept"}, "kept")
+
+
+def test_vehicle_level_propulsion_for_earlier_scenarios(client):
+    assert propulsion(client, "lv-battery") == ({"front-axle-drive": "lost", "rear-axle-drive": "lost"}, "lost")
+    assert propulsion(client, "coolant-pump") == ({"front-axle-drive": "reduced", "rear-axle-drive": "reduced"}, "reduced")
+    assert propulsion(client, "battery-module-5")[1] == "lost"
+    assert propulsion(client, "brake-hose-fl") == ({"front-axle-drive": "kept", "rear-axle-drive": "kept"}, "kept")
 
 
 def test_15_rear_park_lock(client):
