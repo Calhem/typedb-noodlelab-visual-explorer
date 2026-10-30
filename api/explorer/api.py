@@ -149,6 +149,18 @@ def create_app(db=None):
     def component_requirements(component_id: Id):
         return answer(queries.component_requirements, component_id)
 
+    @app.get("/api/assemblies")
+    def assemblies():
+        return answer(queries.assembly_tree)
+
+    @app.get("/api/types")
+    def types():
+        return answer(queries.type_hierarchy)
+
+    @app.get("/api/types/{label}")
+    def type_detail(label: Id):
+        return answer(queries.type_detail, label)
+
     @app.get("/api/assemblies/{assembly_id}")
     def assembly(assembly_id: Id):
         return answer(queries.assembly, assembly_id)

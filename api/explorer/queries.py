@@ -318,8 +318,14 @@ def system_list(tx):
         match system-membership (system: $parent, member: $s); $s isa system;
         fetch { "child": $s.system-id, "parent": $parent.system-id };
     """)
+    total = fetch(tx, """
+        match $s isa system; let $c in system_components($s);
+        reduce $n = count groupby $s;
+        fetch { "id": $s.system-id, "n": $n };
+    """)
     up = {p["child"]: p["parent"] for p in parents}
-    return sorted(({**s, "parent": up.get(s["id"])} for s in systems), key=lambda s: s["name"])
+    t = {x["id"]: x["n"] for x in total}
+    return sorted(({**s, "parent": up.get(s["id"]), "total": t.get(s["id"], 0)} for s in systems), key=lambda s: s["name"])
 
 
 def system(tx, system_id):
@@ -342,7 +348,8 @@ def system(tx, system_id):
         match
           $s isa system, has system-id {sid};
           let $c in system_components($s);
-        fetch {{ "id": $c.component-id, "name": $c.name }};
+        fetch {{ "id": $c.component-id, "name": $c.name,
+                "systems": [ match system-membership (system: $o, member: $c); fetch {{ "id": $o.system-id, "name": $o.name }}; ] }};
     """)
     loops = fetch(tx, f"""
         match
@@ -361,3 +368,74 @@ def system(tx, system_id):
         loop["actuators"] = sorted(x["id"] for x in loop["actuators"])
     return {**doc, "subsystems": sorted(subsystems, key=lambda s: s["name"]),
             "components": sorted(unique.values(), key=lambda c: c["name"]), "control-loops": loops}
+
+
+# ---- Browsing: trees and the type hierarchy ------------------------------------------------------------------
+
+def assembly_tree(tx):
+    """Every assembly with its parent, how many components sit in it directly, and how many it contains in total
+    (through its sub-assemblies, counted by the recursive assembly_components function)."""
+    assemblies = fetch(tx, """
+        match $a isa assembly;
+        fetch { "id": $a.assembly-id, "name": $a.name,
+                "parent": [ match assembly-membership (assembly: $p, member: $a); fetch { "id": $p.assembly-id }; ] };
+    """)
+    direct = fetch(tx, """
+        match $a isa assembly; assembly-membership (assembly: $a, member: $c); $c isa component;
+        reduce $n = count groupby $a;
+        fetch { "id": $a.assembly-id, "n": $n };
+    """)
+    total = fetch(tx, """
+        match $a isa assembly; let $c in assembly_components($a);
+        reduce $n = count groupby $a;
+        fetch { "id": $a.assembly-id, "n": $n };
+    """)
+    d = {x["id"]: x["n"] for x in direct}
+    t = {x["id"]: x["n"] for x in total}
+    return sorted(({"id": a["id"], "name": a["name"], "parent": a["parent"][0]["id"] if a["parent"] else None,
+                    "direct": d.get(a["id"], 0), "total": t.get(a["id"], 0)} for a in assemblies), key=lambda a: a["name"])
+
+
+def type_hierarchy(tx):
+    """The component type hierarchy, with instance counts: "total" counts every instance of the type and its
+    subtypes (one polymorphic query), "direct" only those whose most specific type it is."""
+    tree = fetch(tx, """
+        match $t sub! $parent; $parent sub component;
+        fetch { "type": $t, "parent": $parent };
+    """)
+    total = fetch(tx, """
+        match $t sub component; $x isa $t;
+        reduce $n = count groupby $t;
+        fetch { "type": $t, "n": $n };
+    """)
+    direct = fetch(tx, """
+        match $t sub component; $x isa! $t;
+        reduce $n = count groupby $t;
+        fetch { "type": $t, "n": $n };
+    """)
+    t = {_label(x["type"]): x["n"] for x in total}
+    d = {_label(x["type"]): x["n"] for x in direct}
+    types = [{"type": "component", "parent": None}] + [{"type": _label(x["type"]), "parent": _label(x["parent"])} for x in tree]
+    return sorted(({**x, "total": t.get(x["type"], 0), "direct": d.get(x["type"], 0)} for x in types), key=lambda x: x["type"])
+
+
+def type_detail(tx, label):
+    """One type: its supertypes, the attributes it owns and roles it plays (inherited included), and every
+    instance of it or any subtype (polymorphism)."""
+    known = {_label(x["t"]) for x in fetch(tx, "match $t sub component; fetch { \"t\": $t };")}
+    if label not in known:
+        raise NotFound(f"component type {label}")
+    supertypes = fetch(tx, f"match $t label {label}; $t sub $s; $s sub component; fetch {{ \"s\": $s }};")
+    owns = fetch(tx, f"match $t label {label}; $t owns $a; fetch {{ \"a\": $a }};")
+    plays = fetch(tx, f"match $t label {label}; $t plays $r; fetch {{ \"r\": $r }};")
+    instances = fetch(tx, f"""
+        match $x isa {label}; $x isa! $type;
+        fetch {{ "id": $x.component-id, "name": $x.name, "type": $type }};
+    """)
+    return {
+        "type": label,
+        "supertypes": sorted({_label(s["s"]) for s in supertypes} - {label}),
+        "owns": sorted(_label(a["a"]) for a in owns),
+        "plays": sorted(_label(r["r"]) for r in plays),
+        "instances": sorted(({**i, "type": _label(i["type"])} for i in instances), key=lambda i: (i["type"], i["name"])),
+    }
