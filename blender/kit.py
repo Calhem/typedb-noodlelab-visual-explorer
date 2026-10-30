@@ -133,7 +133,7 @@ def merge_into(target: bmesh.types.BMesh, piece: bmesh.types.BMesh) -> bmesh.typ
 
 
 def tube_path(points: list[Vector], r: float, resolution: int = 6, profile: str = "round", size=(0.0, 0.0)) -> bpy.types.Object:
-    """A smooth tube (or rounded-rectangle bar) along a polyline; returned as a mesh object."""
+    """A smooth tube, a rectangular bar ("rect") or an I-section ("I") along a polyline; returned as a mesh."""
     curve = bpy.data.curves.new("path", "CURVE")
     curve.dimensions = "3D"
     spline = curve.splines.new("POLY")
@@ -148,7 +148,12 @@ def tube_path(points: list[Vector], r: float, resolution: int = 6, profile: str 
         prof = bpy.data.curves.new("profile", "CURVE")
         sp = prof.splines.new("POLY")
         w, h = size
-        corners = [(-w, -h), (w, -h), (w, h), (-w, h)]
+        if profile == "I":  # forged I-section: two flanges joined by a thinner web
+            t, web = h * 0.3, w * 0.34
+            corners = [(-w, -h), (w, -h), (w, -h + 2 * t), (web, -h + 2 * t), (web, h - 2 * t), (w, h - 2 * t),
+                       (w, h), (-w, h), (-w, h - 2 * t), (-web, h - 2 * t), (-web, -h + 2 * t), (-w, -h + 2 * t)]
+        else:
+            corners = [(-w, -h), (w, -h), (w, h), (-w, h)]
         sp.points.add(len(corners) - 1)
         for p, (x, y) in zip(sp.points, corners):
             p.co = (x / 2, y / 2, 0, 1)

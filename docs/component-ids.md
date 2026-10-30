@@ -18,5 +18,8 @@ relationships it will carry in TypeDB.
 | `seat-front-{s}`, `seat-rear` (whole seats) | `seat-front-{s}` / `seat-rear` = cushion; new `seat-back-…`, `headrest-…`, `seat-frame-…` | interior | seat assemblies may become their own sub-assemblies in TypeDB |
 | `{key}-gear-set` (never committed) | `{key}-reduction-gear`, `{key}-pinion`, `{key}-differential` | drive unit | gear train: pinion driven by rotor shaft, drives reduction gear, which drives differential |
 
+| (new) | `brake-hose-{c}` | wheel end | carries brake fluid to `caliper-{c}`; mechanically connected to the body |
+| (new) | `hub-nut-{c}` | wheel end | fastener joining the drive shaft to `hub-{c}` |
+
 `{c}` = corner (`fl`, `fr`, `rl`, `rr`); `{s}` = side (`l`, `r`); `{key}` = `front` or `rear`.
 All other milestone-2.2 additions are new parts with new ids (see `manifest.ts`).

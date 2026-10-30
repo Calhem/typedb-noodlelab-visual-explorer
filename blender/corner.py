@@ -262,42 +262,101 @@ def brake_disc():
 
 
 def caliper():
-    """Six-piston monobloc calliper: one-piece body bridging the disc, inspection window,
-    piston bosses, mounting lugs with bolts, bleed nipples, pad pin."""
+    """Six-piston monobloc calliper (one casting either side of the disc, joined by a bridge over it).
+    Proportions follow typical large-disc performance callipers: about 290 mm long round the disc, ends
+    rounded, three piston bulges each side, a stiffening rib along the bridge, two pad-inspection windows
+    either side of a central strut, mounting lugs on the inboard half with bolts, a crossover pipe linking
+    the two halves, bleed nipples with caps, and a pad-retaining pin with an anti-rattle spring."""
     c = CALIPER_ANGLE
-    z_in, z_out = RING_Z - 0.068, RING_Z + 0.068
-    # Cast body: the main block plus piston bosses and mounting lugs, merged and smoothed like a casting.
-    rough = sector(0.13, 0.233, c - 0.56, c + 0.56, z_in, z_out, 64)
-    for k in (-0.3, 0.0, 0.3):
+    span = 0.7
+    z_in, z_out = RING_Z - 0.066, RING_Z + 0.066
+    r_in, r_out = 0.128, 0.236
+    mid = (r_in + r_out) / 2
+    rough = sector(r_in, r_out, c - span, c + span, z_in, z_out, 96)
+    for k in (-span, span):  # rounded ends
         a = c + k
-        p = Vector((0.172 * math.cos(a), 0.172 * math.sin(a), 0))
-        merge_into(rough, transform(cylinder(0.023, 0.01, 48), Matrix.Translation(p + Vector((0, 0, z_out)))))
-        merge_into(rough, transform(cylinder(0.023, 0.01, 48), Matrix.Translation(p + Vector((0, 0, z_in)))))
-    for k in (-0.62, 0.62):
+        merge_into(rough, transform(cylinder((r_out - r_in) / 2, z_out - z_in, 64), Matrix.Translation((mid * math.cos(a), mid * math.sin(a), RING_Z))))
+    for k in (-0.38, 0.0, 0.38):  # piston bulges, both halves
         a = c + k
-        merge_into(rough, transform(box(0.046, 0.034, 0.026), Matrix.Translation((0.168 * math.cos(a), 0.168 * math.sin(a), z_in + 0.011)) @ Matrix.Rotation(a, 4, "Z")))
-    body = kit.cast_finish(new_object("body", rough, "caliper-paint"), 0.0019, 12, 0.5)
-    # Machined after casting: the disc slot and the pad inspection window.
-    pocket = new_object("pocket", sector(0.09, 0.199, c - 0.43, c + 0.43, RING_Z - 0.034, RING_Z + 0.034, 64), "caliper-paint")
-    window = new_object("window", sector(0.19, 0.25, c - 0.22, c + 0.22, RING_Z - 0.02, RING_Z + 0.02, 32), "caliper-paint")
-    body = kit.shade(kit.cut(body, pocket, window), 50)
+        p = Vector((0.176 * math.cos(a), 0.176 * math.sin(a), 0))
+        for z, d in ((z_out, 1), (z_in, -1)):
+            merge_into(rough, transform(cylinder(0.026, 0.012, 64), Matrix.Translation(p + Vector((0, 0, z + d * 0.003)))))
+    merge_into(rough, sector(r_out - 0.004, r_out + 0.007, c - span * 0.8, c + span * 0.8, RING_Z - 0.012, RING_Z + 0.012, 64))  # bridge rib
+    for k in (-0.78, 0.78):  # inboard mounting lugs
+        a = c + k
+        merge_into(rough, transform(box(0.05, 0.036, 0.028), Matrix.Translation((0.168 * math.cos(a), 0.168 * math.sin(a), z_in + 0.012)) @ Matrix.Rotation(a, 4, "Z")))
+    body = kit.cast_finish(new_object("body", rough, "caliper-paint"), 0.0018, 14, 0.3)
+    # Machined after casting: the disc slot with pad pockets, and two inspection windows.
+    pocket = new_object("pocket", sector(0.09, 0.201, c - span + 0.06, c + span - 0.06, RING_Z - 0.034, RING_Z + 0.034, 96), "caliper-paint")
+    windows = sector(0.195, 0.26, c - 0.3, c - 0.035, RING_Z - 0.021, RING_Z + 0.021, 32)
+    merge_into(windows, sector(0.195, 0.26, c + 0.035, c + 0.3, RING_Z - 0.021, RING_Z + 0.021, 32))
+    body = kit.shade(kit.cut(body, pocket, new_object("windows", windows, "caliper-paint")), 50)
 
     hardware = bmesh.new()
-    for k in (-0.62, 0.62):
+    for k in (-0.78, 0.78):  # mounting bolts with washers
         a = c + k
-        p = Vector((0.168 * math.cos(a), 0.168 * math.sin(a), z_in - 0.004))
-        merge_into(hardware, transform(cylinder(0.0105, 0.008, 6), Matrix.Translation(p)))
-        merge_into(hardware, transform(cylinder(0.0115, 0.0018, 32), Matrix.Translation(p + Vector((0, 0, 0.004)))))
-    for k, z in ((-0.4, z_in + 0.02), (0.4, z_out - 0.02)):
+        p = Vector((0.168 * math.cos(a), 0.168 * math.sin(a), z_in - 0.003))
+        merge_into(hardware, transform(cylinder(0.0105, 0.009, 6), Matrix.Translation(p)))
+        merge_into(hardware, transform(cylinder(0.012, 0.0018, 32), Matrix.Translation(p + Vector((0, 0, 0.0052)))))
+    for k, z in ((-0.52, z_in + 0.022), (0.52, z_out - 0.022)):  # bleed nipples
         a = c + k
         u = Vector((math.cos(a), math.sin(a), 0))
-        merge_into(hardware, rod(u * 0.231 + Vector((0, 0, z)), u * 0.243 + Vector((0, 0, z)), 0.0042, 16))
+        merge_into(hardware, rod(u * 0.232 + Vector((0, 0, z)), u * 0.246 + Vector((0, 0, z)), 0.0038, 16))
         merge_into(hardware, rod(u * 0.229 + Vector((0, 0, z)), u * 0.236 + Vector((0, 0, z)), 0.0062, 6))
     u = Vector((math.cos(c), math.sin(c), 0))
-    merge_into(hardware, rod(u * 0.207 + Vector((0, 0, z_in + 0.015)), u * 0.207 + Vector((0, 0, z_out - 0.01)), 0.0035, 16))
+    merge_into(hardware, rod(u * 0.206 + Vector((0, 0, z_in + 0.012)), u * 0.206 + Vector((0, 0, z_out - 0.008)), 0.0032, 16))  # pad pin
     hw = kit.shade(kit.bevel(new_object("hardware", hardware, "steel-zinc"), 0.0006, 1), 40)
-    obj = kit.join("caliper", [body, hw])
+    caps = bmesh.new()
+    for k, z in ((-0.52, z_in + 0.022), (0.52, z_out - 0.022)):
+        a = c + k
+        u = Vector((math.cos(a), math.sin(a), 0))
+        merge_into(caps, rod(u * 0.244 + Vector((0, 0, z)), u * 0.251 + Vector((0, 0, z)), 0.0055, 16))
+    caps = kit.shade(new_object("caps", caps, "rubber"), 40)
+    # Crossover pipe: steel brake pipe round the outer end, joining the two halves.
+    a0 = c + span + 0.02
+    pts = [Vector((r * math.cos(a0 + da), r * math.sin(a0 + da), z)) for r, da, z in
+           ((0.214, -0.04, z_in + 0.008), (0.226, 0.03, z_in + 0.004), (0.232, 0.06, RING_Z), (0.226, 0.03, z_out - 0.004), (0.214, -0.04, z_out - 0.008))]
+    pipe = kit.tube_path(pts, 0.0026, 3)
+    pipe.data.materials.append(kit.material("steel-zinc"))
+    # Anti-rattle spring: a thin steel strip over the pad pin.
+    spring = kit.tube_path([u * 0.205 + Vector((0, 0, RING_Z - 0.03)), u * 0.212 + Vector((0, 0, RING_Z)), u * 0.205 + Vector((0, 0, RING_Z + 0.03))], 0, profile="rect", size=(0.012, 0.0012))
+    spring.data.materials.append(kit.material("steel-zinc"))
+    obj = kit.join("caliper", [body, hw, caps, kit.shade(pipe, 60), kit.shade(spring, 40)])
     kit.box_uv(obj)
+    return at_axle(obj)
+
+
+def brake_hose():
+    """Flexible brake hose from a chassis bracket to the calliper inlet: rubber hose with crimped steel
+    end fittings, a banjo bolt at the calliper and a bracket clip at the body end."""
+    c = CALIPER_ANGLE - 0.42
+    inlet = Vector((0.222 * math.cos(c), 0.222 * math.sin(c), RING_Z - 0.07))
+    bracket = Vector((-0.07, 0.34, -0.2))
+    path = [bracket, bracket + Vector((0.01, -0.03, 0.05)), Vector((-0.04, 0.27, -0.12)), inlet + Vector((0.0, 0.04, -0.035)), inlet + Vector((0, 0.012, -0.01))]
+    hose = kit.tube_path(path, 0.0058, 4)
+    hose.data.materials.append(kit.material("rubber"))
+    d0 = (path[1] - path[0]).normalized()
+    d1 = (path[-1] - path[-2]).normalized()
+    pieces = [kit.shade(hose, 60),
+              new_object("ferrule-a", rod(path[0] - d0 * 0.004, path[0] + d0 * 0.022, 0.0078, 24), "steel-zinc"),
+              new_object("ferrule-b", rod(path[-1] - d1 * 0.022, path[-1] + d1 * 0.002, 0.0078, 24), "steel-zinc"),
+              new_object("banjo", transform(cylinder(0.009, 0.012, 32), Matrix.Translation(inlet) @ Matrix.Rotation(math.pi / 2, 4, "X")), "steel-zinc"),
+              new_object("banjo-bolt", transform(cylinder(0.0065, 0.03, 6), Matrix.Translation(inlet) @ Matrix.Rotation(math.pi / 2, 4, "X")), "steel-zinc"),
+              new_object("clip", transform(box(0.026, 0.004, 0.03), Matrix.Translation(path[0] + Vector((0, 0.012, 0))) @ kit.align_z(d0)), "steel-dark")]
+    pieces = [pieces[0]] + [kit.shade(kit.bevel(o, 0.0006, 1), 40) for o in pieces[1:]]
+    obj = kit.join("hose", pieces)
+    kit.box_uv(obj)
+    return at_axle(obj)
+
+
+def hub_nut():
+    """Axle nut on the end of the drive shaft, with its washer, in the middle of the hub."""
+    z = MOUNT_Z + 0.008
+    nut = kit.bevel(new_object("nut", transform(cylinder(0.019, 0.014, 6), Matrix.Translation((0, 0, z + 0.009))), "steel-zinc"), 0.0012, 2, 40)
+    washer = new_object("washer", lathe([(0.012, z), (0.026, z), (0.026, z + 0.002), (0.012, z + 0.002)], 64), "steel-zinc")
+    thread = new_object("stub", transform(cylinder(0.0115, 0.026, 32), Matrix.Translation((0, 0, z + 0.006))), "steel-machined")
+    obj = kit.join("hub-nut", [kit.shade(nut, 30), kit.shade(washer, 30), kit.shade(thread, 30)])
+    kit.radial_uv(obj, Vector((0, 0, 0)))
     return at_axle(obj)
 
 
@@ -458,7 +517,8 @@ def bushing(centre: Vector, axis: str = "X"):
     rot = Matrix.Rotation(math.pi / 2, 4, "Y" if axis == "X" else "X")
     m = Matrix.Translation(centre) @ rot
     pieces = [
-        new_object("rubber", transform(lathe([(0.0095, -0.026), (0.02, -0.024), (0.02, 0.024), (0.0095, 0.026)], 48), m), "rubber"),
+        kit.cut(new_object("rubber", transform(lathe([(0.0095, -0.026), (0.02, -0.024), (0.02, 0.024), (0.0095, 0.026)], 48), m), "rubber"),
+                new_object("voids", transform(merge_into(sector(0.012, 0.0175, 0.5, 2.6, -0.03, 0.03, 12), sector(0.012, 0.0175, 3.64, 5.74, -0.03, 0.03, 12)), m), "rubber")),  # kidney voids
         new_object("sleeve", transform(lathe([(0.0062, -0.031), (0.0095, -0.031), (0.0095, 0.031), (0.0062, 0.031)], 32), m), "steel-zinc"),
         new_object("bolt", transform(cylinder(0.0062, 0.075, 24), m), "steel-zinc"),
         new_object("head", transform(transform(cylinder(0.011, 0.007, 6), Matrix.Translation((0, 0, 0.038))), m), "steel-zinc"),
@@ -475,13 +535,14 @@ def ball_joint(top: Vector, down: bool = False):
         new_object("housing", transform(lathe([(0.004, -0.032), (0.026, -0.032), (0.026, -0.004), (0.004, -0.004)], 48), m), "aluminium-forged"),
         new_object("boot", transform(lathe(boot, 48), m), "rubber"),
         new_object("stud", transform(lathe([(0.0005, 0.03), (0.009, 0.03), (0.0065, 0.065), (0.0005, 0.065)], 32), m), "steel-zinc"),
+        new_object("castle-nut", transform(transform(cylinder(0.011, 0.01, 6), Matrix.Translation((0, 0, 0.07))), m), "steel-zinc"),
     ]
     return [kit.shade(kit.bevel(o, 0.0008, 1), 40) for o in pieces]
 
 
 def wishbone(name: str, outer: Vector, inner_front: Vector, inner_rear: Vector, bar=(0.04, 0.026), brace: float | None = None):
     """Forged wishbone: two legs of rounded section, a web near the ball joint, bushings at the frame."""
-    legs = [kit.tube_path([inner_front, outer], 0, profile="rect", size=bar), kit.tube_path([inner_rear, outer], 0, profile="rect", size=bar)]
+    legs = [kit.tube_path([inner_front, outer], 0, profile="I", size=bar), kit.tube_path([inner_rear, outer], 0, profile="I", size=bar)]
     web = bmesh.new()
     a, b, c = outer, outer.lerp(inner_front, 0.42), outer.lerp(inner_rear, 0.42)
     n = (b - a).cross(c - a).normalized() * 0.005
@@ -523,9 +584,9 @@ DAMPER_FRAME = Matrix.Translation(LOWER_EYE) @ Vector((0, 1, 0)).rotation_differ
 def damper():
     """Monotube damper: lower eye with bush, painted body, threaded sleeve, notched spring perch,
     chrome rod and a polyurethane bump stop. Built along +y, then aimed at the top mount."""
-    def along_y(prof):  # lathe around y instead of z
-        return transform(lathe(prof, 64), Matrix.Rotation(-math.pi / 2, 4, "X"))
-    thread = [(0.0268, 0.2)] + [p for i in range(50) for p in ((0.029, 0.2 + i * 0.002 + 0.001), (0.0268, 0.2 + (i + 1) * 0.002))] + [(0.0245, 0.3), (0.0245, 0.2)]
+    def along_y(prof, seg=40):  # lathe around y instead of z
+        return transform(lathe(prof, seg), Matrix.Rotation(-math.pi / 2, 4, "X"))
+    thread = [(0.0268, 0.2)] + [p for i in range(40) for p in ((0.029, 0.2 + i * 0.0025 + 0.00125), (0.0268, 0.2 + (i + 1) * 0.0025))] + [(0.0245, 0.3), (0.0245, 0.2)]
     bump = [(0.009, 0.4)] + [(0.017 + 0.005 * abs(math.sin(i * 0.8)), 0.4 + i * 0.006) for i in range(12)] + [(0.009, 0.472)]
     pieces = [
         new_object("body", along_y([(0.0005, 0.02), (0.025, 0.02), (0.025, 0.355), (0.0215, 0.362), (0.0005, 0.362)]), "damper-paint"),
@@ -611,6 +672,8 @@ def build():
         "brake-pad-inner-fr": brake_pad("inner"),
         "brake-pad-outer-fr": brake_pad("outer"),
         "brake-shield-fr": brake_shield(),
+        "brake-hose-fr": brake_hose(),
+        "hub-nut-fr": hub_nut(),
         "hub-fr": hub(),
         "wheel-bearing-fr": bearing(),
         "knuckle-fr": knuckle(),

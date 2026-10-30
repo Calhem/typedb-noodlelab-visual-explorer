@@ -437,6 +437,11 @@ const wheelDetail: Part[] = CORNERS.flatMap((c): Part[] => {
     { id: `brake-shield-${c.key}`, name: `${cap(c.word)} brake dust shield`, assembly: asm, category: "brake", material: "satin-black",
       shape: { kind: "cylinder", radius: discR + 0.012, length: 0.004, axis: "z", segments: 48 },
       position: [c.x, AXLE_Y, c.z * (TRACK_HALF - 0.105)] },
+    { id: `brake-hose-${c.key}`, name: `${cap(c.word)} brake hose`, assembly: asm, category: "brake", material: "rubber",
+      ...absTube([[c.x - 0.07, AXLE_Y + 0.34, c.z * (TRACK_HALF - 0.2)], [c.x - 0.04, AXLE_Y + 0.27, c.z * (TRACK_HALF - 0.12)],
+        [c.x - 0.03, AXLE_Y + 0.21, c.z * (TRACK_HALF - 0.1)]], 0.006) },
+    { id: `hub-nut-${c.key}`, name: `${cap(c.word)} axle nut`, assembly: asm, category: "wheel", material: "steel",
+      shape: { kind: "cylinder", radius: 0.019, length: 0.016, axis: "z", segments: 6 }, position: [c.x, AXLE_Y, c.z * (TRACK_HALF + 0.05)] },
     { id: `wheel-bearing-${c.key}`, name: `${cap(c.word)} wheel bearing`, assembly: asm, category: "suspension", material: "steel",
       shape: { kind: "ring", radius: 0.045, inner: 0.02, length: 0.04, axis: "z" }, position: [c.x, AXLE_Y, c.z * (TRACK_HALF - 0.12)] },
     ...(["inner", "outer"] as const).map((side, k): Part => ({

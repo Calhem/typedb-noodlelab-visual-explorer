@@ -22,7 +22,7 @@ function gltfJson(path: string) {
 
 const EXPECTED = [
   "tyre-fr", "wheel-fr", "wheel-nut-fr-1", "wheel-nut-fr-2", "wheel-nut-fr-3", "wheel-nut-fr-4", "wheel-nut-fr-5",
-  "brake-disc-fr", "caliper-fr", "brake-pad-inner-fr", "brake-pad-outer-fr", "brake-shield-fr", "hub-fr",
+  "brake-disc-fr", "caliper-fr", "brake-pad-inner-fr", "brake-pad-outer-fr", "brake-shield-fr", "brake-hose-fr", "hub-fr", "hub-nut-fr",
   "wheel-bearing-fr", "knuckle-fr", "wheel-speed-sensor-fr", "lower-arm-fr", "upper-arm-fr", "coilover-fr",
   "spring-fr", "top-mount-fr", "drop-link-fr", "tie-rod-fr",
 ];
