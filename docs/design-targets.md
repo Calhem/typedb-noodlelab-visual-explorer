@@ -1,4 +1,4 @@
-# Vehicle design targets (provisional)
+# Vehicle design targets (current engineering baseline)
 
 Status: **current engineering baseline** (owner, 30 October 2026). Applied to the app on 30 October 2026
 (docs/wheelbase/README.md): the axles moved (front +14.3 cm, rear -1.3 cm) and the body stayed. Still
@@ -7,7 +7,7 @@ revisable when the exterior is revisited.
 Source: measured from the approved concept image (`docs/reference/concept-target.webp`), see
 `docs/exterior-feasibility.md`. About ±5% because of perspective in the image.
 
-| Dimension | Target | Current app | Change |
+| Dimension | Target | App before 30 Oct | Change (applied) |
 |---|---|---|---|
 | Overall length | 4.75 m | 4.75 m | none |
 | Wheelbase | 3.03 m | 2.874 m | +0.156 m |
