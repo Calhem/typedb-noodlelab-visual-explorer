@@ -254,13 +254,45 @@ def component_impact(tx, component_id):
     for c in components.values():
         c["kept"] = sorted(has.get(c["id"], set()) - set(c["lost"]) - set(c["degraded"]))
     failed_name = next((x["name"] for x in functions if x["id"] == component_id), None)
+    propulsion = _propulsion(tx, lost_keys, {(x["id"], x["function"]) for x in degraded_items}, component_id)
     return {
         "failed": {"id": component_id, "name": failed_name, "functions": sorted(has.get(component_id, set()))},
         "components": sorted(components.values(), key=lambda c: (0 if c["lost"] else 1, c["steps"], c["name"])),
         "lost": lost_items,
         "degraded": degraded_items,
         "fallbacks": sorted(unique_fallbacks.values(), key=lambda f: (f["name"], f["function"])),
+        "propulsion": propulsion,
     }
+
+
+def _propulsion(tx, lost, degraded, failed):
+    """Axle-level and vehicle-level propulsion after a failure (docs/dependency-semantics.md, C3b). Which tyres
+    each axle drives comes from TypeDB: the drive-torque chain from each axle-drive system's drive shafts
+    through hub and wheel to the tyre. An axle is lost when all its tyres lose drive torque, reduced when any
+    is degraded or only some are lost; the vehicle is lost only when every axle is."""
+    rows_ = fetch(tx, """
+        match
+          $sys isa system, has system-id $sid, has name $sname;
+          system-membership (system: $sys, member: $h); $h isa drive-shaft;
+          $dt isa vehicle-function, has function-name "drive torque";
+          dependency (provider: $h, required-function: $dt, dependent: $hub, affected-function: $dt);
+          dependency (provider: $hub, required-function: $dt, dependent: $w, affected-function: $dt);
+          dependency (provider: $w, required-function: $dt, dependent: $t, affected-function: $dt); $t isa tyre;
+        fetch { "system": $sid, "name": $sname, "tyre": $t.component-id };
+    """)
+    axles = {}
+    for r in rows_:
+        axles.setdefault(r["system"], {"system": r["system"], "name": r["name"], "tyres": set()})["tyres"].add(r["tyre"])
+    out = []
+    for a in sorted(axles.values(), key=lambda a: a["system"]):
+        tyres = sorted(a["tyres"])
+        n_lost = sum((t, "drive torque") in lost or t == failed for t in tyres)
+        n_degraded = sum((t, "drive torque") in degraded for t in tyres)
+        state = "lost" if n_lost == len(tyres) else "reduced" if n_lost or n_degraded else "kept"
+        out.append({"system": a["system"], "name": a["name"], "tyres": tyres, "lost": n_lost, "degraded": n_degraded, "state": state})
+    states = [a["state"] for a in out]
+    vehicle = "lost" if states and all(s == "lost" for s in states) else "reduced" if any(s != "kept" for s in states) else "kept"
+    return {"axles": out, "vehicle": vehicle}
 
 
 def component_requirements(tx, component_id):

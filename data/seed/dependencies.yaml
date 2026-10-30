@@ -95,6 +95,11 @@ dependencies:
   - {dependent: "<a>-spider-gears", function: drive torque, provider: "<a>-differential", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-side-gear-<s>", function: drive torque, provider: "<a>-spider-gears", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-halfshaft-<s>", function: drive torque, provider: "<a>-side-gear-<s>", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
+  # Open differential (docs/dependency-semantics.md, C3b): it can only deliver torque while BOTH sides resist it.
+  - {dependent: "<a>-halfshaft-<s>", function: reaction path, provider: "<a>-side-gear-<s>", needs: reaction path, kind: support, loss: lost}
+  - {dependent: "<a>-differential", function: drive torque, provider: "<a>-halfshaft-<s>", needs: reaction path, kind: support, loss: lost,
+     description: "An open differential passes equal torque to both sides: if one side spins free, neither carries useful torque"}
+  - {dependent: hub-<c>, function: wheel rotation, provider: wheel-bearing-<c>, needs: bearing support, kind: support, loss: lost}
   - {dependent: hub-<c>, function: drive torque, provider: "<a>-halfshaft-<s>", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: wheel-<c>, function: drive torque, provider: hub-<c>, needs: drive torque, kind: torque, loss: lost, degradation: degraded}
   - {dependent: tyre-<c>, function: drive torque, provider: wheel-<c>, needs: drive torque, kind: torque, loss: lost, degradation: degraded}
