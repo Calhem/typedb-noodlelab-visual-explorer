@@ -57,4 +57,5 @@ state), `window.__vxProgress`, and `await __shot(progress, turntableAngle?, came
 renders a settled frame. Call `__shot` twice before a screenshot. Click "Explore the vehicle" first.
 Emulated large viewports can freeze the pane; instead keep the pane's own size and call
 `__size(1440, 900, 1.5)` to render at a fixed resolution, `__focus(p, ids, azimuth, elevation, distance, only?)`
-for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored).
+for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored, includes the tier's effects), and
+`await __perf()` for the checkpoint benchmark (frame time, triangles, draw calls; noisy in the pane).
