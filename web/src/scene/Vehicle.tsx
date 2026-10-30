@@ -13,11 +13,12 @@ import { progress } from "./progress";
 import { vehicleState } from "./vehicleState";
 
 const ACCENT = new THREE.Color("#02dac9");
+const AMBER = new THREE.Color("#e0a85a"); // secondary highlight: degraded, backed up or supporting
 
 export function Vehicle({ selectedId, highlight, onSelect }: {
   selectedId: string | null;
-  /** component ids to bring forward (a semantic focus); the rest is ghosted. null = no focus */
-  highlight: Set<string> | null;
+  /** component ids to bring forward (a semantic focus), with their level; the rest is ghosted. null = no focus */
+  highlight: Map<string, "primary" | "secondary"> | null;
   onSelect: (id: string | null) => void;
 }) {
   const loaded = use(externalParts);
@@ -56,25 +57,25 @@ export function Vehicle({ selectedId, highlight, onSelect }: {
   const variants = useMemo(() => new Map<string, THREE.Material>(), [built]);
   useEffect(() => () => { for (const m of variants.values()) m.dispose(); variants.clear(); }, [variants]);
   useEffect(() => {
-    const variant = (base: THREE.Material, kind: "selected" | "focused" | "ghost") => {
+    const variant = (base: THREE.Material, kind: "selected" | "primary" | "secondary" | "ghost") => {
       const key = `${base.uuid}:${kind}`;
       let m = variants.get(key);
       if (!m) {
         const copy = base.clone() as THREE.MeshPhysicalMaterial;
         if (kind === "ghost") {
           copy.transparent = true;
-          copy.opacity = 0.07;
+          copy.opacity = 0.05;
           copy.depthWrite = false;
         } else if ("emissive" in copy) {
-          copy.emissive = ACCENT.clone();
-          copy.emissiveIntensity = kind === "selected" ? 0.35 : 0.12;
+          copy.emissive = (kind === "secondary" ? AMBER : ACCENT).clone();
+          copy.emissiveIntensity = kind === "selected" ? 0.45 : kind === "primary" ? 0.32 : 0.42;
         }
         variants.set(key, (m = copy));
       }
       return m;
     };
     for (const b of built) {
-      const kind = b.id === selectedId ? "selected" : highlight ? (highlight.has(b.id) ? "focused" : "ghost") : null;
+      const kind = b.id === selectedId ? "selected" : highlight ? (highlight.get(b.id) ?? "ghost") : null;
       b.object.traverse((o) => {
         const mesh = o as THREE.Mesh;
         if (!mesh.isMesh) return;

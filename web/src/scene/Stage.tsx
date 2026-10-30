@@ -160,7 +160,7 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, onSelec
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
-  highlight: Set<string> | null;
+  highlight: Map<string, "primary" | "secondary"> | null;
   onSelect: (id: string | null) => void;
 }) {
   const tier = useQualityTier();

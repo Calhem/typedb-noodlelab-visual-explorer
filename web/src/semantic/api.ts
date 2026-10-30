@@ -71,7 +71,20 @@ export interface Connection {
   details: Record<string, string>;
 }
 
-export interface Dependency extends Named { kind: string; description: string | null }
+/** A dependency seen from one side: the other component, and which function of each is involved. */
+export interface Dependency extends Named {
+  family: "physical" | "operational" | "control";
+  kind: string;
+  /** the dependent's function that relies on... */
+  function: string;
+  /** ...this function of the provider */
+  needs: string;
+  /** what happens to `function` if `needs` is lost / only degraded (null: nothing) */
+  loss: "lost" | "degraded";
+  degradation: "lost" | "degraded" | null;
+  description: string | null;
+  fallback: Named[];
+}
 
 export interface ComponentRelationships {
   connections: Connection[];
@@ -80,7 +93,17 @@ export interface ComponentRelationships {
   "control-loops": { name: string; description: string | null; role: string; system: string; "system-name": string }[];
 }
 
-export interface Reached extends Named { steps: number; via: string; kind: string }
+/** A (component, function) reached from a failure or a requirement walk. */
+export interface Reached extends Named { function: string; steps: number; via: string; kind: string }
+
+export interface Impact {
+  lost: (Reached & { "via-function": string })[];
+  degraded: (Reached & { "via-function": string })[];
+  fallbacks: (Named & { function: string; provider: string; "provider-name": string; needs: string; backup: string;
+    "backup-name": string; description: string })[];
+}
+
+export interface Requirement extends Reached { role: "essential" | "backed up" | "supporting" }
 
 export interface AssemblyDetails extends Named {
   description: string | null;
@@ -111,8 +134,8 @@ export const semantic = {
   assemblyOf: (c: string, s?: AbortSignal) => ask<ComponentAssembly>(`components/${id(c)}/assembly`, s),
   systemsOf: (c: string, s?: AbortSignal) => ask<ComponentSystem[]>(`components/${id(c)}/systems`, s),
   relationships: (c: string, s?: AbortSignal) => ask<ComponentRelationships>(`components/${id(c)}/relationships`, s),
-  impact: (c: string, s?: AbortSignal) => ask<{ affected: Reached[] }>(`components/${id(c)}/impact`, s),
-  requirements: (c: string, s?: AbortSignal) => ask<{ required: Reached[] }>(`components/${id(c)}/requirements`, s),
+  impact: (c: string, s?: AbortSignal) => ask<Impact>(`components/${id(c)}/impact`, s),
+  requirements: (c: string, s?: AbortSignal) => ask<{ required: Requirement[] }>(`components/${id(c)}/requirements`, s),
   assembly: (a: string, s?: AbortSignal) => ask<AssemblyDetails>(`assemblies/${id(a)}`, s),
   systems: (s?: AbortSignal) => ask<SystemSummary[]>("systems", s),
   system: (sys: string, s?: AbortSignal) => ask<SystemDetails>(`systems/${id(sys)}`, s),

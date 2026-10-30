@@ -151,6 +151,11 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
   color: var(--ink-faint);
 }
 
+.impact h4 { margin: 12px 0 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-dim); }
+.impact h4.lost { color: var(--accent); }
+.impact h4.degraded { color: #e0a85a; }
+.impact .reached { margin-top: 2px; max-height: 180px; }
+
 .typeql { margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 12px; }
 .typeql pre {
   margin: 10px 0 0; padding: 10px 12px; border-radius: 8px; background: rgba(0, 0, 0, 0.45);
@@ -171,6 +176,10 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .focus-bar.error { border-color: rgba(224, 168, 90, 0.6); }
+.focus-key { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-faint); font-size: 11.5px; }
+.focus-key i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.focus-key .primary { background: var(--accent); }
+.focus-key .secondary { background: #e0a85a; }
 
 .disclaimer {
   position: absolute; right: 36px; bottom: 28px; margin: 0;

@@ -1,10 +1,13 @@
 // A "focus" is a semantic perspective on the 3D model: the components TypeDB returns for one question
 // (an assembly's contents, a system's members, a failure's impact) are highlighted and the rest is ghosted.
+// Two highlight levels: "primary" (in the assembly or system; a function lost; essential to the part) and
+// "secondary" (a function degraded; backed up or merely supporting).
 
 import { useCallback, useState } from "react";
-import { SemanticError, semantic, type Reached } from "../semantic/api";
+import { SemanticError, semantic, type Impact, type Requirement } from "../semantic/api";
 
 export type FocusKind = "assembly" | "system" | "impact" | "requirements";
+export type Level = "primary" | "secondary";
 
 export interface FocusRequest {
   kind: FocusKind;
@@ -16,13 +19,23 @@ export interface FocusRequest {
 
 export interface Focus extends FocusRequest {
   title: string;
-  ids: Set<string>;
+  /** component id -> highlight level; components not listed are ghosted */
+  ids: Map<string, Level>;
   typeql: string[];
-  /** for impact and requirements: the components reached, nearest first */
-  reached?: Reached[];
+  impact?: Impact;
+  requirements?: Requirement[];
 }
 
 export type FocusError = { request: FocusRequest; kind: SemanticError["kind"]; message: string };
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Highlight levels for a set of (component, level) entries: a component listed as primary anywhere is primary. */
+function levels(entries: [string, Level][]) {
+  const map = new Map<string, Level>();
+  for (const [id, level] of entries) if (map.get(id) !== "primary") map.set(id, level);
+  return map;
+}
 
 export function useFocus() {
   const [focus, setFocus] = useState<Focus | null>(null);
@@ -38,18 +51,27 @@ export function useFocus() {
     try {
       if (req.kind === "assembly") {
         const { data, typeql } = await semantic.assembly(req.key);
-        setFocus({ ...req, title: `${data.name}: ${data["all-component-ids"].length} components`, ids: new Set(data["all-component-ids"]), typeql });
+        const ids = levels(data["all-component-ids"].map((id) => [id, "primary"]));
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql });
       } else if (req.kind === "system") {
         const { data, typeql } = await semantic.system(req.key);
-        setFocus({ ...req, title: `${data.name}: ${data.components.length} components`, ids: new Set(data.components.map((c) => c.id)), typeql });
+        const ids = levels(data.components.map((c) => [c.id, "primary"]));
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql });
       } else if (req.kind === "impact") {
         const { data, typeql } = await semantic.impact(req.key);
-        const ids = new Set([req.key, ...data.affected.map((a) => a.id)]);
-        setFocus({ ...req, title: `If it fails: ${data.affected.length} components affected`, ids, typeql, reached: data.affected });
+        const ids = levels([[req.key, "primary"], ...data.lost.map((x): [string, Level] => [x.id, "primary"]),
+          ...data.degraded.map((x): [string, Level] => [x.id, "secondary"])]);
+        const title = data.lost.length + data.degraded.length === 0
+          ? "If it fails: no other function is affected"
+          : `If it fails: ${plural(data.lost.length, "function")} lost, ${data.degraded.length} degraded`;
+        setFocus({ ...req, title, ids, typeql, impact: data });
       } else {
         const { data, typeql } = await semantic.requirements(req.key);
-        const ids = new Set([req.key, ...data.required.map((a) => a.id)]);
-        setFocus({ ...req, title: `Needs ${data.required.length} components to work`, ids, typeql, reached: data.required });
+        const ids = levels([[req.key, "primary"], ...data.required.map((x): [string, Level] =>
+          [x.id, x.role === "essential" ? "primary" : "secondary"])]);
+        const essential = data.required.filter((r) => r.role === "essential").length;
+        setFocus({ ...req, title: `To work it needs ${plural(data.required.length, "function")} (${essential} essential)`, ids, typeql,
+          requirements: data.required });
       }
     } catch (e) {
       setFocus(null);

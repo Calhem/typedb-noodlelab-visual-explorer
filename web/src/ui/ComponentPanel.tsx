@@ -3,7 +3,7 @@
 // semantic API; "TypeQL" shows the exact queries behind the panel.
 
 import { useState } from "react";
-import { semantic, type Answer, type Dependency } from "../semantic/api";
+import { semantic, type Answer, type Dependency, type Impact, type Requirement } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
 import { attributeLabel, attributeValue, connectionKind, words } from "./format";
@@ -106,24 +106,14 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
                 What does it need to work?
               </button>
             </div>
-            {focus && focus.anchor === id && focus.reached && (
-              <ol className="reached">
-                {focus.reached.length === 0 && <li className="muted">Nothing, according to TypeDB.</li>}
-                {focus.reached.slice(0, 40).map((x) => (
-                  <li key={x.id}>
-                    <button type="button" className="link" onClick={() => onSelect(x.id)}>{x.name}</button>
-                    <span className="muted"> {x.kind}, {x.steps} {x.steps === 1 ? "step" : "steps"}</span>
-                  </li>
-                ))}
-                {focus.reached.length > 40 && <li className="muted">and {focus.reached.length - 40} more (highlighted)</li>}
-              </ol>
-            )}
+            {focus && focus.anchor === id && focus.impact && <ImpactList impact={focus.impact} onSelect={onSelect} />}
+            {focus && focus.anchor === id && focus.requirements && <RequirementList items={focus.requirements} onSelect={onSelect} />}
           </section>
 
           {r && (
             <>
-              <DependencyList title="Needs" items={r.data.needs} onSelect={onSelect} />
-              <DependencyList title="Needed by" items={r.data["needed-by"]} onSelect={onSelect} />
+              <DependencyList title="Needs" items={r.data.needs} side="needs" onSelect={onSelect} />
+              <DependencyList title="Needed by" items={r.data["needed-by"]} side="needed-by" onSelect={onSelect} />
               {r.data.connections.length > 0 && (
                 <section>
                   <h3>Connections</h3>
@@ -174,20 +164,78 @@ function chipClass(focus: Focus | null, kind: string, key: string) {
   return focus && focus.kind === kind && focus.key === key ? "chip active" : "chip";
 }
 
-function DependencyList({ title, items, onSelect }: { title: string; items: Dependency[]; onSelect: (id: string) => void }) {
+/** Dependencies, function to function. "Needs": this part's function <- the other part's function.
+ * "Needed by": the other part's function <- this part's function. */
+function DependencyList({ title, items, side, onSelect }: { title: string; items: Dependency[]; side: "needs" | "needed-by";
+  onSelect: (id: string) => void }) {
   if (items.length === 0) return null;
   return (
     <section>
       <h3>{title}</h3>
       <ul className="relations">
         {items.map((d) => (
-          <li key={`${d.id}-${d.kind}`} title={d.description ?? undefined}>
-            <span className="tag">{d.kind}</span>
+          <li key={`${d.id}-${d.function}-${d.needs}`} title={[d.description, ...d.fallback.map((f) => `Fallback: ${f.name}`)].filter(Boolean).join(" · ") || undefined}>
+            <span className="tag" title={`${d.family} dependency`}>{d.kind}</span>
             <button type="button" className="link" onClick={() => onSelect(d.id)}>{d.name}</button>
+            <span className="muted">
+              {side === "needs" ? ` ${d.needs} → ${d.function}` : ` ${d.needs} → its ${d.function}`}
+              {d.loss === "degraded" ? " (degrades only)" : d.fallback.length ? ` (backup: ${d.fallback.map((f) => f.name).join(", ")})` : ""}
+            </span>
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+function ImpactList({ impact, onSelect }: { impact: Impact; onSelect: (id: string) => void }) {
+  const row = (x: Impact["lost"][number]) => (
+    <li key={`${x.id}-${x.function}`}>
+      <button type="button" className="link" onClick={() => onSelect(x.id)}>{x.name}</button>
+      <span className="muted"> {x.function} · {x.steps} {x.steps === 1 ? "step" : "steps"}</span>
+    </li>
+  );
+  if (!impact.lost.length && !impact.degraded.length) return <p className="muted">No other function is affected, according to TypeDB.</p>;
+  return (
+    <div className="impact">
+      {impact.lost.length > 0 && <><h4 className="lost">Lost ({impact.lost.length})</h4><ol className="reached">{impact.lost.map(row)}</ol></>}
+      {impact.degraded.length > 0 && <><h4 className="degraded">Degraded ({impact.degraded.length})</h4><ol className="reached">{impact.degraded.map(row)}</ol></>}
+      {impact.fallbacks.length > 0 && (
+        <><h4>Fallback in use</h4>
+          <ul className="reached">
+            {impact.fallbacks.map((f) => (
+              <li key={`${f.id}-${f.function}-${f.backup}`} title={f.description}>
+                <button type="button" className="link" onClick={() => onSelect(f.backup)}>{f["backup-name"]}</button>
+                <span className="muted"> keeps {f.name}: {f.function}</span>
+              </li>
+            ))}
+          </ul></>
+      )}
+    </div>
+  );
+}
+
+function RequirementList({ items, onSelect }: { items: Requirement[]; onSelect: (id: string) => void }) {
+  const groups: [Requirement["role"], string][] = [["essential", "Essential"], ["backed up", "Backed up"], ["supporting", "Supporting (loss only degrades)"]];
+  return (
+    <div className="impact">
+      {groups.map(([role, label]) => {
+        const rows = items.filter((r) => r.role === role);
+        return rows.length > 0 && (
+          <div key={role}>
+            <h4 className={role === "essential" ? "lost" : "degraded"}>{label} ({rows.length})</h4>
+            <ol className="reached">
+              {rows.map((x) => (
+                <li key={`${x.id}-${x.function}`}>
+                  <button type="button" className="link" onClick={() => onSelect(x.id)}>{x.name}</button>
+                  <span className="muted"> {x.function} · {x.steps} {x.steps === 1 ? "step" : "steps"}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
