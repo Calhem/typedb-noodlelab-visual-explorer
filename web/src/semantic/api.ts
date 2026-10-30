@@ -129,6 +129,16 @@ export interface SystemDetails extends Named {
 
 export interface ComponentListing extends Named { type: string; asset: string; node: string }
 
+export interface QuestionMeta { id: string; title: string; capability: string; explanation: string }
+
+export interface QuestionResult extends QuestionMeta {
+  summary: string;
+  columns: string[];
+  rows: (string | number)[][];
+  /** component ids the answer is about */
+  highlight: string[];
+}
+
 export interface TypeNode { type: string; parent: string | null; total: number; direct: number }
 
 export interface TypeDetail {
@@ -155,6 +165,8 @@ export const semantic = {
   assemblies: (s?: AbortSignal) => ask<AssemblyNode[]>("assemblies", s),
   systems: (s?: AbortSignal) => ask<SystemSummary[]>("systems", s),
   types: (s?: AbortSignal) => ask<TypeNode[]>("types", s),
+  questions: (s?: AbortSignal) => ask<QuestionMeta[]>("questions", s),
+  question: (q: string, s?: AbortSignal) => ask<QuestionResult>(`questions/${id(q)}`, s),
   type: (label: string, s?: AbortSignal) => ask<TypeDetail>(`types/${id(label)}`, s),
   system: (sys: string, s?: AbortSignal) => ask<SystemDetails>(`systems/${id(sys)}`, s),
 };

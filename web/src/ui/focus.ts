@@ -4,9 +4,10 @@
 // "secondary" (a function degraded; backed up or merely supporting).
 
 import { useCallback, useState } from "react";
-import { SemanticError, semantic, type AssemblyDetails, type Impact, type Requirement, type SystemDetails, type TypeDetail } from "../semantic/api";
+import { SemanticError, semantic, type AssemblyDetails, type Impact, type QuestionResult, type Requirement, type SystemDetails,
+  type TypeDetail } from "../semantic/api";
 
-export type FocusKind = "assembly" | "system" | "impact" | "requirements" | "type";
+export type FocusKind = "assembly" | "system" | "impact" | "requirements" | "type" | "question";
 export type Level = "primary" | "secondary";
 
 export interface FocusRequest {
@@ -29,6 +30,7 @@ export interface Focus extends FocusRequest {
   assembly?: AssemblyDetails;
   system?: SystemDetails;
   typeDetail?: TypeDetail;
+  question?: QuestionResult;
 }
 
 export type FocusError = { request: FocusRequest; kind: SemanticError["kind"]; message: string };
@@ -45,6 +47,8 @@ function levels(entries: [string, Level][]) {
 export function useFocus() {
   const [focus, setFocus] = useState<Focus | null>(null);
   const [error, setError] = useState<FocusError | null>(null);
+  /** the question being asked, while it runs (some take seconds) */
+  const [pending, setPending] = useState<FocusRequest | null>(null);
 
   const request = useCallback(async (req: FocusRequest) => {
     // Asking the same question again turns the perspective off.
@@ -53,6 +57,7 @@ export function useFocus() {
       return;
     }
     setError(null);
+    setPending(req);
     try {
       if (req.kind === "assembly") {
         const { data, typeql, "timings-ms": timings } = await semantic.assembly(req.key);
@@ -67,6 +72,10 @@ export function useFocus() {
         const ids = levels(data.instances.map((i) => [i.id, "primary"]));
         setFocus({ ...req, title: `Every ${data.type.replace(/-/g, " ")}: ${plural(ids.size, "component")}`, ids, typeql,
           "timings-ms": timings, typeDetail: data });
+      } else if (req.kind === "question") {
+        const { data, typeql, "timings-ms": timings } = await semantic.question(req.key);
+        const ids = levels(data.highlight.map((id) => [id, "primary"]));
+        setFocus({ ...req, title: data.summary, ids, typeql, "timings-ms": timings, question: data });
       } else if (req.kind === "impact") {
         const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key);
         const ids = levels([[req.key, "primary"], ...data.lost.map((x): [string, Level] => [x.id, "primary"]),
@@ -87,8 +96,10 @@ export function useFocus() {
       setFocus(null);
       if (e instanceof SemanticError) setError({ request: req, kind: e.kind, message: e.message });
       else throw e;
+    } finally {
+      setPending((p) => (p === req ? null : p));
     }
   }, [focus]);
 
-  return { focus, error, request, clear: useCallback(() => { setFocus(null); setError(null); }, []) };
+  return { focus, error, pending, request, clear: useCallback(() => { setFocus(null); setError(null); }, []) };
 }

@@ -3,15 +3,16 @@
 // part named here opens its component panel. The TypeQL behind each view is one click away.
 
 import { useState, type ReactNode } from "react";
-import { semantic, type AssemblyNode, type SystemSummary, type TypeNode } from "../semantic/api";
+import { semantic, type AssemblyNode, type QuestionMeta, type SystemSummary, type TypeNode } from "../semantic/api";
 import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus, FocusRequest } from "./focus";
 import { words } from "./format";
-import { QueryViewer } from "./QueryViewer";
+import { formatMs, QueryViewer } from "./QueryViewer";
 
-export type ExploreTab = "systems" | "assemblies" | "types";
+export type ExploreTab = "systems" | "assemblies" | "types" | "questions";
 
 interface Props {
+  pending: FocusRequest | null;
   tab: ExploreTab;
   onTab: (tab: ExploreTab) => void;
   focus: Focus | null;
@@ -20,9 +21,9 @@ interface Props {
   onClose: () => void;
 }
 
-const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"], ["types", "Types"]];
+const TABS: [ExploreTab, string][] = [["systems", "Systems"], ["assemblies", "Assemblies"], ["types", "Types"], ["questions", "Questions"]];
 
-export function Explore({ tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
+export function Explore({ pending, tab, onTab, focus, onFocus, onSelect, onClose }: Props) {
   return (
     <aside className="explore" aria-label="Explore the vehicle's structure in TypeDB">
       <div className="explore-head">
@@ -38,6 +39,7 @@ export function Explore({ tab, onTab, focus, onFocus, onSelect, onClose }: Props
         {tab === "systems" && <Systems focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "assemblies" && <Assemblies focus={focus} onFocus={onFocus} onSelect={onSelect} />}
         {tab === "types" && <Types focus={focus} onFocus={onFocus} onSelect={onSelect} />}
+        {tab === "questions" && <Questions pending={pending} focus={focus} onFocus={onFocus} />}
       </div>
     </aside>
   );
@@ -266,6 +268,56 @@ function Types({ focus, onFocus, onSelect }: Shared) {
         }}
       </Loaded>
       <QueryViewer answers={[tree.state?.status === "ok" ? tree.state.answer : null]} label="TypeQL for the hierarchy" />
+    </>
+  );
+}
+
+// ---- Questions ------------------------------------------------------------------------------------------------
+
+function Questions({ pending, focus, onFocus }: Omit<Shared, "onSelect"> & { pending: FocusRequest | null }) {
+  const list = useAnswer("questions", (s) => semantic.questions(s));
+  const current = focus?.kind === "question" ? focus : null;
+  const result = current?.question;
+  const running = pending?.kind === "question" ? pending.key : null;
+  const ms = current ? current["timings-ms"].reduce((a, b) => a + b, 0) : 0;
+  return (
+    <>
+      <p className="explore-intro">Questions that need more than looking up a part: totals, every part of a kind, chains of
+        dependencies, and failure reasoning across the whole vehicle. Each runs live in TypeDB.</p>
+      <Loaded state={list.state} retry={list.retry}>
+        {(questions) => (
+          <ul className="questions">
+            {questions.map((q: QuestionMeta) => {
+              const open = result?.id === q.id;
+              return (
+                <li key={q.id} className={open ? "open" : ""}>
+                  <button type="button" className="question" onClick={() => onFocus({ kind: "question", key: q.id, anchor: "explore" })}>
+                    <span className="question-tag">{q.capability}</span>
+                    <span className="question-title">{q.title}</span>
+                    {running === q.id && <span className="loading"> Asking TypeDB…</span>}
+                  </button>
+                  {open && result && (
+                    <div className="answer" ref={(el) => el?.parentElement?.scrollIntoView({ block: "nearest", behavior: "smooth" })}>
+                      <p className="answer-summary">{result.summary}</p>
+                      <p className="muted answer-how">{result.explanation} <span className="answer-time">{formatMs(ms)} in TypeDB</span></p>
+                      {result.rows.length > 0 && (
+                        <table className="answer-table">
+                          <thead><tr>{result.columns.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                          <tbody>{result.rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j}>{typeof v === "number" ? Number(v.toFixed(2)).toLocaleString("en-GB") : v}</td>)}</tr>)}</tbody>
+                        </table>
+                      )}
+                      {result.highlight.length > 0 && (
+                        <p className="muted">{result.highlight.length} {result.highlight.length === 1 ? "part" : "parts"} highlighted in the vehicle; click one there to open it.</p>
+                      )}
+                      <QueryViewer answers={[current]} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Loaded>
     </>
   );
 }

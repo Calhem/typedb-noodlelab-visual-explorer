@@ -42,12 +42,12 @@ export function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
   const typedb = useTypeDBStatus();
-  const { focus, error: focusError, request, clear } = useFocus();
+  const { focus, error: focusError, pending, request, clear } = useFocus();
   const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
   useEffect(() => {
-    const tabs: Partial<Record<string, ExploreTab>> = { system: "systems", assembly: "assemblies", type: "types" };
+    const tabs: Partial<Record<string, ExploreTab>> = { system: "systems", assembly: "assemblies", type: "types", question: "questions" };
     const tab = focus ? tabs[focus.kind] : undefined;
     if (tab) {
       setExploreTab(tab);
@@ -104,7 +104,7 @@ export function App() {
       )}
 
       {exploring && exploreOpen && (
-        <Explore tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
+        <Explore pending={pending} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
           onClose={() => setExploreOpen(false)} />
       )}
       {exploring && !exploreOpen && (
