@@ -82,9 +82,12 @@ environment, Docker services, and `localStorage`, `sessionStorage`, IndexedDB, c
 source). Four places hold domain data in the front end today. That is acceptable during visual
 development, and each has a planned move:
 
-| Where | What it holds today | Move |
-|---|---|---|
-| `web/src/vehicle/manifest.ts` | Part names, categories, assembly membership, assembly names and hierarchy, mixed with visual data (shape, position, material) | Split: visual fields stay in a build-time visual manifest; names, types and memberships move to the TypeDB seed |
-| `web/src/ui/PartLabel.tsx` | Reads part names and assembly path from the manifest at runtime | Query TypeDB through the API |
-| `web/src/vehicle/explode.ts` | Uses the assembly hierarchy to time and group the explosion | Explosion grouping becomes an animation asset generated at build time from TypeDB, checked by a test |
-| `web/src/scene/assets.ts` | Treats GLB node names as component ids | Resolve through the explicit visual mapping (TypeDB visual references) |
+| Where | What it holds today | Move | Done (Phase B, 30 October 2026) |
+|---|---|---|---|
+| `web/src/vehicle/manifest.ts` | Part names, categories, assembly membership, assembly names and hierarchy, mixed with visual data (shape, position, material) | Split: visual fields stay in a build-time visual manifest; names, types and memberships move to the TypeDB seed | Yes: names, categories, assemblies removed (`data/seed/`); a test forbids them returning |
+| `web/src/ui/PartLabel.tsx` | Reads part names and assembly path from the manifest at runtime | Query TypeDB through the API | Yes: replaced by `ComponentPanel.tsx`, fed only by the API |
+| `web/src/vehicle/explode.ts` | Uses the assembly hierarchy to time and group the explosion | Explosion grouping becomes an animation asset generated at build time from TypeDB, checked by a test | Yes: `explosion-groups.json` from `explorer.animation`; `test_7` checks it matches TypeDB |
+| `web/src/scene/assets.ts` | Treats GLB node names as component ids | Resolve through the explicit visual mapping (TypeDB visual references) | Yes (Phase A mapping file; TypeDB's visual references are tested identical to it) |
+
+The six integration tests are in `api/tests/test_architecture.py` (with `web/src/semantic/integration.test.ts`
+and `web/src/architecture.test.ts` covering the web app's side).

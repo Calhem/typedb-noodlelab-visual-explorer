@@ -7,7 +7,8 @@
 //     vehicle stays recognisable however far it opens.
 //  2. The assembly hierarchy. Each assembly moves relative to its parent (the body lifts, doors swing
 //     out, the battery drops) and each part moves within its assembly (a wheel end fans out into tyre,
-//     rim, nuts, disc, pads, calliper, hub; a motor slides apart along its axis).
+//     rim, nuts, disc, pads, calliper, hub; a motor slides apart along its axis). The tree comes from
+//     explosion-groups.json, an animation asset generated from TypeDB's assembly relations.
 //  3. A fine-detail phase. Over the last third, parts take a final smaller step (pads part from each
 //     other, nuts spread from the hub, bearings leave their housings) and the field opens further,
 //     so the assembly visibly resolves into finer detail.
@@ -15,8 +16,18 @@
 // Timing runs in tiers: major assemblies first, then sub-assemblies, then parts, then detail.
 // Everything is a pure function of the progress value, so it can be scrubbed, paused and reversed exactly.
 
-import { ASSEMBLY_BY_ID, PARTS, type Part } from "./manifest";
+import groups from "./explosion-groups.json";
+import { PARTS, type Part } from "./manifest";
 import type { Vec3 } from "./shapes";
+
+/** Assembly tree for choreography only (see explosion-groups.json); TypeDB is the source. */
+const PARENT = new Map<string, string | null>(Object.entries(groups.assemblies));
+const ASSEMBLY_OF = new Map<string, string>(Object.entries(groups.components));
+export const assemblyOf = (partId: string) => {
+  const a = ASSEMBLY_OF.get(partId);
+  if (!a) throw new Error(`explosion-groups.json has no assembly for ${partId}: regenerate it from TypeDB`);
+  return a;
+};
 
 /** A movement: an offset (metres, vehicle coordinates), an optional final detail step and a small turn. */
 export interface Motion {
@@ -286,18 +297,19 @@ export function buildExplosionPlan(centers: Map<string, Vec3>): Map<string, Step
   const nodes = new Map<string, Node>();
   const depth = (asm: string): number => {
     let d = 0;
-    for (let a = ASSEMBLY_BY_ID.get(asm)!; a.parent; a = ASSEMBLY_BY_ID.get(a.parent)!) d++;
+    for (let a = PARENT.get(asm); a; a = PARENT.get(a)) d++;
     return d;
   };
   for (const part of PARTS) {
-    for (let a: string | null = part.assembly; a && a !== "vehicle"; a = ASSEMBLY_BY_ID.get(a)!.parent) {
+    const own = assemblyOf(part.id);
+    for (let a: string | null = own; a && a !== "vehicle"; a = PARENT.get(a) ?? null) {
       if (nodes.has(`a:${a}`)) continue;
       const motion = assemblyMotion(a);
       if (motion) nodes.set(`a:${a}`, { key: `a:${a}`, tier: Math.min(depth(a), 2), offset: motion.offset });
     }
     const motion = partMotion(part, centers.get(part.id)!);
     if (motion) {
-      nodes.set(`p:${part.id}`, { key: `p:${part.id}`, tier: Math.min(depth(part.assembly) + 1, 3), offset: motion.offset, turn: motion.turn });
+      nodes.set(`p:${part.id}`, { key: `p:${part.id}`, tier: Math.min(depth(own) + 1, 3), offset: motion.offset, turn: motion.turn });
       if (motion.detail) nodes.set(`d:${part.id}`, { key: `d:${part.id}`, tier: 4, offset: motion.detail });
     }
   }
@@ -316,7 +328,7 @@ export function buildExplosionPlan(centers: Map<string, Vec3>): Map<string, Step
   const plan = new Map<string, Step[]>();
   for (const part of PARTS) {
     const keys: string[] = [];
-    for (let a: string | null = part.assembly; a && a !== "vehicle"; a = ASSEMBLY_BY_ID.get(a)!.parent) keys.unshift(`a:${a}`);
+    for (let a: string | null = assemblyOf(part.id); a && a !== "vehicle"; a = PARENT.get(a) ?? null) keys.unshift(`a:${a}`);
     keys.push(`p:${part.id}`, `d:${part.id}`);
     const steps: Step[] = [];
     for (const k of keys) {

@@ -8,6 +8,7 @@
    against the web app's visual manifest)
 5. no other database is used (also web/src/architecture.test.ts, which reads the whole project)
 6. a stopped TypeDB produces the explicit error state, not mock data
+Plus 7: the explosion grouping (an animation asset) is generated from TypeDB and still matches it.
 """
 
 import json
@@ -132,3 +133,13 @@ def test_6_unreachable_typedb_gives_the_explicit_error_not_data():
         assert "data" not in body
     health = client.get("/api/health")
     assert health.status_code == 503 and health.json()["typedb"] == "unavailable"
+
+
+def test_7_explosion_grouping_is_generated_from_typedb_and_current(driver, database):
+    """The animation's assembly grouping is exactly what TypeDB says now (regenerate with explorer.animation)."""
+    from explorer.animation import explosion_groups, render
+
+    with driver.transaction(database, READ) as tx:
+        expected = render(explosion_groups(tx))
+    committed = (PROJECT / "web" / "src" / "vehicle" / "explosion-groups.json").read_text()
+    assert committed == expected, "web/src/vehicle/explosion-groups.json is out of date: regenerate it from TypeDB"
