@@ -185,7 +185,7 @@ harness and the wheels, and each joins the function chains where it physically s
 | 15 | **Rear park lock** | nothing | nothing | any drive torque |
 | 16 | **Front HV connector** | front DC busbars, capacitor, power module, … → front tyres: drive torque | | any rear part |
 
-**Caveat for review (14, and the existing drive-shaft cases):** with an *open* differential, a broken side gear
+**Caveat for review (14, and the existing drive-shaft cases; resolved in C3b, see below):** with an *open* differential, a broken side gear
 or drive shaft leaves the other wheel of that axle with almost no torque too, because an open differential
 passes equal torque to both sides and the broken side resists nothing. The model keeps the approved C1
 per-side rule; correcting it would mean "a broken drive shaft loses drive at both wheels of its axle".
@@ -193,6 +193,39 @@ Proposed for decision, not implemented.
 
 New assumptions, added to the table below: the resolver has no sensorless fallback (a failed resolver stops
 that axle's motor); the oil pump is electric (12 V), not driven by the gears.
+
+## Open differential: axle-level propulsion (C3b, 30 October 2026)
+
+Approved correction of the C3a caveat. Written before the data change.
+
+**Engineering assumption.** Each driven axle has a conventional *open* differential: no locking mechanism,
+no limited-slip device, no torque vectoring, and one motor per axle (not one per wheel). An open differential
+always passes equal torque to its two side gears; the torque it can deliver is limited by the side that
+resists least. If one side gear or drive shaft breaks, that side spins freely and resists nothing, so
+**neither wheel on that axle receives useful drive torque.** (Traction control braking the free side does
+not help here: the broken side has nothing to brake against.)
+
+**How it is modelled (data only; the reasoning functions are unchanged):**
+- Each side gear and each drive shaft provides a new function, **reaction path**: it can carry torque
+  between the differential and its wheel. A drive shaft's reaction path needs its side gear's.
+- The differential's *drive torque* needs the reaction path of **both** drive shafts on its axle
+  (physical, loss: lost).
+- Hubs gain an explicit **wheel rotation** function, provided by the wheel bearing, so an answer can show that
+  the wheels still turn freely when drive is lost.
+
+**Axle-level versus vehicle-level.** Each impact answer now also summarises propulsion per axle, from TypeDB:
+an axle is *lost* when both its tyres lose drive torque, *reduced* when any is degraded or only one is
+lost, otherwise *kept*. Vehicle propulsion is *lost* only when every axle is lost, *reduced* when at least one
+axle is lost or reduced, otherwise *kept*. Which tyres belong to which axle comes from TypeDB (the drive
+torque chain from each axle-drive system's drive shafts to the tyres), not from part names.
+
+| # | Failure | Lost | Must not | Propulsion |
+|---|---|---|---|---|
+| 14 (revised) | **Rear left side gear** | rear differential, spider gears, both side gears, both drive shafts, both rear hubs, wheels and tyres: drive torque; rear-right drive shaft keeps its reaction path | rear hubs: wheel rotation; any calliper or pad; tie rods: steering motion; any front part | rear lost, front kept → vehicle **reduced** |
+| 17 | **Front right drive shaft** | front differential … both front tyres: drive torque | front hubs: wheel rotation; braking; steering; any rear part | front lost, rear kept → vehicle **reduced** |
+| 18 | **Rear left wheel bearing** | rear-left hub: wheel rotation | drive torque anywhere (the shaft still reacts torque; a seized bearing is not modelled) | all kept |
+| 3 (check) | **12 V battery** | as before | | both axles lost → vehicle **lost** |
+| 4 (check) | **Coolant pump** | as before | | both axles reduced → vehicle **reduced** |
 
 ## What the tests do and do not establish (C2, 30 October 2026)
 
@@ -217,4 +250,4 @@ The assumptions that most shape the answers, for review:
 | Single failures only; degradation has no magnitude | Answers do not combine failures or say "how much" | Scope of this model |
 | A resolver failure stops its motor (no sensorless fallback) | Resolver or current-sensor failure loses that axle's drive | Many production inverters do the same; some can continue sensorless at reduced performance |
 | Drive-unit oil pumps are electric (12 V) | Oil-pump failure degrades that axle's torque (splash lubrication and hotter windings) | Common in recent units; some use a gear-driven pump instead |
-| Drive torque is lost per side downstream of the differential | A side-gear or drive-shaft failure loses only that wheel's drive | Simplification: with an open differential the other wheel loses most of its torque too (see the C3a caveat) |
+| Open differentials, one motor per axle (C3b) | A side-gear or drive-shaft failure loses drive at both wheels of that axle; the other axle keeps driving | Conventional open differential: equal torque to both sides, so a free side leaves both without useful torque. A locking or limited-slip differential, or one motor per wheel, would change this |
