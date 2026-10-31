@@ -362,6 +362,44 @@ def test_35_top_mount(client):
     assert degraded == {("tyre-fl", "road holding")}
 
 
+
+# ---- C3c step 3: steering (docs/dependency-semantics.md, scenarios 36-39) --------------------------------------------
+
+FRONT_STEERING_CHAIN = {("steering-rack", "steering motion"), ("tie-rod-fl", "steering motion"), ("tie-rod-fr", "steering motion"),
+                        ("knuckle-fl", "wheel alignment"), ("knuckle-fr", "wheel alignment"), ("tyre-fl", "road holding"),
+                        ("tyre-fr", "road holding"), ("ad-compute", "automated driving")}
+ASSISTANCE = {("steering-ecu", "steering control"), ("eps-motor", "power assistance"), ("steering-rack", "steering assistance")}
+
+
+def test_36_torque_sensor_stops_assistance_not_steering(client):
+    lost, degraded, _ = impact(client, "steering-torque-sensor")
+    assert lost == ASSISTANCE | {("ad-compute", "automated driving")}
+    assert not degraded
+
+
+def test_37_intermediate_shaft(client):
+    lost, degraded, _ = impact(client, "steering-intermediate-shaft")
+    assert lost == FRONT_STEERING_CHAIN | ASSISTANCE | {("steering-torque-sensor", "steering torque")}
+    assert not {k for k in lost | degraded if k[0].endswith(("-rl", "-rr")) or k[0].startswith(("caliper", "brake", "front-motor", "rear-"))}
+
+
+def test_38_one_rack_mount_only_degrades(client):
+    lost, degraded, _ = impact(client, "steering-rack-mount-l")
+    assert not lost
+    assert degraded == {("steering-rack", "steering motion")}
+
+
+def test_39_steering_wheel(client):
+    lost, _, _ = impact(client, "steering-wheel")
+    assert lost == FRONT_STEERING_CHAIN | ASSISTANCE | {("steering-torque-sensor", "steering torque"),
+                                                        ("steering-column", "driver steering input"),
+                                                        ("steering-intermediate-shaft", "driver steering input")}
+
+
+def test_power_steering_loop_has_its_sensor(client):
+    data = get(client, "/api/components/steering-torque-sensor/relationships")["data"]
+    assert {(loop["name"], loop["role"]) for loop in data["control-loops"]} == {("Electric power steering", "sensor")}
+
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------
 
 def test_typedb_matches_the_oracle_for_every_failure(driver, database):

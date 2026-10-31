@@ -63,8 +63,9 @@ def test_type_hierarchy_counts_are_polymorphic(client):
         assert t["direct"] == direct.get(label, 0), label
         assert t["total"] == sum(n for ty, n in direct.items() if is_a(ty, label)), label
     assert types["component"]["total"] == len(SEED["components"])
-    # 15 vehicle sensors, 2 resolvers and 2 current sensors (C3a), 8 module monitors and the pack current sensor (C3b)
-    assert types["sensor"]["direct"] == 0 and types["sensor"]["total"] == 28
+    # 15 vehicle sensors, 2 resolvers and 2 current sensors (C3a), 8 module monitors and the pack current sensor (C3b),
+    # the steering torque sensor (C3c)
+    assert types["sensor"]["direct"] == 0 and types["sensor"]["total"] == 29
 
 
 def test_type_detail_shows_schema_and_every_subtype_instance(client):
@@ -72,7 +73,7 @@ def test_type_detail_shows_schema_and_every_subtype_instance(client):
     assert "sensing-range-m" in data["owns"] and "control-loop:sensor" in data["plays"]
     assert {i["id"] for i in data["instances"]} == {c["id"] for c in SEED["components"] if is_a(c["type"], "sensor")}
     assert {i["type"] for i in data["instances"]} == {"camera", "radar", "lidar", "gnss-receiver", "wheel-speed-sensor",
-                                                     "position-sensor", "current-sensor", "cell-monitor"}
+                                                     "position-sensor", "current-sensor", "cell-monitor", "torque-sensor"}
     caliper = get(client, "/api/types/brake-caliper")["data"]
     assert caliper["supertypes"] == ["brake-component", "chassis-component", "component"]
     assert "piston-count" in caliper["owns"]

@@ -53,9 +53,15 @@ connections:
   - {kind: mechanical, joint: bolted, ends: [epb-actuator-r<s>, caliper-r<s>], description: "Motor-on-calliper parking brake"}
 
   # ---- Steering -------------------------------------------------------------------------------------------
-  - {kind: mechanical, joint: bolted, ends: [steering-rack, front-subframe]}
+  - {kind: mechanical, joint: bushed, ends: [steering-rack, steering-rack-mount-l], description: "Rubber bush round the rack housing"}
+  - {kind: mechanical, joint: bushed, ends: [steering-rack, steering-rack-mount-r], description: "Rubber bush round the rack housing"}
+  - {kind: mechanical, joint: bolted, ends: [steering-rack-mount-l, front-subframe]}
+  - {kind: mechanical, joint: bolted, ends: [steering-rack-mount-r, front-subframe]}
   - {kind: mechanical, joint: meshed, ends: [eps-motor, steering-rack], description: "Belt-and-ball-nut drive on the rack"}
-  - {kind: mechanical, joint: splined, ends: [steering-column, steering-rack], description: "Intermediate shaft to the pinion"}
+  - {kind: mechanical, joint: universal-joint, ends: [steering-column, steering-intermediate-shaft], description: "Upper universal joint, inside the cabin"}
+  - {kind: mechanical, joint: universal-joint, ends: [steering-intermediate-shaft, steering-rack], description: "Lower universal joint on the pinion shaft"}
+  - {kind: mechanical, joint: bolted, ends: [steering-torque-sensor, steering-rack], description: "On the pinion housing"}
+  - {kind: data, network: hard-wired signal, ends: [steering-torque-sensor, steering-ecu], description: "Torque and steering-angle signals"}
   - {kind: mechanical, joint: splined, ends: [steering-wheel, steering-column]}
   - {kind: mechanical, joint: bolted, ends: [steering-column, cross-car-beam]}
   - {kind: data, network: hard-wired signal, ends: [steering-ecu, eps-motor], description: "Motor phase and position signals"}

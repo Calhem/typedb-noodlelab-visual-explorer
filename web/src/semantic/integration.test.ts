@@ -25,7 +25,7 @@ describe.runIf(process.env.TYPEDB_INTEGRATION === "1")("the web app against Type
 
   it("TypeDB's visual references are the nodes the app loads from each model file", async () => {
     const { data } = await get<{ id: string; asset: string; node: string }[]>("components");
-    const assets = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+    const assets = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
     expect([...new Set(data.map((c) => c.asset))].sort()).toEqual([...assets, "procedural"].sort());
     for (const asset of assets) {
       const fromTypeDB = Object.fromEntries(data.filter((c) => c.asset === asset).map((c) => [c.node, c.id]));

@@ -16,9 +16,9 @@ control-loops:
     actuators: [front-motor, rear-motor]
     system: traction-control
   - name: "Electric power steering"
-    description: "Adds steering assistance through the rack-mounted motor, from the driver's input or the automated-driving computer."
+    description: "Reads the driver's torque on the pinion shaft and adds matching assistance through the rack-mounted motor; the automated-driving computer can command it too."
     controller: steering-ecu
-    sensors: []
+    sensors: [steering-torque-sensor]
     actuators: [eps-motor]
     system: steering
   - name: "Automated driving"

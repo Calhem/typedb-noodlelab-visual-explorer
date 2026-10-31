@@ -1,6 +1,6 @@
 """C3c renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres hidden),
-the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, and
-the underside.
+the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, the
+steering system, and the underside.
     uv run --with websocket-client python -I scripts/browser/suspension.py <output-dir> [quality]
 Separate headless Chrome (see cdp.py), 1600x1000 at 2x.
 """
@@ -54,5 +54,10 @@ view("subframe-mount-close", ["front-subframe-mount-1"], 50, -12, 0.75, chassis 
 corner = lambda c, a: ids(f"corner-{c}") + [i for i in chassis if i.startswith(a)] + [f"{a}-halfshaft-r"]
 view("corner-front-inboard", ["hub-fr", "upper-arm-fr"], 215, 8, 2.3, corner("fr", "front"))
 view("corner-rear-inboard", ["hub-rr"], 155, 10, 1.9, corner("rr", "rear"))
+# steering: rack, mounts, motor and module, torque sensor, shaft and column, with the front suspension (no wheels)
+steer = ids("steering") + ["steering-wheel", "front-subframe", "front-halfshaft-l", "front-halfshaft-r"]
+steer += [i for c in ("fl", "fr") for i in ids(f"corner-{c}") if i.startswith(("tie-rod", "knuckle", "lower-arm"))]
+view("steering", ["steering-rack", "steering-intermediate-shaft"], 55, 32, 2.2, steer)
+view("steering-rack-close", ["steering-torque-sensor", "eps-motor"], -150, 25, 0.75, steer)
 view("underside", ["front-subframe", "rear-subframe"], 35, -38, 6.2, hide=("underbody",))
 b.close()

@@ -33,6 +33,9 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/^lower-arm-/, /^(front|rear)-subframe$/],
   [/^toe-link-r[lr]$/, /^rear-subframe$/],
   [/^front-subframe-mount-/, /^front-rail-[lr]$/],
+  // C3c step 3: the rack mounts bolted to the subframe; the intermediate shaft through the bulkhead in its rubber seal
+  [/^steering-rack-mount-[lr]$/, /^front-subframe$/],
+  [/^steering-intermediate-shaft$/, /^bulkhead$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
@@ -50,7 +53,7 @@ const KNOWN: [string, RegExp][] = [
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
 
 describe("mechanical packaging", () => {
   it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {

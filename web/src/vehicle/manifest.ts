@@ -205,14 +205,22 @@ const steering: Part[] = [
     // ends at the tie rods' inner joints, chosen for low bump steer (C3c step 2b, web/src/vehicle/suspension.json)
     shape: { kind: "cylinder", radius: 0.03, length: 2 * hardPoints.front.linkInner[2], axis: "z" },
     position: [hardPoints.front.linkInner[0], hardPoints.front.linkInner[1], 0] },
+  // blender/steering.py has the detailed models: a rack-parallel motor behind the rack with the control module on its
+  // inner end, the torque sensor on the pinion (driver's side), rack mounts on the subframe, and the column and
+  // intermediate shaft through the bulkhead
   { id: "eps-motor", material: "cast",
-    shape: { kind: "cylinder", radius: 0.055, length: 0.16, axis: "x" }, position: [FRONT_AXLE_X - 0.34, 0.49, 0.18] },
+    shape: { kind: "cylinder", radius: 0.045, length: 0.13, axis: "z" }, position: [hardPoints.front.linkInner[0] - 0.08, 0.46, 0.125] },
   { id: "steering-ecu", material: "electronics",
-    shape: { kind: "finned-box", size: [0.1, 0.06, 0.14], fins: 5 }, position: [FRONT_AXLE_X - 0.31, 0.51, 0.32] },
-  // placeholder down to above the rack's pinion end, inboard of the tie rod's travel; step 3 adds the intermediate
-  // shaft and universal joints
+    shape: { kind: "finned-box", size: [0.1, 0.1, 0.05], fins: 5 }, position: [hardPoints.front.linkInner[0] - 0.08, 0.46, 0.03] },
+  { id: "steering-torque-sensor", material: "cast",
+    shape: { kind: "cylinder", radius: 0.042, length: 0.04, axis: "y" }, position: [hardPoints.front.linkInner[0] - 0.02, 0.58, 0.25] },
+  ...SIDES.map((s): Part => ({
+    id: `steering-rack-mount-${s.key}`, material: "cast",
+    shape: { kind: "box", size: [0.06, 0.25, 0.05], radius: 0.01 }, position: [1.335, 0.38, s.z > 0 ? 0.228 : -0.285] })),
+  { id: "steering-intermediate-shaft", material: "steel",
+    ...absTube([[hardPoints.front.linkInner[0], 0.635, 0.3], [0.95, 0.73, DRIVER_Z]], 0.012) },
   { id: "steering-column", material: "steel",
-    ...absTube([[FRONT_AXLE_X - 0.26, 0.57, 0.3], [FRONT_AXLE_X - 0.46, 0.71, DRIVER_Z], [FRONT_AXLE_X - 0.79, 0.91, DRIVER_Z]], 0.02) },
+    ...absTube([[0.95, 0.73, DRIVER_Z], [0.64, 0.95, DRIVER_Z]], 0.03) },
   { id: "steering-wheel", material: "leather",
     shape: { kind: "steering-wheel" }, position: [0.6, 0.97, DRIVER_Z], rotation: [0, 0, -0.42] },
 ];
@@ -606,8 +614,10 @@ const thermal: Part[] = [
   { id: "coolant-lines", material: "satin-black",
     // runs above the front-left drive shaft, beside the motor's end cover
     // ends at the battery pack's coolant ports in the front bay
-    // over the front-left drive shaft, then down and under the rack's left end, clear of the tie rod's travel
-    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.46, 0.49, -0.38], [1.44, 0.38, -0.38], [1.36, 0.34, -0.4], [1.24, 0.3, -0.12], [1.212, 0.26, -0.07]], 0.013) },
+    // over the front-left drive shaft, then down and under the rack's left end, clear of the tie rod's travel, and
+    // behind the left rack mount and over the subframe's rear-left mount to the pack's ports
+    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.46, 0.49, -0.38], [1.44, 0.38, -0.38], [1.36, 0.36, -0.4], [1.23, 0.38, -0.33],
+      [1.222, 0.29, -0.12], [1.212, 0.26, -0.07]], 0.013) },
 ];
 
 const cabin: Part[] = [

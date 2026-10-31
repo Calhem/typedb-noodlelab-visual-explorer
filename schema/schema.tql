@@ -41,7 +41,7 @@ attribute sensing-range-m, value double;
 
 # ---- Kinds of connection --------------------------------------------------------------------------------
 
-attribute joint-type, value string @values("bolted", "splined", "press-fit", "bearing", "ball-joint", "bushed", "welded", "bonded", "clipped", "threaded", "seated", "meshed", "hinged");
+attribute joint-type, value string @values("bolted", "splined", "press-fit", "bearing", "ball-joint", "bushed", "welded", "bonded", "clipped", "threaded", "seated", "meshed", "hinged", "universal-joint");
 attribute voltage-class, value string @values("high-voltage", "low-voltage");
 attribute network, value string @values("CAN FD", "automotive Ethernet", "hard-wired signal");
 attribute fluid, value string @values("brake fluid", "coolant", "refrigerant", "oil");
@@ -114,6 +114,7 @@ entity gnss-receiver sub sensor;
 entity wheel-speed-sensor sub sensor;
 entity position-sensor sub sensor;                      # motor resolvers
 entity current-sensor sub sensor;
+entity torque-sensor sub sensor;                        # steering torque on the pinion shaft
 entity cell-monitor sub sensor;                          # battery module monitoring boards
 
 entity control-unit sub component, plays control-loop:controller;

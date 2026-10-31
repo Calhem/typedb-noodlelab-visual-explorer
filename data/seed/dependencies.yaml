@@ -187,7 +187,16 @@ dependencies:
   - {dependent: esc-module, function: stability control, provider: wheel-speed-sensor-<c>, needs: wheel speed, kind: data, loss: lost}
 
   # ---- Steering -----------------------------------------------------------------------------------------------
-  - {dependent: steering-rack, function: steering motion, provider: steering-column, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-column, function: driver steering input, provider: steering-wheel, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-intermediate-shaft, function: driver steering input, provider: steering-column, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-rack, function: steering motion, provider: steering-intermediate-shaft, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-torque-sensor, function: steering torque, provider: steering-intermediate-shaft, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-ecu, function: steering control, provider: steering-torque-sensor, needs: steering torque, kind: data, loss: lost,
+     description: "Without the driver's torque the module cannot work out how much to assist, so it switches assistance off"}
+  - {dependent: steering-rack, function: steering motion, provider: "steering-rack-mount-<s>", needs: rack location, kind: support, loss: degraded,
+     description: "The other mount still holds the rack; it shifts under load and the steering feels vague"}
+  - {dependent: "steering-rack-mount-<s>", function: rack location, provider: front-subframe, needs: subframe location, kind: support, loss: lost,
+     degradation: degraded}
   - {dependent: steering-rack, function: steering assistance, provider: eps-motor, needs: power assistance, kind: torque, loss: lost,
      description: "Without assistance the car still steers, with much more effort"}
   - {dependent: eps-motor, function: power assistance, provider: steering-ecu, needs: steering control, kind: control, loss: lost}

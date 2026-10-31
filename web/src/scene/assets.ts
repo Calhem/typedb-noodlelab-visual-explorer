@@ -28,7 +28,7 @@ interface VisualMap {
 }
 
 const ASSETS = settings.blenderCorner
-  ? ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"]
+  ? ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"]
   : [];
 
 /** A level of detail switches when the part's distance exceeds this many times its radius. */

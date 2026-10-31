@@ -79,7 +79,7 @@ systems:
   - id: steering
     name: "Steering"
     description: "Turns the front wheels, with electric power assistance."
-    members: [steering-wheel, steering-column, steering-rack, eps-motor, steering-ecu, tie-rod-*]
+    members: [steering-wheel, steering-column, steering-intermediate-shaft, steering-torque-sensor, steering-rack, steering-rack-mount-*, eps-motor, steering-ecu, tie-rod-*]
 
   - id: suspension
     name: "Suspension"

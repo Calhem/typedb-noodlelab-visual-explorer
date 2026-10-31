@@ -395,3 +395,55 @@ exceptions remain. The closest pairs:
 **Analysis tools, run on demand** (`ANALYSE=1`):
 - `layout.analysis.test.ts`: fast capsule layout study;
 - `steering.analysis.test.ts`: steering, tie-rod and toe-link searches.
+
+## Step 3: steering (31 October 2026)
+
+Proportionate scope, following the owner's direction: credible, recognisable parts and a complete steering chain
+in TypeDB. No further geometric optimisation.
+
+**Model** (`blender/steering.py` → `steering.glb`, 8 parts):
+- **Rack:** cast housing, rubber bellows to the tie rods, and the pinion housing on the driver's side.
+- **Power-steering motor:** rack-parallel, with a belt cover to the ball-nut housing. The steering control module
+  sits on its inner end.
+- **Torque sensor:** on the pinion, with its harness to the module.
+- **Rack mounts:** two, on the subframe's rear cross member. The left one sits outboard of the front motor; the
+  right one between the ball nut and the pinion.
+- **Intermediate shaft:** two universal joints and a rubber seal at the bulkhead.
+- **Column:** jacket, adjustment housing and bracket to the cross-car beam.
+- **Steering wheel:** still a simple shape.
+
+**TypeDB.**
+- **Four new parts:**
+  - `steering-intermediate-shaft`;
+  - `steering-torque-sensor`, of a new type `torque-sensor` under `sensor`;
+  - `steering-rack-mount-l` and `steering-rack-mount-r`.
+- **New joint type:** `universal-joint`.
+- **The chain is now complete:** steering wheel → column → intermediate shaft → rack → tie rods. Before, nothing
+  depended on the steering wheel.
+- **Control loop:** the power-steering loop gets its sensor. The module needs the torque sensor to assist, so a
+  dead sensor switches assistance off but leaves steering.
+- **Rack mounts:** each provides rack location. Losing one only degrades the steering, the same rule as the
+  subframe's mounts.
+- **Expected outcomes** were written first (scenarios 36–39 in `docs/dependency-semantics.md`), and the tests
+  match them.
+- **Counts:** 396 components, 517 connections, 345 dependencies, 80 vehicle functions.
+
+**Packaging.**
+- **Designed contacts listed:**
+  - the rack mounts bolted to the subframe;
+  - the intermediate shaft passing through the bulkhead in its seal.
+- **Moved to clear the new parts:** the rack mounts (clear of the front motor and the subframe's rear-left mount)
+  and the coolant line (behind the left mount).
+- **Motion check:** unchanged, closest pair 11.3 mm. The tie rods' travel stays clear of the new parts.
+
+**Simplifications.**
+- The rack's internal bar and its movement are not drawn: the housing stays still while the tie rods move.
+- The column adjustment is a simple housing.
+- The steering wheel stays the app's simple shape.
+
+**Tests:** web 55 passed (11 skipped), API and TypeDB 91 passed, web against live TypeDB 7 passed.
+
+**Size:** `steering.glb` is about 0.5 MB.
+
+![Steering](step3/steering.jpg)
+![Rack, motor, module and torque sensor](step3/steering-rack-close.jpg)

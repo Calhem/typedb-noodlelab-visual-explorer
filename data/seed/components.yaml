@@ -128,6 +128,10 @@ components:
   - {id: steering-ecu, type: control-unit, assembly: steering, name: "Steering control module"}
   - {id: steering-column, type: steering-component, assembly: steering, name: "Steering column"}
   - {id: steering-wheel, type: steering-component, assembly: steering, name: "Steering wheel"}
+  - {id: steering-intermediate-shaft, type: steering-component, assembly: steering, name: "Steering intermediate shaft"}
+  - {id: steering-torque-sensor, type: torque-sensor, assembly: steering, name: "Steering torque sensor"}
+  - {id: steering-rack-mount-l, type: steering-component, assembly: steering, name: "Left steering-rack mount"}
+  - {id: steering-rack-mount-r, type: steering-component, assembly: steering, name: "Right steering-rack mount"}
   # brake-control
   - {id: brake-booster, type: actuator, assembly: brake-control, name: "Electric brake booster"}
   - {id: esc-module, type: control-unit, assembly: brake-control, name: "Stability control module (ABS/ESC)"}
