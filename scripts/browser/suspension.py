@@ -1,5 +1,6 @@
-"""C3c step 2 renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres
-hidden), the subframes with their rubber body mounts against the rails, and the underside.
+"""C3c renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres hidden),
+the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, and
+the underside.
     uv run --with websocket-client python -I scripts/browser/suspension.py <output-dir> [quality]
 Separate headless Chrome (see cdp.py), 1600x1000 at 2x.
 """
@@ -48,5 +49,10 @@ view("suspension-rear-front-view", ["rear-subframe"], 70, 18, 2.2, axle("rear"))
 view("subframes-mounts-front", ["front-subframe"], 35, -30, 1.7, chassis + body)
 view("subframes-mounts-rear", ["rear-subframe"], -145, -30, 1.7, chassis + body)
 view("subframe-mount-close", ["front-subframe-mount-1"], 50, -12, 0.75, chassis + body[:4])
+# whole corners from inboard, wheel and tyre shown: the front's goose-neck knuckle and upper arm above the tyre,
+# the rear's upper arm inside the wheel and toe link ahead of the axle
+corner = lambda c, a: ids(f"corner-{c}") + [i for i in chassis if i.startswith(a)] + [f"{a}-halfshaft-r"]
+view("corner-front-inboard", ["hub-fr", "upper-arm-fr"], 215, 8, 2.3, corner("fr", "front"))
+view("corner-rear-inboard", ["hub-rr"], 155, 10, 1.9, corner("rr", "rear"))
 view("underside", ["front-subframe", "rear-subframe"], 35, -38, 6.2, hide=("underbody",))
 b.close()

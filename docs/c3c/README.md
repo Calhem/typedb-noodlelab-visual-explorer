@@ -222,3 +222,176 @@ the knuckle drops the tie rod and drop link into the spring.
 ![Rear subframe and mounts from below](subframes-mounts-rear.jpg)
 ![A subframe mount: cast boss, rubber isolator, spacer to the rail, bolt](subframe-mount-close.jpg)
 ![Underside](underside.jpg)
+
+## Step 2b: suspension geometry correction (31 October 2026)
+
+Step 2 left 43 clearance conflicts at full rebound and full lock. Step 2b reworked the suspension architecture
+to remove them without relaxing the targets: ±80 mm of travel, and ±35° for each front wheel. The full write-up,
+written before the corners were rebuilt, is
+[suspension-architecture.md](suspension-architecture.md).
+
+### What the 43 conflicts were
+
+Every conflicting pose was re-measured as a true surface-to-surface distance:
+- **65 real intersections** (under 1 mm);
+- **8 near-clearance warnings** (1–5 mm).
+
+They group into six causes:
+
+| Cause | Poses |
+|---|---|
+| Upper arm inside the tyre's height | 30 |
+| Drop link across the tie rod's / toe link's path | 24 |
+| Steering arm and calliper on the same side | 10 |
+| Anti-roll bar's ends in the tyre's sweep | 6 |
+| Damper fork vs drive shaft | 2 |
+| Tyre vs PDU | 1 |
+
+### Selected architecture
+
+**Front: high upper arm with a goose-neck knuckle.**
+- **Knuckle and upper arm:** the knuckle reaches up past the tyre to a ball joint above it, and the upper arm
+  works entirely above the tyre.
+- **Calliper:** moved ahead of the axle, opposite the steering arm.
+- **Anti-roll bar:** moved ahead of the axle, on the subframe's front cross member.
+- **Drop links:** rise to brackets on the damper fork's front leg.
+
+**Rear: double wishbone with a separate toe link, on its own hard points.** The front flipped is no longer
+used.
+- **Upper arm:** inside the wheel.
+- **Toe link:** ahead of the axle.
+- **Calliper:** behind the axle, with the parking-brake actuator.
+- **Anti-roll bar:** behind the axle.
+
+**One source of geometry.** The hard points live in `web/src/vehicle/suspension.json`, read by
+`blender/corner.py`, `blender/chassis.py`, the manifest's fallback shapes and the motion solver. The models and
+the checks can no longer disagree.
+
+**Steering axis and rack.**
+- Kingpin inclination 9.8°, caster 4.9°, scrub radius 50 mm, trail 20 mm.
+- Bump steer at most 0.13° (front) and 0.15° (rear).
+- **Rack travel: 81 mm each way**, not the 91 mm reported in step 2. That figure came from the step-2 steering
+  arm and tie-rod layout, not from the requirement.
+
+### Before and after
+
+| | |
+|---|---|
+| Front corner from inboard: the knuckle's goose neck and the upper arm above the tyre | ![](step2b/compare-corner-front-inboard.jpg) |
+| Rear corner from inboard: own geometry, toe link ahead, calliper and parking brake behind | ![](step2b/compare-corner-rear-inboard.jpg) |
+| Front axle (wheels hidden) | ![](step2b/compare-suspension-front.jpg) |
+| Rear axle (wheels hidden) | ![](step2b/compare-suspension-rear.jpg) |
+| Rear axle from ahead | ![](step2b/compare-suspension-rear-front-view.jpg) |
+
+Also in `step2b/`:
+- the subframes and their mounts from below;
+- a mount close-up;
+- the underside.
+
+"Before" is the step-2 models in the same app and camera.
+
+### Clearance across the operating envelope
+
+**What the motion check (`web/src/scene/travel.test.ts`) covers:**
+- **Travel:** every corner at nine positions from −80 to +80 mm.
+- **Steering:** the front corners at eleven rack positions across the whole ±81 mm stroke at each travel
+  position. That is 99 poses per front corner; the rear corners get 9 each.
+- **Combined extremes and intermediate positions:** full lock at full bump and at full rebound are included, as
+  are all the positions in between.
+- **Left / right articulation:** each half of the anti-roll bar twists with its own drop link (between −21° and
+  +25° at the rear). One wheel in bump with the other in rebound is therefore checked side by side.
+
+**How it measures:**
+- **True minimum distance:** between surfaces sampled every 2.5 mm, accurate to about 2 mm. Not a voxel overlap
+  count.
+- **Rule:** every pair must keep **10 mm**, except:
+  - **designed contacts**, which are listed in `travel-setup.ts`: ball joints, bushes, the damper's eye, the drive
+    shaft in the hub, the bar in its clamps, the links in their brackets;
+  - **body-structure items B1–B5**, which are counted and printed.
+- **Runtime:** about 3 minutes.
+
+**Result: no pair under 10 mm.** All 43 step-2 conflicts are gone. `travel-open.json` is deleted, so no
+exceptions remain. The closest pairs:
+
+| Gap | Pair | Where |
+|---|---|---|
+| 11.3 mm | front upper arm / top mount | full bump, 38.6° |
+| 11.4 mm | rear upper arm / drop link | full bump |
+| 12.4 mm | front tyre / subframe (lower-arm bush bracket) | full rebound, 44.9° |
+| 13.0 mm | front tie rod / drive shaft | full rebound, 44.9° |
+| 13.1 mm | front upper arm / master cylinder | full rebound, 23° |
+| 13.2 mm | front tyre / lower arm | full bump, 38.6° |
+| 13.9 mm | rear tyre / rear seat back | full bump |
+
+**Rear validation.** The rear corners are solved and checked on their own geometry:
+- toe change ±0.15° over ±80 mm;
+- camber 1.15° more negative at full bump;
+- closest pair 11.4 mm (upper arm to drop link at full bump).
+
+### Static packaging and the body backlog
+
+**Static check:** every model against its neighbours at 6 mm. No unlisted clash.
+
+**Body backlog B1–B6 kept:**
+- **B2 rails:** now also crossed by the front tie rods (the rack sits at 0.505 m to clear the drive shafts). The
+  rebuilt rails must pass above or inboard of the tie rods.
+- **B5 arch liners:** the goose-neck knuckle's top reaches the placeholder liners, statically too.
+- **B6 rear seat:** no longer occurs. The status is recorded in the backlog, with 13.9 mm measured to the seat
+  back.
+
+**Other parts moved to make room:**
+
+| Part | Change |
+|---|---|
+| PDU (power distribution unit) | 30 mm inboard: it was within 2 mm of the tyre at full bump and lock |
+| Front coolant line | rerouted under the rack's left end |
+| 12 V harness | rerouted round the front upper arm's pivots, the inverter and the rear upper arm's pivots |
+| Steering-column, EPS-motor and master-cylinder stand-ins | moved clear of the rack and the upper arm; steps 3 and 4 replace them |
+
+### TypeDB
+
+- **No new parts, connections or dependencies.**
+- **Unchanged:** the drop link still joins the damper, and the upper arm still attaches to the body.
+- **Counts unchanged:** 392 components, 511 connections, 337 dependencies, 78 vehicle functions.
+- **Only change:** the front and rear knuckles now have separate descriptions. The front one mentions the goose
+  neck, the rear one the parking brake.
+- **Explosion grouping** is unchanged and re-checked against TypeDB.
+
+### Simplifications (concept, documented)
+
+- **Rear parts:** the rear uses the front's disc, calliper and arm sections.
+- **No compliance:** no bush compliance and no tyre deflection.
+- **Anti-roll bar:** each half turns rigidly; the bar's centre is not modelled as it twists.
+- **Brake hose:** left out of the motion check, because it is designed to bend.
+- **Drive shaft:** it turns as a whole about its inner joint.
+- **Rear bump steer:** slightly toe-out in bump (0.15°). Toe-in would be preferred; this toe-link height cannot
+  give it.
+- **Scrub radius:** 50 mm is on the high side, because the large brake limits how far outboard the lower ball
+  joint can go.
+
+### Performance and size
+
+| | Step 2b models | Step 2 models, measured today |
+|---|---|---|
+| Triangles (assembled) | 1.34 M | 1.28 M |
+| Draw calls | 799 | 799 |
+| GPU frame time, high tier | 19–24 ms | 19–24 ms |
+| GPU frame time, medium tier | 15–23 ms | 16–21 ms |
+
+- **No measurable cost:** both sets of models were measured back to back, and the new ones cost no frame time.
+  Both are slower today than the step-2 report's figures, so the change is in the machine, not the models.
+- **Download:**
+  - corners 1.93–1.96 MB each (light copies 0.78 MB);
+  - chassis 218 KB;
+  - all models 14.3 MB, loaded in 0.44 s locally.
+
+### Tests
+
+- **Web:** 52 passed, 11 skipped (live-only and the on-demand analysis tools). That includes the new motion check
+  and the static packaging check; the build passes.
+- **API and TypeDB:** 86 passed.
+- **Web against live TypeDB:** 7 passed.
+
+**Analysis tools, run on demand** (`ANALYSE=1`):
+- `layout.analysis.test.ts`: fast capsule layout study;
+- `steering.analysis.test.ts`: steering, tie-rod and toe-link searches.
