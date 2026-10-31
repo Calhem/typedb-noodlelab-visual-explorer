@@ -283,6 +283,62 @@ charging current reaches the cells through them.
 contactors; pre-charge is needed at every start (the static model treats it as needed for HV supply); the
 on-board charger is the fallback for charging, not for driving.
 
+## Suspension: expected outcomes (C3c step 2, 30 October 2026)
+
+Written before the data. Until now no suspension part took part in any dependency, so a broken arm affected
+nothing. The new functions separate three kinds of consequence.
+
+**Functions.**
+- **Wheel location** (knuckle): where the wheel is, held by the lower and upper arms. Each arm provides *knuckle
+  location*. The lower arms need the subframe's *subframe location*; the upper arms pivot on the body (not
+  modelled as a failure source).
+- **Wheel alignment** (knuckle): the wheel's steer angle, held by the tie rod at the front (*steering motion*)
+  and the toe link at the rear (*toe control*, which needs the subframe).
+- **Load support** (spring): carries the corner's share of the vehicle's weight, through the top mount's *body
+  attachment*.
+- **Damping** (damper): controls wheel and body motion; also needs the top mount.
+- **Roll control** (anti-roll bar): needs both drop links' *roll link*.
+- **Subframe location** (subframe): held by four rubber mounts. Each mount's loss only *degrades* it; the other
+  three still hold the subframe.
+- **Road holding** (tyre): the per-wheel result that the others feed.
+
+**How they combine at each tyre's *road holding*:**
+
+| Lost provider function | Effect on road holding | Meaning |
+|---|---|---|
+| Wheel location (an arm or the knuckle) | **lost** | The wheel is no longer held: that corner cannot be used. Essential |
+| Wheel alignment (tie rod, toe link) | **lost** | The wheel can steer itself. Essential |
+| Load support (spring, top mount) | **degraded** | The corner rests on its bump stop; drivable slowly. Ride and handling much worse |
+| Damping (damper) | **degraded** | Ride comfort and grip on rough roads reduced |
+| Roll control (anti-roll bar or a drop link) | **degraded**, both wheels of that axle | Handling (body roll, balance) degraded; ride unaffected |
+| Subframe location (degraded by one mount) | **degraded**, through the lower arms and the toe links | Alignment shifts slightly; noise and vibration |
+
+A degraded *wheel location* passes on as degraded road holding. A lost one passes on as lost.
+
+**Not modelled:**
+- Whether a corner with lost road holding immobilises the vehicle. The answer says what is lost at that wheel.
+  The propulsion summary is unchanged, because drive torque does not depend on wheel location in this model.
+- Magnitudes and gradual wear.
+
+| # | Failure | Lost | Degraded | Must not |
+|---|---|---|---|---|
+| 28 | **Front left lower arm** | knuckle-fl: wheel location; tyre-fl: road holding | | any other wheel; drive torque, braking functions, steering motion |
+| 29 | **Rear right spring** | (the spring itself) | tyre-rr: road holding | anything lost |
+| 30 | **Front left damper** | (the damper itself) | tyre-fl: road holding | anything lost |
+| 31 | **Rear left drop link** | rear anti-roll bar: roll control | tyre-rl, tyre-rr: road holding | front tyres |
+| 32 | **Front subframe mount 2** | | front subframe: subframe location; both front lower arms and knuckles; tyre-fl, tyre-fr: road holding | anything lost; rear wheels |
+| 33 | **Front right tie rod** | knuckle-fr: wheel alignment; tyre-fr: road holding | | the left front wheel |
+| 34 | **Rear right toe link** | knuckle-rr: wheel alignment; tyre-rr: road holding | | other wheels |
+| 35 | **Front left top mount** | spring-fl: load support; damper-fl: damping | tyre-fl: road holding | anything else lost |
+| 10 (revised) | **Steering rack** | as before (both tie rods: steering motion; automated driving), **plus** knuckle-fl, -fr: wheel alignment; tyre-fl, -fr: road holding | | the rear wheels |
+
+**Revision to 10:** a rack that has failed no longer holds the front wheels' steer angle, so both front wheels
+lose alignment. This follows from the new *wheel alignment* function. The approved C1 outcome only listed
+steering motion because nothing depended on it.
+
+**Geometry assumptions** (concept, not validated production values): front and rear double wishbones with a
+tie rod or toe link; ±80 mm wheel travel; ±35° steered angle at the front. Kinematics: `docs/c3c/README.md`.
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for

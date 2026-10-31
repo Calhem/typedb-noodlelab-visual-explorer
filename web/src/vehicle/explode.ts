@@ -139,6 +139,7 @@ const PART_RULES: Rule[] = [
     return m([0, 0, s * 0.7], [Math.cos(a) * 0.14, Math.sin(a) * 0.14, s * 0.12]);
   }],
   [/^wheel-(f|r)(l|r)$/, (s) => m([0, 0, s * 0.55])],
+  [/^epb-actuator-/, (s) => m([0, 0.26, s * 0.3], [0, 0.04, -s * 0.06])],
   [/^caliper-/, (s) => m([0, 0.18, s * 0.38])],
   [/^brake-pad-outer-/, (s) => m([0, 0.1, s * 0.3], [0, 0.05, s * 0.07])],
   [/^brake-pad-inner-/, (s) => m([0, 0.1, s * 0.22], [0, 0.05, -s * 0.07])],
@@ -158,6 +159,7 @@ const PART_RULES: Rule[] = [
   [/^top-mount-/, (s) => m([0, 0.75, s * 0.3], [0, 0.15, 0])],
   [/^drop-link-/, (s) => m([0, 0.15, s * 0.15])],
   [/^toe-link-/, (s) => m([0, -0.05, s * 0.25])],
+  [/-subframe-mount-/, (_s, c) => m([0, -0.3, Math.sign(c[2]) * 0.22], [0, -0.06, 0])],
   [/-subframe$/, () => m([0, -0.45, 0])],
   [/^front-anti-roll-bar$/, () => m([0.3, -0.18, 0])],
   [/^rear-anti-roll-bar$/, () => m([-0.3, -0.18, 0])],

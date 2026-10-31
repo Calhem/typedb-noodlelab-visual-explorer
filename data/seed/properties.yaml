@@ -45,8 +45,11 @@ properties:
   - match: wheel-bearing-*
     description: "Double-row angular-contact ball bearing with a flanged outer race, letting the hub turn in the knuckle."
     material-name: "bearing steel"
-  - match: knuckle-*
-    description: "Cast suspension knuckle (upright): carries the wheel bearing and calliper and links the wheel to the suspension arms."
+  - match: [knuckle-fl, knuckle-fr]
+    description: "Cast front knuckle (upright): carries the wheel bearing and calliper, with a steering arm and a tall 'goose neck' reaching over the tyre to the high upper control arm."
+    material-name: "cast aluminium"
+  - match: [knuckle-rl, knuckle-rr]
+    description: "Cast rear knuckle (upright): carries the wheel bearing and the calliper with its parking-brake actuator, and links the wheel to the upper and lower arms and the toe link."
     material-name: "cast aluminium"
   - match: wheel-nut-*
     description: "Conical-seat wheel nut; five clamp the wheel to the hub."
@@ -67,12 +70,25 @@ properties:
     description: "Suspension wishbone: locates the knuckle, with rubber bushes at the body end and a ball joint at the wheel end."
     material-name: "forged aluminium"
   - match: [front-anti-roll-bar, rear-anti-roll-bar]
-    description: "Torsion bar linking left and right wheels to reduce body roll in corners."
+    description: "Tubular anti-roll bar: twists when one wheel rises more than the other, reducing body roll in corners. Held on the subframe in rubber bushes; drop links join its ends to the dampers."
     material-name: "spring steel"
+  - match: [front-subframe, rear-subframe]
+    description: "Subframe: a cast aluminium cradle carrying the lower arms, the drive unit's mounts and the anti-roll bar (and at the rear the toe links), mounted to the body on four rubber mounts."
+    material-name: "cast aluminium"
+  - match: drop-link-*
+    description: "Drop link: a rod with a ball joint at each end, joining the anti-roll bar's end to a bracket on the damper."
+  - match: toe-link-*
+    description: "Toe link: an adjustable rod from the subframe to the rear knuckle's arm; it sets the rear wheel's toe and stops it steering."
+  - match: top-mount-*
+    description: "Top mount: a rubber-isolated bearing plate bolting the damper and spring to the body."
   - match: steering-rack
     description: "Rack-and-pinion steering gear: turns the rotation of the steering column into side-to-side movement of the tie rods."
   - match: eps-motor
     description: "Electric power-steering motor: adds assistance torque to the rack, commanded by the steering control unit."
+  - match: [epb-actuator-rl, epb-actuator-rr]
+    description: "Electric parking-brake actuator: a motor and gear unit on the rear calliper that drives the piston mechanically to hold the pads against the disc, without hydraulic pressure."
+  - match: [front-subframe-mount-*, rear-subframe-mount-*]
+    description: "Subframe mount: a rubber bush in a cast housing at a corner of the subframe, with a spacer tube and through-bolt to the body. It isolates road noise and lets the subframe move slightly."
   - match: tie-rod-*
     description: "Tie rod: pushes and pulls the knuckle to steer the wheel."
 

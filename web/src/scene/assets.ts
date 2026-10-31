@@ -1,5 +1,5 @@
 // Loads the Blender-modelled parts (built by scripts/build-assets.sh into web/public/assets): the front-right
-// wheel corner, both drive units, the battery pack and the power electronics.
+// all four wheel corners, the subframes and anti-roll bars, both drive units, the battery pack and the power electronics.
 //
 // Each model comes as three files:
 //   <asset>.glb        full detail, Meshopt-compressed
@@ -27,7 +27,9 @@ interface VisualMap {
   nodes: Record<string, string>; // visual key -> component id
 }
 
-const ASSETS = settings.blenderCorner ? ["corner-fr", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"] : [];
+const ASSETS = settings.blenderCorner
+  ? ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"]
+  : [];
 
 /** A level of detail switches when the part's distance exceeds this many times its radius. */
 const LOD_SWITCH = { high: 60, medium: 35, low: 15 } as const;

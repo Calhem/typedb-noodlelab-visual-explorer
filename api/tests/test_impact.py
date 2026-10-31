@@ -133,8 +133,10 @@ def test_9_one_brake_hose(client):
 
 
 def test_10_steering_rack(client):
+    """Revised in C3c step 2: without the rack the front wheels' steer angle is no longer held."""
     lost, degraded, _ = impact(client, "steering-rack")
-    assert lost == {("tie-rod-fl", "steering motion"), ("tie-rod-fr", "steering motion"), ("ad-compute", "automated driving")}
+    assert lost == {("tie-rod-fl", "steering motion"), ("tie-rod-fr", "steering motion"), ("ad-compute", "automated driving"),
+                    ("knuckle-fl", "wheel alignment"), ("knuckle-fr", "wheel alignment"), ("tyre-fl", "road holding"), ("tyre-fr", "road holding")}
 
 
 # ---- C3a: the drive units in detail (docs/dependency-semantics.md, scenarios 11-16) ---------------------------------
@@ -299,6 +301,65 @@ def test_27_auxiliary_harness(client):
     # corrected expectation (docs/dependency-semantics.md): degraded chilling does not reach the modules (C1 rule)
     assert not {k for k in lost | degraded if k[1] == "drive torque"}
     assert propulsion(client, "hv-harness-aux") == ({"front-axle-drive": "kept", "rear-axle-drive": "kept"}, "kept")
+
+
+# ---- C3c step 2: suspension (docs/dependency-semantics.md, scenarios 28-35) ----------------------------------------
+
+def others(keys, corner):
+    """Affected (component, function) pairs belonging to any other wheel corner."""
+    return {k for k in keys if any(k[0].endswith(f"-{c}") for c in CORNERS if c != corner)}
+
+
+def test_28_lower_arm_loses_wheel_location(client):
+    lost, degraded, _ = impact(client, "lower-arm-fl")
+    assert lost == {("knuckle-fl", "wheel location"), ("tyre-fl", "road holding")}
+    assert not degraded
+    assert not {k for k in lost if k[1] in ("drive torque", "clamping force", "friction braking", "steering motion")}
+    assert propulsion(client, "lower-arm-fl")[1] == "kept"
+
+
+def test_29_spring_only_degrades(client):
+    lost, degraded, _ = impact(client, "spring-rr")
+    assert not lost
+    assert degraded == {("tyre-rr", "road holding")}
+
+
+def test_30_damper_only_degrades(client):
+    lost, degraded, _ = impact(client, "coilover-fl")
+    assert not lost
+    assert degraded == {("tyre-fl", "road holding")}
+
+
+def test_31_drop_link_loses_roll_control_degrades_the_axle(client):
+    lost, degraded, _ = impact(client, "drop-link-rl")
+    assert lost == {("rear-anti-roll-bar", "roll control")}
+    assert degraded == {("tyre-rl", "road holding"), ("tyre-rr", "road holding")}
+
+
+def test_32_subframe_mount_degrades_the_axle(client):
+    lost, degraded, _ = impact(client, "front-subframe-mount-2")
+    assert not lost
+    assert {("front-subframe", "subframe location"), ("lower-arm-fl", "knuckle location"), ("lower-arm-fr", "knuckle location"),
+            ("knuckle-fl", "wheel location"), ("knuckle-fr", "wheel location"), ("tyre-fl", "road holding"), ("tyre-fr", "road holding")} <= degraded
+    assert not {k for k in degraded if k[0].endswith(("-rl", "-rr")) or k[0].startswith("rear-")}
+
+
+def test_33_tie_rod_loses_that_wheels_alignment(client):
+    lost, degraded, _ = impact(client, "tie-rod-fr")
+    assert {("knuckle-fr", "wheel alignment"), ("tyre-fr", "road holding")} <= lost
+    assert not others(lost | degraded, "fr")
+
+
+def test_34_toe_link_loses_that_wheels_alignment(client):
+    lost, degraded, _ = impact(client, "toe-link-rr")
+    assert lost == {("knuckle-rr", "wheel alignment"), ("tyre-rr", "road holding")}
+    assert not degraded
+
+
+def test_35_top_mount(client):
+    lost, degraded, _ = impact(client, "top-mount-fl")
+    assert lost == {("spring-fl", "load support"), ("coilover-fl", "damping")}
+    assert degraded == {("tyre-fl", "road holding")}
 
 
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------

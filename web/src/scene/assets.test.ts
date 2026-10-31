@@ -21,58 +21,52 @@ function gltfJson(path: string) {
   return JSON.parse(buf.subarray(20, 20 + length).toString("utf8"));
 }
 
-const EXPECTED = [
-  "tyre-fr", "wheel-fr", "wheel-nut-fr-1", "wheel-nut-fr-2", "wheel-nut-fr-3", "wheel-nut-fr-4", "wheel-nut-fr-5",
-  "brake-disc-fr", "caliper-fr", "brake-pad-inner-fr", "brake-pad-outer-fr", "brake-shield-fr", "brake-hose-fr", "hub-fr", "hub-nut-fr",
-  "wheel-bearing-fr", "knuckle-fr", "wheel-speed-sensor-fr", "lower-arm-fr", "upper-arm-fr", "coilover-fr",
-  "spring-fr", "top-mount-fr", "drop-link-fr", "tie-rod-fr",
+/** A corner's parts: the same set at every corner, except tie rod (front) versus toe link and parking brake (rear). */
+const cornerParts = (c: "fl" | "fr" | "rl" | "rr") => [
+  `tyre-${c}`, `wheel-${c}`, ...[1, 2, 3, 4, 5].map((n) => `wheel-nut-${c}-${n}`), `brake-disc-${c}`, `caliper-${c}`,
+  `brake-pad-inner-${c}`, `brake-pad-outer-${c}`, `brake-shield-${c}`, `brake-hose-${c}`, `hub-${c}`, `hub-nut-${c}`,
+  `wheel-bearing-${c}`, `knuckle-${c}`, `wheel-speed-sensor-${c}`, `lower-arm-${c}`, `upper-arm-${c}`, `coilover-${c}`,
+  `spring-${c}`, `top-mount-${c}`, `drop-link-${c}`, ...(c[0] === "f" ? [`tie-rod-${c}`] : [`toe-link-${c}`, `epb-actuator-${c}`]),
 ];
 
-describe("Blender front-right corner", () => {
-  const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset("corner-fr.map.json"), "utf8"));
+describe.each([
+  ["fr", FRONT_AXLE_X, 1], ["fl", FRONT_AXLE_X, -1], ["rr", REAR_AXLE_X, 1], ["rl", REAR_AXLE_X, -1],
+] as const)("Blender corner %s", (c, axleX, side) => {
+  const name = `corner-${c}`;
+  const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
   const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>
     json.scenes[json.scene ?? 0].nodes.map((i) => json.nodes[i]);
-  const full = gltfJson(asset("corner-fr.glb"));
-  const light = gltfJson(asset("corner-fr.lod1.glb"));
+  const full = gltfJson(asset(`${name}.glb`));
+  const light = gltfJson(asset(`${name}.lod1.glb`));
   const nodes = roots(full) as { name: string; translation: number[]; rotation?: number[] }[];
 
-  it("maps every node to a component id from the manifest (node names are not ids)", () => {
-    for (const n of nodes) {
-      const id = map.nodes[n.name];
-      expect(id, n.name).toBeDefined();
-      expect(PART_BY_ID.has(id), id).toBe(true);
-    }
-  });
-
-  it("draws exactly the corner's parts, once each", () => {
-    expect(nodes.map((n) => map.nodes[n.name]).sort()).toEqual([...EXPECTED].sort());
+  it("draws exactly the corner's parts, once each, every node mapped to a manifest id (node names are not ids)", () => {
+    expect(nodes.map((n) => map.nodes[n.name]).sort()).toEqual(cornerParts(c).sort());
+    for (const id of cornerParts(c)) expect(PART_BY_ID.has(id), id).toBe(true);
     expect(Object.keys(map.nodes).sort()).toEqual(nodes.map((n) => n.name).sort());
-  });
-
-  it("has the same nodes in the light detail level", () => {
     expect(roots(light).map((n) => n.name).sort()).toEqual(nodes.map((n) => n.name).sort());
   });
 
-  it("places every part near the front-right wheel, with no rotation baked into the node", () => {
+  it("places every part near its wheel, on its side, near the manifest's stand-in, with no baked rotation", () => {
     for (const n of nodes) {
+      const id = map.nodes[n.name];
       const [x, y, z] = n.translation;
-      expect(Math.abs(x - FRONT_AXLE_X), n.name).toBeLessThan(0.35);
-      expect(y, n.name).toBeGreaterThan(0);
-      expect(y, n.name).toBeLessThan(1.1);
-      expect(z, n.name).toBeGreaterThan(0.35);
-      expect(n.rotation, n.name).toBeUndefined();
+      expect(Math.abs(x - axleX), id).toBeLessThan(0.35);
+      expect(y, id).toBeGreaterThan(0);
+      expect(y, id).toBeLessThan(1.1);
+      expect(z * side, id).toBeGreaterThan(0.35);
+      expect(n.rotation, id).toBeUndefined();
+      const stand = PART_BY_ID.get(id)!.position!;
+      expect(Math.hypot(x - stand[0], y - stand[1], z - stand[2]), id).toBeLessThan(0.15);
     }
   });
 
-  it("uses only material names the web app knows how to render", () => {
+  it("uses only material names the web app knows how to render, compressed and small enough", () => {
     const t = new THREE.Texture();
     const known = createStudioMaterials({ tread: t, treadCavity: t, ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
     for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
-  });
-
-  it("is compressed (Meshopt) and small enough to download quickly", () => {
     expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
-    expect(readFileSync(asset("corner-fr.glb")).byteLength).toBeLessThan(4_000_000);
+    expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(2_500_000);
   });
 });
 
@@ -133,6 +127,7 @@ describe.each([
 describe.each([
   ["hv-battery", 47],
   ["power-electronics", 6],
+  ["chassis", 12],
 ] as const)("Blender %s", (name, count) => {
   const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
   const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>

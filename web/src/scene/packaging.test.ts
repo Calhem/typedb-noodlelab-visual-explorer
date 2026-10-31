@@ -5,54 +5,13 @@
 // voxels are within about a voxel of each other. Parts designed to touch (a drive shaft in its hub, a mount on
 // the subframe, the harness in its connector) are listed as contacts. Loads the real compressed models.
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { describe, expect, it } from "vitest";
 import { PART_BY_ID } from "../vehicle/manifest";
 import { buildVehicle } from "./buildVehicle";
+import { loadParts, voxels } from "./clearance";
 
 const VOXEL = 0.006; // metres
-const asset = (name: string) => fileURLToPath(new URL(`../../public/assets/${name}`, import.meta.url));
-
-async function loadParts(name: string) {
-  await MeshoptDecoder.ready;
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-  const buf = readFileSync(asset(`${name}.glb`));
-  const gltf = await loader.parseAsync(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), "");
-  const map: { nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
-  gltf.scene.updateMatrixWorld(true);
-  return new Map(gltf.scene.children.map((n) => [map.nodes[n.name], n]));
-}
-
-/** Voxels touched by an object's surface (triangles sampled at a third of a voxel). */
-function voxels(object: THREE.Object3D) {
-  const out = new Set<string>();
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), p = new THREE.Vector3();
-  object.updateMatrixWorld(true);
-  object.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const pos = mesh.geometry.getAttribute("position");
-    const index = mesh.geometry.getIndex();
-    const tri = index ? index.count / 3 : pos.count / 3;
-    const at = (i: number) => (index ? index.getX(i) : i);
-    for (let t = 0; t < tri; t++) {
-      a.fromBufferAttribute(pos, at(3 * t)).applyMatrix4(mesh.matrixWorld);
-      b.fromBufferAttribute(pos, at(3 * t + 1)).applyMatrix4(mesh.matrixWorld);
-      c.fromBufferAttribute(pos, at(3 * t + 2)).applyMatrix4(mesh.matrixWorld);
-      const n = Math.ceil(Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) / (VOXEL / 3));
-      for (let i = 0; i <= n; i++)
-        for (let j = 0; j <= n - i; j++) {
-          p.copy(a).multiplyScalar(1 - (i + j) / n).addScaledVector(b, i / n).addScaledVector(c, j / n);
-          out.add(`${Math.floor(p.x / VOXEL)},${Math.floor(p.y / VOXEL)},${Math.floor(p.z / VOXEL)}`);
-        }
-    }
-  });
-  return out;
-}
 
 /** Designed contacts: [drive-unit id pattern, neighbour id pattern]. */
 const CONTACTS: [RegExp, RegExp][] = [
@@ -66,49 +25,68 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/^(battery-enclosure|battery-coolant-manifold)$/, /^coolant-lines$/],
   [/^battery-side-rail-/, /^sill-/],
   [/^(lv-battery|lv-fuse-box)$/, /^lv-harness$/],
+  // C3c: the tie rod's inner joint on the rack end; the drop link's lower joint on the anti-roll bar's end
+  [/^tie-rod-f[lr]$/, /^steering-rack$/],
+  [/^drop-link-/, /-anti-roll-bar$/],
+  // C3c step 2: the lower arms' bushes bolted in the subframe's clevis brackets; the toe links' inner joints in
+  // their brackets; the subframe mounts bolted to the front rails
+  [/^lower-arm-/, /^(front|rear)-subframe$/],
+  [/^toe-link-r[lr]$/, /^rear-subframe$/],
+  [/^front-subframe-mount-/, /^front-rail-[lr]$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
 
-/** Known clashes on the body-structure backlog (docs/body-structure-backlog.md). They are not ignored: the
- * check reports them every run, and fails if one disappears (so the list is updated when the body is fixed)
- * or if anything new appears. */
-const BACKLOG = [
-  "rear-halfshaft-l / sill-l", // B1: the sills run on into the rear wheel arches since the wheelbase change
-  "rear-halfshaft-r / sill-r",
+/** Known clashes, each listed with where it is tracked. They are not ignored: the check prints every one on every
+ * run, fails if anything new appears, and fails if a listed group no longer occurs (so the list is kept current).
+ * B1-B5: docs/body-structure-backlog.md (B6 occurs only in motion) (the simple body structure; fixed by the body reconstruction).
+ * (C3c step 1's temporary group C3c-2, placeholder suspension parts, was resolved in step 2.) */
+const KNOWN: [string, RegExp][] = [
+  ["B1", /^.+-(fl|fr|rl|rr)(-\d)? \/ sill-[lr]$|^rear-halfshaft-[lr] \/ sill-[lr]$/],
+  ["B2", /^(upper-arm|spring|coilover|drop-link|tie-rod)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
+  ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
+  ["B4", /^tyre-r[lr] \/ door-(structure|trim)-r[lr]$/],
+  ["B5", /^knuckle-f[lr] \/ arch-liner-f[lr]$/],
 ];
+const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-describe("drive-unit packaging", () => {
-  it("no drive-unit part passes through a neighbouring part", async () => {
-    const units = new Map([...(await loadParts("front-drive-unit")), ...(await loadParts("rear-drive-unit")),
-      ...(await loadParts("hv-battery")), ...(await loadParts("power-electronics"))]);
-    const corner = await loadParts("corner-fr");
-    const built = buildVehicle(corner);
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+
+describe("mechanical packaging", () => {
+  it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {
+    const assetOf = new Map<string, string>();
+    const units = new Map<string, THREE.Object3D>();
+    for (const m of MODELS) for (const [id, o] of await loadParts(m)) { units.set(id, o); assetOf.set(id, m); }
+    const built = buildVehicle(units);
     const zones = [new THREE.Box3(new THREE.Vector3(1.0, 0.1, -0.85), new THREE.Vector3(2.1, 1.1, 0.85)),
                    new THREE.Box3(new THREE.Vector3(-2.1, 0.1, -0.85), new THREE.Vector3(-0.9, 1.1, 0.85)),
                    new THREE.Box3(new THREE.Vector3(-1.1, 0.1, -0.85), new THREE.Vector3(1.3, 0.5, 0.85))];
+    // neighbours: the simple shapes in the chassis zones, and every modelled part (checked against other models only)
     const neighbours = built.filter((b) => {
-      if (units.has(b.id) || SKIP.has(b.id) || PART_BY_ID.get(b.id)!.shape.kind === "panel") return false;
+      if (SKIP.has(b.id) || PART_BY_ID.get(b.id)!.shape.kind === "panel") return false;
+      if (units.has(b.id)) return true;
       b.object.position.copy(b.position);
       b.object.rotation.copy(b.rotation);
       b.object.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(b.object);
       return zones.some((z) => z.intersectsBox(box));
     });
-    const near = neighbours.map((b) => ({ id: b.id, box: new THREE.Box3().setFromObject(b.object).expandByScalar(VOXEL), cells: null as Set<string> | null, object: b.object }));
+    const near = neighbours.map((b) => ({ id: b.id, asset: assetOf.get(b.id) ?? "", box: new THREE.Box3().setFromObject(b.object).expandByScalar(VOXEL),
+      cells: null as Set<string> | null, object: b.object }));
+    const cells = new Map<string, Set<string>>();
+    const cellsOf = (id: string, o: THREE.Object3D) => { if (!cells.has(id)) cells.set(id, voxels(o, VOXEL)); return cells.get(id)!; };
+    const contact = (a: string, b: string) => CONTACTS.some(([p, q]) => (p.test(a) && q.test(b)) || (p.test(b) && q.test(a)));
     const clashes: string[] = [];
     for (const [id, object] of units) {
       const box = new THREE.Box3().setFromObject(object);
-      let mine: Set<string> | null = null;
       for (const n of near) {
-        if (!n.box.intersectsBox(box)) continue;
-        if (CONTACTS.some(([a, b]) => a.test(id) && b.test(n.id))) continue;
-        mine ??= voxels(object);
-        n.cells ??= voxels(n.object);
+        if (n.asset && (n.asset === assetOf.get(id) || n.asset < assetOf.get(id)!)) continue; // same model, or pair already checked
+        if (!n.box.intersectsBox(box) || contact(id, n.id)) continue;
+        const mine = cellsOf(id, object), theirs = cellsOf(n.id, n.object);
         let shared = 0;
-        for (const v of n.cells) if (mine.has(v)) shared++;
+        for (const v of theirs) if (mine.has(v)) shared++;
         if (shared > 2) {
-          const pts = [...n.cells].filter((v) => mine!.has(v)).map((v) => v.split(",").map((k) => (Number(k) + 0.5) * VOXEL));
+          const pts = [...theirs].filter((v) => mine.has(v)).map((v) => v.split(",").map((k) => (Number(k) + 0.5) * VOXEL));
           const lo = [0, 1, 2].map((k) => Math.min(...pts.map((q) => q[k])).toFixed(3));
           const hi = [0, 1, 2].map((k) => Math.max(...pts.map((q) => q[k])).toFixed(3));
           clashes.push(`${id} / ${n.id}: ${shared} voxels, ${lo} .. ${hi}`);
@@ -116,8 +94,9 @@ describe("drive-unit packaging", () => {
       }
     }
     const pairs = clashes.map((c) => c.split(":")[0]);
-    console.info(`packaging: ${pairs.length} clash(es); on the backlog: ${pairs.filter((p) => BACKLOG.includes(p)).join(", ") || "none"}`);
-    expect(clashes.filter((c) => !BACKLOG.includes(c.split(":")[0])), "new clashes").toEqual([]);
-    expect(pairs.filter((p) => BACKLOG.includes(p)).sort(), "backlog clashes still present (update the list when fixed)").toEqual([...BACKLOG].sort());
-  }, 120_000);
+    const groups = new Map(KNOWN.map(([g]) => [g, pairs.filter((p) => known(p) === g)]));
+    for (const [g, ps] of groups) console.info(`packaging, known ${g}: ${ps.length} clash(es)${ps.length ? ": " + ps.join(", ") : ""}`);
+    expect(clashes.filter((c) => !known(c.split(":")[0])), "new clashes").toEqual([]);
+    for (const [g, ps] of groups) expect(ps.length, `known group ${g} no longer occurs: update the list`).toBeGreaterThan(0);
+  }, 600_000);
 });
