@@ -339,6 +339,36 @@ steering motion because nothing depended on it.
 **Geometry assumptions** (concept, not validated production values): front and rear double wishbones with a
 tie rod or toe link; ±80 mm wheel travel; ±35° steered angle at the front. Kinematics: `docs/c3c/README.md`.
 
+## Steering: expected outcomes (C3c step 3, 31 October 2026)
+
+Written before the data. Until now the column drove the rack directly, nothing depended on the steering wheel,
+and the power-steering loop had no sensor.
+
+**New parts:**
+- the **intermediate shaft**, with a universal joint at each end;
+- the **steering torque sensor** on the pinion housing;
+- two rubber **rack mounts** on the subframe.
+
+**Chain:**
+- **Driver input:** steering wheel → column → intermediate shaft → rack (*driver steering input*, then
+  *steering motion*) → tie rods.
+- **Assistance:** the torque sensor measures the driver's torque in the pinion shaft (*steering torque*, from the
+  intermediate shaft). The steering control module needs it for *steering control*, so a dead sensor stops
+  the assistance, but steering itself remains (heavier).
+- **Rack mounts:** each mount provides *rack location*, which needs the subframe's *subframe location*. Losing one
+  mount only degrades the rack's steering motion (the other still holds it), the same rule as the subframe's
+  body mounts.
+
+| # | Failure | Lost | Degraded | Must not appear |
+|---|---|---|---|---|
+| 36 | **Steering torque sensor** | steering module: steering control; power-steering motor: power assistance; rack: steering assistance; AD computer: automated driving | | rack: steering motion; tie rods; anything at the wheels |
+| 37 | **Intermediate shaft** | torque sensor: steering torque; rack: steering motion; both tie rods; both front knuckles: wheel alignment; both front tyres: road holding; AD computer; rack: steering assistance (the sensor reads nothing) | | rear wheels; braking; drive torque |
+| 38 | **Left rack mount** | | rack: steering motion | anything lost |
+| 39 | **Steering wheel** | column: driver steering input, and the same chain as 37 | | rear wheels; braking; drive torque |
+
+**Simplification, kept from the existing model:** losing the rack's steering motion makes the front wheels lose
+*wheel alignment* (step 2's rule). In reality the wheels stay where they are; the driver just cannot steer them.
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
