@@ -1,36 +1,25 @@
 // Suspension kinematics for the clearance checks (test helper; the app does not import this).
 //
-// Every corner is a double wishbone with a tie rod (front) or toe link (rear). The pickup points are those of
-// blender/corner.py and blender/drive_unit.py, given for the front-right corner and mapped to the others the
-// way the models are (left: mirrored in z; rear: flipped front to back about the axle).
+// Every corner is a double wishbone with a tie rod (front) or toe link (rear): five links locate the knuckle, the
+// spring and damper carry the load, and an anti-roll bar couples the two sides of an axle through drop links. The
+// hard points are those of web/src/vehicle/suspension.json (also read by the Blender models), given for the
+// right-hand corner of each axle and mirrored in z for the left.
 //
 // A pose is solved like this: the lower arm turns on its bushes until the wheel centre has risen by `travel`;
 // the upper arm turns until its ball joint is the right distance from the lower one; the knuckle turns about
-// the line through both ball joints until the steering arm is the tie rod's length from the tie rod's inner
-// joint, which the rack has moved sideways by `rack`. Everything else follows: the damper and spring from the
-// lower arm, the drop link from the damper, the drive shaft from the hub. Concept geometry, not a validated
-// production kinematic model: no bush compliance, no tyre deflection, damper and spring move as described.
+// the line through both ball joints until the steering (or toe) arm is the link's length from the link's inner
+// joint, which the rack has moved sideways by `rack` (front only). Everything else follows: the damper and spring
+// from the lower arm, the drop link from the damper or lower arm and the anti-roll bar's end, the drive shaft
+// from the hub. Concept geometry, not a validated production kinematic model: no bush compliance, no tyre
+// deflection, damper and spring move as described.
 
 import * as THREE from "three";
 import { FRONT_AXLE_X, REAR_AXLE_X } from "../vehicle/dimensions";
+import hardPoints from "../vehicle/suspension.json";
 
 export type Corner = "fl" | "fr" | "rl" | "rr";
 type P3 = [number, number, number];
-
-/** Front-right pickup points (vehicle coordinates). */
-const FR = {
-  W: [1.58, 0.405, 0.815], // wheel centre
-  L: [1.58, 0.235, 0.725], // lower ball joint
-  U: [1.55, 0.63, 0.66], // upper ball joint
-  S: [1.43, 0.405, 0.69], // steering (or toe-link) arm joint
-  T: [1.38, 0.4, 0.44], // tie rod's inner joint (front: on the rack; rear: the toe link's on the subframe)
-  LI: [1.58, 0.24, 0.4], // lower arm's bush axis (along x) passes through here
-  UI: [1.58, 0.62, 0.47], // upper arm's bush axis
-  E: [1.58, 0.29, 0.565], // damper's lower eye (on the lower arm)
-  TOP: [1.568, 0.93, 0.52], // damper's top mount
-  DROP_TOP: [1.51, 0.5, 0.55], // drop link's joint on the damper's bracket
-  DROP_BOTTOM: [1.43, 0.3, 0.6], // drop link's joint on the anti-roll bar
-} satisfies Record<string, P3>;
+type Axle = typeof hardPoints.front;
 
 /** Drive shafts' inner (plunging) joint centres, by corner (blender/drive_unit.py halfshaft). */
 const SHAFT_INNER: Record<Corner, P3> = {
@@ -38,13 +27,23 @@ const SHAFT_INNER: Record<Corner, P3> = {
   rr: [REAR_AXLE_X, 0.405, 0.245], rl: [REAR_AXLE_X, 0.405, -0.365],
 };
 
-const v = (p: P3) => new THREE.Vector3(...p);
+const POINTS = ["wheel", "lowerBall", "upperBall", "lowerFront", "lowerRear", "upperFront", "upperRear", "linkOuter", "linkInner",
+  "damperLower", "damperTop", "dropUpper", "dropLower"] as const;
 
-export function pickups(c: Corner) {
-  const rear = c[0] === "r", left = c[1] === "l";
-  const map = ([x, y, z]: number[]) => new THREE.Vector3(rear ? REAR_AXLE_X + FRONT_AXLE_X - x : x, y, left ? -z : z);
-  const out = Object.fromEntries(Object.entries(FR).map(([k, p]) => [k, map(p)])) as Record<keyof typeof FR, THREE.Vector3>;
-  return { ...out, J: v(SHAFT_INNER[c]), side: left ? -1 : 1 };
+export function pickups(c: Corner, axle: Axle = c[0] === "f" ? hardPoints.front : hardPoints.rear) {
+  const side = c[1] === "l" ? -1 : 1;
+  const v = ([x, y, z]: number[]) => new THREE.Vector3(x, y, side * z);
+  const P = Object.fromEntries(POINTS.map((k) => [k, v(axle[k])])) as Record<(typeof POINTS)[number], THREE.Vector3>;
+  return {
+    ...P,
+    W: P.wheel, L: P.lowerBall, U: P.upperBall, S: P.linkOuter, T: P.linkInner, E: P.damperLower, TOP: P.damperTop,
+    /** arm pivot axes: a point and a unit direction (front bush minus rear bush) */
+    LI: P.lowerRear, LA: P.lowerFront.clone().sub(P.lowerRear).normalize(),
+    UI: P.upperRear, UA: P.upperFront.clone().sub(P.upperRear).normalize(),
+    ARB: new THREE.Vector3(axle.arbAxis[0], axle.arbAxis[1], 0),
+    dropOn: axle.dropOn as "damper" | "lowerArm",
+    J: new THREE.Vector3(...SHAFT_INNER[c]), side,
+  };
 }
 
 /** The root of f between a and b nearest to `near` (scans for sign changes, then bisects): keeps a solution
@@ -71,8 +70,10 @@ function bisect(f: (x: number) => number, a: number, b: number, n = 60) {
   return (a + b) / 2;
 }
 
-const X = new THREE.Vector3(1, 0, 0);
+const Z = new THREE.Vector3(0, 0, 1);
 const turn = (p: THREE.Vector3, o: THREE.Vector3, axis: THREE.Vector3, t: number) => p.clone().sub(o).applyAxisAngle(axis, t).add(o);
+const rotationAbout = (o: THREE.Vector3, axis: THREE.Vector3, t: number) => new THREE.Matrix4().makeTranslation(o.x, o.y, o.z)
+  .multiply(new THREE.Matrix4().makeRotationAxis(axis, t)).multiply(new THREE.Matrix4().makeTranslation(-o.x, -o.y, -o.z));
 
 /** Rigid transform taking the triangle (a0, b0, c0) onto (a, b, c). */
 function frameMatrix(a0: THREE.Vector3, b0: THREE.Vector3, c0: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) {
@@ -98,9 +99,9 @@ function solve(c: Corner, travel: number, rack: number) {
   const tie = P.S.distanceTo(P.T);
   const T = P.T.clone().add(new THREE.Vector3(0, 0, rack));
   const place = (th: number) => {
-    const L = turn(P.L, P.LI, X, th);
-    const ph = bisect((p) => turn(P.U, P.UI, X, p).distanceTo(L) - dLU, -0.6, 0.6);
-    const U = turn(P.U, P.UI, X, ph);
+    const L = turn(P.L, P.LI, P.LA, th);
+    const ph = nearestRoot((p) => turn(P.U, P.UI, P.UA, p).distanceTo(L) - dLU, -0.8, 0.8, 0, 64);
+    const U = turn(P.U, P.UI, P.UA, ph);
     const k = U.clone().sub(L).normalize();
     // bring the knuckle along with the ball joints, then turn it about their axis until the tie rod fits
     const base = alignMatrix(P.L, P.U.clone().sub(P.L), U.clone().sub(L), L.clone().sub(P.L));
@@ -110,12 +111,12 @@ function solve(c: Corner, travel: number, rack: number) {
     const K = frameMatrix(P.L, P.U, P.S, L, U, S);
     return { th, ph, L, U, S, K };
   };
-  // +/-0.3 rad of lower-arm rotation covers well over +/-80 mm of wheel travel; beyond it the linkage cannot close
-  const th = bisect((t) => P.W.clone().applyMatrix4(place(t).K).y - P.W.y - travel, -0.3, 0.3);
+  // +/-0.4 rad of lower-arm rotation covers well over +/-80 mm of wheel travel; beyond it the linkage cannot close
+  const th = nearestRoot((t) => P.W.clone().applyMatrix4(place(t).K).y - P.W.y - travel, -0.4, 0.4, 0, 40);
   return { P, T, ...place(th) };
 }
 
-/** Steering angle of the wheel (degrees; positive = the wheel's front turned towards +z). */
+/** Steering angle of the wheel (degrees; positive = the wheel's front turned towards -z, a left turn). */
 function steerOf(K: THREE.Matrix4, side: number) {
   const axis = new THREE.Vector3(0, 0, side).transformDirection(K);
   return THREE.MathUtils.radToDeg(Math.atan2(axis.x, axis.z * side)) * side;
@@ -127,27 +128,29 @@ export function steerAtRack(c: Corner, travel: number, rack: number) {
   return steerOf(s.K, s.P.side);
 }
 
+/** Rack travel (metres, +z) that turns this wheel to `steer` degrees at `travel`. */
+export function rackFor(c: Corner, travel: number, steer: number) {
+  return steer === 0 || c[0] === "r" ? 0 : nearestRoot((r) => steerOf(solve(c, travel, r).K, c[1] === "l" ? -1 : 1) - steer, -0.14, 0.14, 0, 280);
+}
+
 export interface Pose {
   travel: number; steer: number; rack: number;
   /** wheel-end group (knuckle, hub, brakes, wheel, tyre...), lower arm, upper arm, tie rod or toe link,
-   * damper, spring, drop link, drive shaft */
+   * damper, spring, drop link, drive shaft, this side's half of the anti-roll bar */
   wheel: THREE.Matrix4; lowerArm: THREE.Matrix4; upperArm: THREE.Matrix4; link: THREE.Matrix4;
-  damper: THREE.Matrix4; spring: THREE.Matrix4; dropLink: THREE.Matrix4; shaft: THREE.Matrix4;
+  damper: THREE.Matrix4; spring: THREE.Matrix4; dropLink: THREE.Matrix4; shaft: THREE.Matrix4; arb: THREE.Matrix4;
+  /** the anti-roll bar's end rotation about its axis (radians) */
+  arbTwist: number;
   camber: number; toe: number;
 }
 
-/** The corner at `travel` metres of wheel-centre rise (negative = rebound) and, at the front, `steer` degrees. */
-export function pose(c: Corner, travel: number, steer = 0): Pose {
-  const rack = steer === 0 || c[0] === "r" ? 0 : nearestRoot((r) => {
-    const s = solve(c, travel, r);
-    return steerOf(s.K, s.P.side) - steer;
-  }, -0.12, 0.12, 0, 48);
+/** The corner at `travel` metres of wheel-centre rise (negative = rebound) and, at the front, `steer` degrees.
+ * `rack` may be given instead of `steer` (front only). */
+export function pose(c: Corner, travel: number, steer = 0, rack = rackFor(c, travel, steer)): Pose {
   const s = solve(c, travel, rack);
   const { P, K, T, S } = s;
-  const lowerArm = new THREE.Matrix4().makeTranslation(P.LI.x, P.LI.y, P.LI.z).multiply(new THREE.Matrix4().makeRotationAxis(X, s.th))
-    .multiply(new THREE.Matrix4().makeTranslation(-P.LI.x, -P.LI.y, -P.LI.z));
-  const upperArm = new THREE.Matrix4().makeTranslation(P.UI.x, P.UI.y, P.UI.z).multiply(new THREE.Matrix4().makeRotationAxis(X, s.ph))
-    .multiply(new THREE.Matrix4().makeTranslation(-P.UI.x, -P.UI.y, -P.UI.z));
+  const lowerArm = rotationAbout(P.LI, P.LA, s.th);
+  const upperArm = rotationAbout(P.UI, P.UA, s.ph);
   const link = alignMatrix(P.T, P.S.clone().sub(P.T), S.clone().sub(T), T.clone().sub(P.T));
   const E = P.E.clone().applyMatrix4(lowerArm);
   const turned = alignMatrix(P.TOP, P.E.clone().sub(P.TOP), E.clone().sub(P.TOP));
@@ -159,13 +162,18 @@ export function pose(c: Corner, travel: number, steer = 0): Pose {
     (f - 1) * k0.z * k0.x, (f - 1) * k0.z * k0.y, 1 + (f - 1) * k0.z * k0.z, 0, 0, 0, 0, 1);
   const spring = new THREE.Matrix4().makeTranslation(P.TOP.x, P.TOP.y, P.TOP.z).multiply(turned.clone().setPosition(0, 0, 0))
     .multiply(stretch).multiply(new THREE.Matrix4().makeTranslation(-P.TOP.x, -P.TOP.y, -P.TOP.z));
-  const dropTop = P.DROP_TOP.clone().applyMatrix4(damper);
-  const dropLink = alignMatrix(P.DROP_BOTTOM, P.DROP_TOP.clone().sub(P.DROP_BOTTOM), dropTop.clone().sub(P.DROP_BOTTOM));
+  // drop link: its upper joint rides on the damper (or lower arm); the bar's end turns about the bar's axis to meet it
+  const top = P.dropUpper.clone().applyMatrix4(P.dropOn === "damper" ? damper : lowerArm);
+  const len = P.dropUpper.distanceTo(P.dropLower);
+  const arbTwist = nearestRoot((t) => turn(P.dropLower, P.ARB, Z, t).distanceTo(top) - len, -0.6, 0.6);
+  const arb = rotationAbout(P.ARB, Z, arbTwist);
+  const bottom = P.dropLower.clone().applyMatrix4(arb);
+  const dropLink = alignMatrix(P.dropLower, P.dropUpper.clone().sub(P.dropLower), top.clone().sub(bottom), bottom.clone().sub(P.dropLower));
   const W = P.W.clone().applyMatrix4(K);
   const shaft = alignMatrix(P.J, P.W.clone().sub(P.J), W.clone().sub(P.J));
   const spin = new THREE.Vector3(0, 0, P.side).transformDirection(K);
   return {
-    travel, steer, rack, wheel: K, lowerArm, upperArm, link, damper, spring, dropLink, shaft,
+    travel, steer, rack, wheel: K, lowerArm, upperArm, link, damper, spring, dropLink, shaft, arb, arbTwist,
     camber: THREE.MathUtils.radToDeg(Math.asin(spin.y)), toe: steerOf(K, P.side),
   };
 }

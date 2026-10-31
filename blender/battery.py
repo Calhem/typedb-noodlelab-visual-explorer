@@ -481,9 +481,10 @@ def build_battery():
 def build_power():
     kit.reset()
     parts = {
-        "pdu": finned_unit("pdu", (0.2, 0.11, 0.22), (1.95, 0.655, 0.345), "z", 7,  # inboard of the right front rail
-                           [((1.95 - 0.105, 0.66, 0.30), "hv-orange", (0.02, 0.04, 0.05)), ((1.95 - 0.105, 0.66, 0.40), "hv-orange", (0.02, 0.04, 0.05)),
-                            ((1.95, 0.72, 0.42), "plastic-black", (0.04, 0.02, 0.03))]),
+        "pdu": finned_unit("pdu", (0.2, 0.11, 0.22), (1.95, 0.655, 0.315), "z", 7,  # inboard of the right front rail, clear of the
+                           # front-right tyre at full bump and lock (C3c step 2b)
+                           [((1.95 - 0.105, 0.66, 0.27), "hv-orange", (0.02, 0.04, 0.05)), ((1.95 - 0.105, 0.66, 0.37), "hv-orange", (0.02, 0.04, 0.05)),
+                            ((1.95, 0.72, 0.39), "plastic-black", (0.04, 0.02, 0.03))]),
         "dc-dc": finned_unit("dc-dc", (0.16, 0.07, 0.22), (1.99, 0.565, 0.0), "z", 9,
                              [((1.99 - 0.085, 0.565, -0.06), "hv-orange", (0.02, 0.035, 0.04)), ((1.99 + 0.0, 0.565, -0.12), "steel-zinc", (0.03, 0.02, 0.02))]),
         "obc": finned_unit("obc", (0.3, 0.1, 0.26), (-1.9, 0.6, -0.33), "x", 8,

@@ -39,14 +39,14 @@ const SKIP = new Set(["underbody"]);
 
 /** Known clashes, each listed with where it is tracked. They are not ignored: the check prints every one on every
  * run, fails if anything new appears, and fails if a listed group no longer occurs (so the list is kept current).
- * B1-B4: docs/body-structure-backlog.md (the simple body structure; fixed by the body reconstruction).
+ * B1-B5: docs/body-structure-backlog.md (B6 occurs only in motion) (the simple body structure; fixed by the body reconstruction).
  * (C3c step 1's temporary group C3c-2, placeholder suspension parts, was resolved in step 2.) */
 const KNOWN: [string, RegExp][] = [
   ["B1", /^.+-(fl|fr|rl|rr)(-\d)? \/ sill-[lr]$|^rear-halfshaft-[lr] \/ sill-[lr]$/],
-  ["B2", /^(upper-arm|spring|coilover|drop-link)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
+  ["B2", /^(upper-arm|spring|coilover|drop-link|tie-rod)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
   ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
   ["B4", /^tyre-r[lr] \/ door-(structure|trim)-r[lr]$/],
-  ["B6", /^upper-arm-r[lr] \/ seat-(rear|back-rear)$/],
+  ["B5", /^knuckle-f[lr] \/ arch-liner-f[lr]$/],
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 

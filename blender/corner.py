@@ -1,4 +1,4 @@
-"""The four wheel corners, modelled for close inspection (front right first; the others derive from it).
+"""The four wheel corners, modelled for close inspection.
 
 Build them with scripts/build-assets.sh (runs this script, then compresses the result). For each corner
 (fr, fl, rr, rl) this script writes the uncompressed model to web/assets-src/corner-<c>.glb and the visual
@@ -8,6 +8,10 @@ Nodes are named by neutral visual keys (for example "caliper"); the mapping file
 id each node draws, so Blender names never become database identifiers (decision 0001). Positions are
 the real assembled positions, in the app's coordinates (x forward, y up, z to the right). Dimensions
 follow web/src/vehicle/dimensions.ts.
+
+The suspension hard points (ball joints, arm bushes, damper ends, links) come from web/src/vehicle/suspension.json,
+which the motion checks (web/src/scene/kinematics.ts) read too. Each axle's right-hand corner is built from its
+own points; the left-hand corner is its mirror image (C3c step 2b: the rear is no longer the front flipped).
 """
 
 from __future__ import annotations
@@ -27,8 +31,12 @@ from kit import TAU, box, cylinder, lathe, merge_into, new_object, polar_array, 
 
 ROOT = Path(__file__).resolve().parent.parent
 
-AXLE = Vector((1.58, 0.405, 0.815))  # wheel centre (FRONT_AXLE_X, AXLE_Y, TRACK_HALF): web/src/vehicle/dimensions.ts
-CALIPER_ANGLE = 2.2  # calliper sits behind and above the axle (radians, in the wheel plane)
+HARD_POINTS = json.loads((ROOT / "web" / "src" / "vehicle" / "suspension.json").read_text())
+
+# Set per axle by configure(): the wheel centre (FRONT_AXLE_X or REAR_AXLE_X, AXLE_Y, TRACK_HALF), the calliper's
+# angle in the wheel plane (radians from forward, towards up), and the hard points relative to the wheel centre.
+AXLE = Vector(HARD_POINTS["front"]["wheel"])
+CALIPER_ANGLE = HARD_POINTS["front"]["caliperAngle"]
 PCD = 0.057  # wheel-stud circle radius (5 x 114.3 mm)
 MOUNT_Z = 0.035  # hub mounting face, measured outwards from the wheel centre plane
 
@@ -329,8 +337,10 @@ def brake_hose():
     c = CALIPER_ANGLE - 0.42
     inlet = Vector((0.222 * math.cos(c), 0.222 * math.sin(c), RING_Z - 0.07))
     # from a bracket on the inner wheelhouse behind the upper arm, staying inboard of the tyre and inside the rim
-    bracket = Vector((-0.17, 0.36, -0.17))
-    path = [bracket, Vector((-0.12, 0.3, -0.155)), Vector((-0.08, 0.255, -0.135)), inlet + Vector((0.0, 0.025, -0.03)), inlet + Vector((0, 0.012, -0.01))]
+    # (on the calliper's side of the axle: behind it for a trailing calliper, ahead for a leading one)
+    sx = math.copysign(1, inlet.x)
+    bracket = Vector((sx * 0.17, 0.36, -0.17))
+    path = [bracket, Vector((sx * 0.12, 0.3, -0.155)), Vector((sx * 0.08, 0.255, -0.135)), inlet + Vector((0.0, 0.025, -0.03)), inlet + Vector((0, 0.012, -0.01))]
     hose = kit.tube_path(path, 0.0058, 4)
     hose.data.materials.append(kit.material("rubber"))
     d0 = (path[1] - path[0]).normalized()
@@ -461,11 +471,8 @@ def bearing():
     return at_axle(obj)
 
 
-# Ball joints relative to the wheel centre. C3c step 2 moved them so nothing intersects the wheel, disc, shield or
-# calliper and the steering axis is realistic: kingpin inclination 9.3 deg, caster 4.3 deg (docs/c3c/README.md).
-UPPER_JOINT = Vector((-0.03, 0.225, -0.155))
-LOWER_JOINT = Vector((0.0, -0.17, -0.09))
-STEER_JOINT = Vector((-0.15, 0.0, -0.125))
+# Ball joints and the steering (or toe) arm's joint relative to the wheel centre: set by configure().
+UPPER_JOINT = LOWER_JOINT = STEER_JOINT = Vector()
 
 
 def knuckle():
@@ -473,11 +480,20 @@ def knuckle():
     calliper lugs, merged and smoothed like a casting, then machined bores."""
     bm = bmesh.new()
     merge_into(bm, transform(cylinder(0.074, 0.055, 64), Matrix.Translation((0, 0, -0.0575))))
-    merge_into(bm, rod(Vector((-0.01, 0.05, -0.06)), UPPER_JOINT + Vector((0, -0.02, 0)), 0.021))
+    if UPPER_JOINT.y > 0.3:
+        # goose neck: up out of the rim's open inner side, inboard of the tyre's inner sidewall, to the high upper
+        # ball joint above the tyre (C3c step 2b)
+        neck = [Vector((-0.01, 0.06, -0.065)), Vector((UPPER_JOINT.x * 0.5, 0.17, -0.13)), Vector((UPPER_JOINT.x, 0.28, -0.19)),
+                UPPER_JOINT + Vector((0, -0.02, 0))]
+        for a, b in zip(neck, neck[1:]):
+            merge_into(bm, rod(a, b, 0.021))
+            merge_into(bm, transform(kit.sphere(0.021, 2), Matrix.Translation(b)))
+    else:
+        merge_into(bm, rod(Vector((-0.01, 0.05, -0.06)), UPPER_JOINT + Vector((0, -0.02, 0)), 0.021))
     merge_into(bm, transform(cylinder(0.024, 0.036, 40), Matrix.Translation(UPPER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
     merge_into(bm, rod(Vector((0.0, -0.05, -0.062)), LOWER_JOINT + Vector((0, 0.02, 0)), 0.026))
     merge_into(bm, transform(cylinder(0.027, 0.04, 40), Matrix.Translation(LOWER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
-    merge_into(bm, rod(Vector((-0.05, 0.0, -0.07)), STEER_JOINT, 0.017, 32, 0.014))
+    merge_into(bm, rod(Vector((math.copysign(0.05, STEER_JOINT.x), STEER_JOINT.y * 0.4, -0.07)), STEER_JOINT, 0.017, 32, 0.014))
     merge_into(bm, transform(cylinder(0.018, 0.028, 32), Matrix.Translation(STEER_JOINT) @ Matrix.Rotation(math.pi / 2, 4, "X")))
     for k in (-0.62, 0.62):
         a = CALIPER_ANGLE + k
@@ -501,7 +517,7 @@ def knuckle():
 
 
 def speed_sensor():
-    p = Vector((-0.055, 0.048, -0.07))
+    p = Vector((-0.035, 0.065, -0.07))  # above the drive shaft's outer joint, clear of it at full lock
     parts = [
         new_object("body", transform(cylinder(0.008, 0.034, 32), Matrix.Translation(p)), "plastic-black"),
         new_object("tab", transform(box(0.03, 0.016, 0.004), Matrix.Translation(p + Vector((0.014, 0, -0.012)))), "plastic-black"),
@@ -546,8 +562,10 @@ def ball_joint(top: Vector, down: bool = False):
     return [kit.shade(kit.bevel(o, 0.0008, 1), 40) for o in pieces]
 
 
-def wishbone(name: str, outer: Vector, inner_front: Vector, inner_rear: Vector, bar=(0.04, 0.026), brace: float | None = None, web_reach: float = 0.42):
-    """Forged wishbone: two legs of rounded section, a web near the ball joint, bushings at the frame."""
+def wishbone(name: str, outer: Vector, inner_front: Vector, inner_rear: Vector, bar=(0.04, 0.026), brace: float | None = None, web_reach: float = 0.42,
+             stud_down: bool = False):
+    """Forged wishbone: two legs of rounded section, a web near the ball joint, bushings at the frame. The ball
+    joint's stud points up into the knuckle (a lower arm) or down into it (stud_down: an upper arm)."""
     legs = [kit.tube_path([inner_front, outer], 0, profile="I", size=bar), kit.tube_path([inner_rear, outer], 0, profile="I", size=bar)]
     web = bmesh.new()
     a, b, c = outer, outer.lerp(inner_front, web_reach), outer.lerp(inner_rear, web_reach)
@@ -576,23 +594,24 @@ def wishbone(name: str, outer: Vector, inner_front: Vector, inner_rear: Vector, 
     for p in (inner_front, inner_rear):
         merge_into(bores, transform(cylinder(0.02, 0.1, 40), Matrix.Translation(p) @ Matrix.Rotation(math.pi / 2, 4, "Y")))
     body = kit.shade(kit.cut(body, new_object("bores", bores, "aluminium-forged")), 40)
-    extras = bushing(inner_front) + bushing(inner_rear) + ball_joint(outer + Vector((0, 0.015, 0)))
+    extras = bushing(inner_front) + bushing(inner_rear) + (ball_joint(outer - Vector((0, 0.015, 0)), down=True) if stud_down else ball_joint(outer + Vector((0, 0.015, 0))))
     obj = kit.join(name, [body, *extras])
     kit.box_uv(obj, 6)
     return obj
 
 
-# The damper and spring sit inboard of the upper arm's legs (C3c step 2: 4 cm further in than Phase A).
-LOWER_EYE = Vector((AXLE.x, 0.29, 0.565))
-TOP = Vector((AXLE.x - 0.012, 0.93, 0.52))
-DAMPER_FRAME = Matrix.Translation(LOWER_EYE) @ Vector((0, 1, 0)).rotation_difference((TOP - LOWER_EYE).normalized()).to_matrix().to_4x4()
+# The damper runs from its lower eye on the lower arm to the top mount; the spring passes between the upper arm's
+# legs. Set by configure().
+LOWER_EYE = TOP = DROP_TOP = Vector()
+DAMPER_FRAME = Matrix.Identity(4)
+FORK = 0.115  # half the fork legs' spacing: clear of the drive shaft's swing with lock and travel
 
 
 def fork():
     """Damper fork: two legs from the lower cross-tube up past the drive shaft, joined by a clamp round the
     damper body. Local frame: lower eye at the origin, damper axis +y, legs either side in x."""
     bm = bmesh.new()
-    for x in (-0.105, 0.105):  # wide enough for the drive shaft's movement with steering and travel
+    for x in (-FORK, FORK):  # wide enough for the drive shaft's movement with steering and travel
         merge_into(bm, rod(Vector((x, 0.0, 0.0)), Vector((x, 0.19, 0.0)), 0.012, 24))
         merge_into(bm, rod(Vector((x, 0.19, 0.0)), Vector((x * 0.4, 0.215, 0.0)), 0.012, 24))
         merge_into(bm, transform(cylinder(0.02, 0.03, 32), Matrix.Translation((x, 0, 0)) @ Matrix.Rotation(math.pi / 2, 4, "Y")))
@@ -616,7 +635,7 @@ def damper():
         new_object("lock", along_y([(0.0285, 0.288), (0.04, 0.288), (0.04, 0.298), (0.0285, 0.298)]), "aluminium-anodised"),
         new_object("rod", along_y([(0.0005, 0.36), (0.009, 0.36), (0.009, 0.66), (0.0005, 0.66)]), "steel-chrome"),
         new_object("bump", along_y(bump), "polyurethane"),
-        new_object("eye", transform(cylinder(0.022, 0.24, 48), Matrix.Rotation(math.pi / 2, 4, "Y")), "damper-paint"),
+        new_object("eye", transform(cylinder(0.022, 2 * FORK + 0.03, 48), Matrix.Rotation(math.pi / 2, 4, "Y")), "damper-paint"),
         new_object("fork", fork(), "aluminium-forged"),
     ]
     notches = bmesh.new()
@@ -626,6 +645,13 @@ def damper():
     pieces[3] = kit.cut(pieces[3], new_object("notches", notches, "aluminium-anodised"))
     pieces = [kit.shade(kit.bevel(o, 0.0009, 2), 35) for o in pieces]
     pieces += bushing(Vector((0, 0, 0)))
+    # bracket for the drop link's upper joint, from the nearer fork leg
+    q = DAMPER_FRAME.inverted() @ DROP_TOP
+    leg = Vector((math.copysign(FORK, q.x), q.y, 0))
+    bracket = bmesh.new()
+    merge_into(bracket, rod(leg, q, 0.011, 24))
+    merge_into(bracket, transform(cylinder(0.016, 0.03, 32), Matrix.Translation(q) @ kit.align_z((q - leg).normalized())))
+    pieces.append(kit.shade(new_object("drop-bracket", bracket, "aluminium-forged"), 40))
     obj = kit.join("damper", pieces)
     obj.data.transform(DAMPER_FRAME)
     kit.box_uv(obj, 6)
@@ -702,23 +728,28 @@ def epb_actuator():
 
 # ---- build --------------------------------------------------------------------------------------------
 #
-# All four corners come from the same front-right geometry, so they match exactly:
-#   fr  as modelled
-#   fl  mirrored left to right (the tyre is turned round instead, so its sidewall marking still reads correctly)
-#   rr  flipped front to back about the axle and moved to the rear axle: the steering arm becomes the arm for
-#       the toe link (no gaiter), the calliper sits ahead of the axle and carries an electric parking brake
-#   rl  the rear-right, mirrored left to right
-# The rear corners use the front's disc, calliper and arm sizes (a simplification: docs/c3c/README.md).
+# Each axle's right-hand corner is built from its own hard points (web/src/vehicle/suspension.json):
+#   front  high upper arm above the tyre with a goose-neck knuckle, leading calliper, steering arm behind the axle
+#   rear   upper arm inside the wheel, trailing calliper with an electric parking brake, toe link ahead of the axle
+# The left-hand corners are mirror images (the tyre is turned round instead, so its sidewall marking still reads
+# correctly). The rear corners use the front's disc, calliper and arm sections (a simplification: docs/c3c/README.md).
 
-FRONT_X, REAR_X = 1.58, -1.45  # web/src/vehicle/dimensions.ts (FRONT_AXLE_X, REAR_AXLE_X)
-# Inner joint of the tie rod (front, on the rack end) and of the toe link (rear, on the subframe). Chosen for
-# low bump steer over +/-80 mm of travel (C3c step 2, docs/c3c/README.md): at most 0.27 deg of toe change, with
-# toe-in in bump at the rear.
-TIE_INNER = Vector((AXLE.x - 0.2, 0.40, 0.44))
+
+def configure(axle: str):
+    """Set the module's geometry for one axle's right-hand corner."""
+    global AXLE, CALIPER_ANGLE, UPPER_JOINT, LOWER_JOINT, STEER_JOINT, LOWER_EYE, TOP, DROP_TOP, DAMPER_FRAME
+    hp = {k: (Vector(v) if isinstance(v, list) and len(v) == 3 else v) for k, v in HARD_POINTS[axle].items()}
+    AXLE = hp["wheel"]
+    CALIPER_ANGLE = hp["caliperAngle"]
+    UPPER_JOINT, LOWER_JOINT, STEER_JOINT = hp["upperBall"] - AXLE, hp["lowerBall"] - AXLE, hp["linkOuter"] - AXLE
+    LOWER_EYE, TOP, DROP_TOP = hp["damperLower"], hp["damperTop"], hp["dropUpper"]
+    DAMPER_FRAME = Matrix.Translation(LOWER_EYE) @ Vector((0, 1, 0)).rotation_difference((TOP - LOWER_EYE).normalized()).to_matrix().to_4x4()
+    return hp
 
 
 def corner_parts(rear: bool) -> dict:
-    """The corner's parts at the front-right position, keyed by neutral visual key."""
+    """The right-hand corner's parts of one axle, keyed by neutral visual key."""
+    hp = configure("rear" if rear else "front")
     parts = {
         "tyre": tyre(),
         "wheel": wheel(),
@@ -734,36 +765,29 @@ def corner_parts(rear: bool) -> dict:
         "wheel-bearing": bearing(),
         "knuckle": knuckle(),
         "wheel-speed-sensor": speed_sensor(),
-        "lower-arm": wishbone("lower", AXLE + LOWER_JOINT, Vector((AXLE.x + 0.17, 0.24, 0.40)), Vector((AXLE.x - 0.17, 0.24, 0.40)), brace=0.586),
-        # upper arm: pivots spread to +/-0.23 m so its legs pass either side of the spring (same pivot axis)
-        "upper-arm": wishbone("upper", AXLE + UPPER_JOINT, Vector((AXLE.x + 0.23, 0.62, 0.47)), Vector((AXLE.x - 0.23, 0.62, 0.47)), bar=(0.032, 0.022), web_reach=0.2),
+        "lower-arm": wishbone("lower", hp["lowerBall"], hp["lowerFront"], hp["lowerRear"], brace=0.586),
+        # upper arm: its legs pass either side of the spring
+        "upper-arm": wishbone("upper", hp["upperBall"], hp["upperFront"], hp["upperRear"], bar=(0.032, 0.022), web_reach=0.2, stud_down=True),
         "coilover": damper(),
         "spring": spring(),
         "top-mount": top_mount(),
-        # drop link: from the anti-roll bar's end (clear of the damper fork) to a bracket on the damper body
-        "drop-link": link("drop", Vector((AXLE.x - 0.15, 0.30, 0.60)), Vector((AXLE.x - 0.07, 0.50, 0.55)), 0.006),
+        # drop link: from the anti-roll bar's end to the bracket on the damper's fork
+        "drop-link": link("drop", hp["dropLower"], hp["dropUpper"], 0.006),
     }
     if rear:
-        parts["toe-link"] = link("toe", TIE_INNER, AXLE + STEER_JOINT, 0.0085, adjuster=True)
+        parts["toe-link"] = link("toe", hp["linkInner"], hp["linkOuter"], 0.0085, adjuster=True)
         parts["epb-actuator"] = epb_actuator()
     else:
-        parts["tie-rod"] = link("tie", TIE_INNER, AXLE + STEER_JOINT, 0.0085, adjuster=True, gaiter=True)
+        parts["tie-rod"] = link("tie", hp["linkInner"], hp["linkOuter"], 0.0085, adjuster=True, gaiter=True)
     return parts
 
 
 def corner_transform(corner: str, turn: bool) -> Matrix:
-    """Maps front-right geometry to `corner`. turn=True gives a rotation instead of a mirror (for the tyre)."""
-    mirror_z = Matrix.Diagonal((1, 1, -1, 1))
-    flip_x = Matrix.Translation((REAR_X + FRONT_X, 0, 0)) @ Matrix.Diagonal((-1, 1, 1, 1))  # front-to-back, to the rear axle
-    to_rear = Matrix.Translation((REAR_X - FRONT_X, 0, 0))
-    turn_about = lambda x: Matrix.Translation((2 * x, 0, 0)) @ Matrix.Diagonal((-1, 1, -1, 1))  # half a turn about the vertical
-    if corner == "fr":
+    """Maps the axle's right-hand geometry to `corner`. turn=True gives a rotation instead of a mirror (for the tyre)."""
+    if corner[1] == "r":
         return Matrix.Identity(4)
-    if corner == "fl":
-        return turn_about(FRONT_X) if turn else mirror_z
-    if corner == "rr":
-        return to_rear if turn else flip_x
-    return (turn_about(REAR_X) @ to_rear) if turn else (mirror_z @ flip_x)
+    x = AXLE.x
+    return Matrix.Translation((2 * x, 0, 0)) @ Matrix.Diagonal((-1, 1, -1, 1)) if turn else Matrix.Diagonal((1, 1, -1, 1))
 
 
 def build(corner: str = "fr"):

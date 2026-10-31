@@ -2,10 +2,10 @@
 
 Build with scripts/build-assets.sh. Writes web/assets-src/chassis.glb and web/public/assets/chassis.map.json.
 
-Both axles share one layout, written in "front-relative" coordinates: dx is measured from the axle, positive
-towards the front of the car at the front axle. The rear axle's corners are the front ones flipped front to
-back (blender/corner.py), so at the rear the same dx points rearwards: x = axle - dx. That keeps every pickup
-point (lower-arm bushes, drop links, toe links) where the corners put it.
+Both cradles share one layout, written in "front-relative" coordinates: dx is measured from the axle, positive
+towards the front of the car at the front axle and rearwards at the rear (x = axle - dx), so each cradle's
+lower-arm bushes sit either side of its axle. The suspension hard points (anti-roll-bar axis and ends, toe-link
+inner joints) come from web/src/vehicle/suspension.json, shared with blender/corner.py and the motion checks.
 
   subframe   cast cradle: two side members, three cross members (front, centre under the drive unit, rear with
              the anti-roll-bar clamps), clevis brackets either side of each lower-arm bush, pads under the
@@ -41,9 +41,20 @@ Y0, Y1 = 0.20, 0.25  # cradle bottom and top
 ARM_DX, ARM_Y, ARM_Z = 0.17, 0.24, 0.40  # lower-arm inner bushes (blender/corner.py wishbone)
 EYE_HALF = 0.028  # half the arm eye's length
 CROSS = dict(front=0.26, rear=-0.28)  # front and rear cross members
-ARB_DX, ARB_Y, ARB_BEND_Z, ARB_BUSH_Z = -0.28, 0.28, 0.38, 0.30
-DROP_END = (-0.15, 0.30, 0.60)  # drop link's lower joint (blender/corner.py): low, clear of the tie rod and toe link
-TOE = (-0.20, 0.40, 0.44)  # toe link's inner joint (rear only; blender/corner.py TIE_INNER)
+HARD_POINTS = json.loads((ROOT / "web" / "src" / "vehicle" / "suspension.json").read_text())
+ARB_BEND_Z, ARB_BUSH_Z = 0.38, 0.30  # where the bar bends towards its ends, and its rubber bushes
+
+
+def rel(axle: str, x: float, y: float, z: float):
+    """Vehicle coordinates -> front-relative (dx, y, z) for this axle."""
+    return (x - FRONT_X if axle == "front" else REAR_X - x, y, z)
+
+
+def arb(axle: str):
+    """The anti-roll bar's axis (front-relative dx, y) and the drop link's lower joint (front-relative)."""
+    hp = HARD_POINTS[axle]
+    dx, y, _ = rel(axle, hp["arbAxis"][0], hp["arbAxis"][1], 0)
+    return dx, y, rel(axle, *hp["dropLower"])
 MOUNT_DX, MOUNT_Z = 0.30, 0.36  # inboard of the tyre's sweep at full lock (C3c step 2)
 # drive-unit mount pads (dx, z): blender/drive_unit.py mount()
 DU_PADS = dict(front=[(-0.03, -0.22), (-0.04, 0.125), (0.21, 0.175)], rear=[(0.10, -0.235), (-0.04, 0.125), (0.21, 0.175)])
@@ -96,12 +107,15 @@ def subframe(axle: str):
     for s in (-1, 1):
         for dx in (-ARM_DX, ARM_DX):  # clevis brackets either side of each lower-arm bush
             for side in (-1, 1):
-                q = p(dx + side * (EYE_HALF + 0.012), (Y0 + ARM_Y + 0.035) / 2, s * (SIDE_Z + ARM_Z + 0.04) / 2)
-                merge_into(bm, transform(box(0.008, ARM_Y + 0.035 - Y0, ARM_Z + 0.04 - SIDE_Z + 0.03), Matrix.Translation(q)))
-        # anti-roll-bar clamp pedestal on the rear cross member
-        merge_into(bm, transform(box(0.05, ARB_Y - 0.018 - Y1 + 0.004, 0.06), Matrix.Translation(p(ARB_DX, (Y1 + ARB_Y - 0.018) / 2, s * ARB_BUSH_Z))))
+                # from the side member out to just past the bush's eye (clear of the tyre at full lock)
+                z0, z1 = SIDE_Z - 0.015, ARM_Z + 0.03
+                q = p(dx + side * (EYE_HALF + 0.012), (Y0 + ARM_Y + 0.035) / 2, s * (z0 + z1) / 2)
+                merge_into(bm, transform(box(0.008, ARM_Y + 0.035 - Y0, z1 - z0), Matrix.Translation(q)))
+        # anti-roll-bar clamp pedestal on the cross member under the bar
+        adx, ay, _ = arb(axle)
+        merge_into(bm, transform(box(0.05, ay - 0.018 - Y1 + 0.004, 0.06), Matrix.Translation(p(adx, (Y1 + ay - 0.018) / 2, s * ARB_BUSH_Z))))
         if axle == "rear":  # toe-link brackets: two plates rising to the toe link's inner joint
-            tdx, ty, tz = TOE
+            tdx, ty, tz = rel(axle, *HARD_POINTS["rear"]["linkInner"])
             for side in (-1, 1):
                 q = p(tdx + side * 0.024, (Y1 + ty + 0.02) / 2, s * (SIDE_Z + tz) / 2 + s * 0.01)
                 merge_into(bm, transform(box(0.008, ty + 0.02 - Y1, tz - SIDE_Z + 0.04), Matrix.Translation(q)))
@@ -140,11 +154,12 @@ def body_mount(axle: str, n: int):
 
 def anti_roll_bar(axle: str):
     """Tubular anti-roll bar: a straight centre across the cradle, bends at both ends rising to flattened eyes
-    for the drop links, and rubber bushes in steel clamps on the cradle's rear cross member."""
+    for the drop links, and rubber bushes in steel clamps on a cradle cross member."""
     p = place(axle)
-    ex, ey, ez = DROP_END
-    pts = [p(ex, ey, -ez), p(ARB_DX + 0.04, ARB_Y + 0.01, -ARB_BEND_Z - 0.02), p(ARB_DX, ARB_Y, -ARB_BEND_Z + 0.04),
-           p(ARB_DX, ARB_Y, ARB_BEND_Z - 0.04), p(ARB_DX + 0.04, ARB_Y + 0.01, ARB_BEND_Z + 0.02), p(ex, ey, ez)]
+    adx, ay, (ex, ey, ez) = arb(axle)
+    toward = math.copysign(0.04, ex - adx)  # the bends lean towards the ends
+    pts = [p(ex, ey, -ez), p(adx + toward, ay + 0.01, -ARB_BEND_Z - 0.02), p(adx, ay, -ARB_BEND_Z + 0.04),
+           p(adx, ay, ARB_BEND_Z - 0.04), p(adx + toward, ay + 0.01, ARB_BEND_Z + 0.02), p(ex, ey, ez)]
     tube = kit.tube_path(pts, 0.012, 6)
     tube.data.materials.append(kit.material("spring-paint"))
     eyes = bmesh.new()
@@ -154,7 +169,7 @@ def anti_roll_bar(axle: str):
     bushes = bmesh.new()
     clamps = bmesh.new()
     for s in (-1, 1):
-        q = p(ARB_DX, ARB_Y, s * ARB_BUSH_Z)
+        q = p(adx, ay, s * ARB_BUSH_Z)
         merge_into(bushes, transform(lathe([(0.0125, -0.022), (0.022, -0.02), (0.022, 0.02), (0.0125, 0.022)], 32), Matrix.Translation(q)))
         merge_into(clamps, transform(lathe([(0.022, -0.016), (0.026, -0.016), (0.026, 0.016), (0.022, 0.016)], 32), Matrix.Translation(q)))
         for side in (-1, 1):

@@ -45,8 +45,11 @@ properties:
   - match: wheel-bearing-*
     description: "Double-row angular-contact ball bearing with a flanged outer race, letting the hub turn in the knuckle."
     material-name: "bearing steel"
-  - match: knuckle-*
-    description: "Cast suspension knuckle (upright): carries the wheel bearing and calliper and links the wheel to the suspension arms."
+  - match: [knuckle-fl, knuckle-fr]
+    description: "Cast front knuckle (upright): carries the wheel bearing and calliper, with a steering arm and a tall 'goose neck' reaching over the tyre to the high upper control arm."
+    material-name: "cast aluminium"
+  - match: [knuckle-rl, knuckle-rr]
+    description: "Cast rear knuckle (upright): carries the wheel bearing and the calliper with its parking-brake actuator, and links the wheel to the upper and lower arms and the toe link."
     material-name: "cast aluminium"
   - match: wheel-nut-*
     description: "Conical-seat wheel nut; five clamp the wheel to the hub."
