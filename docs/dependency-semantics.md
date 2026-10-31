@@ -369,6 +369,47 @@ and the power-steering loop had no sensor.
 **Simplification, kept from the existing model:** losing the rack's steering motion makes the front wheels lose
 *wheel alignment* (step 2's rule). In reality the wheels stay where they are; the driver just cannot steer them.
 
+## Braking supply and parking: expected outcomes (C3c step 4, 31 October 2026)
+
+Written before the data.
+
+**Brake supply.**
+- **New parts:**
+  - the **brake-fluid reservoir** on the master cylinder;
+  - **rigid brake lines** from the stability-control (ESC) module to each corner's hose (`brake-line-fl` … `-rr`).
+- **The chain becomes:** reservoir → master cylinder → ESC module → line → hose → calliper.
+- **Fail-open fallback moves to the lines.** The ESC's fallback (its valves fail open, so pedal pressure passes
+  through, unmodulated) now sits on the lines, which the module feeds. The hoses follow the lines.
+- **Reservoir:** losing it (a leak or an empty reservoir) loses the master cylinder's pressure. Neither the booster
+  nor the pedal can make up for missing fluid.
+
+**Parking: two separate mechanisms that back each other up for holding the vehicle, never for braking.**
+- **Park lock** (in the rear drive unit, commanded by the VCU): *parking hold*.
+- **Electric parking brake:** each rear calliper's actuator provides *parking hold*, which needs 12 V and the ESC
+  module's *parking-brake control*. The calliper then provides *parking clamp* (the actuator drives the piston
+  mechanically, with no hydraulic pressure).
+- **Holding the vehicle:** each rear tyre's *vehicle holding* needs:
+  - the park lock's *parking hold*, with that side's parking brake as the fallback;
+  - its calliper's *parking clamp*, with the park lock as the fallback.
+
+  So losing either mechanism only degrades holding, and losing both loses it.
+- **No path from either parking mechanism into service braking.** Calliper *clamping force*, pad *friction
+  braking* and brake pressure never list the park lock or the parking brake as a fallback.
+
+| # | Failure | Lost | Degraded | Must not appear |
+|---|---|---|---|---|
+| 40 | **Rear park lock** | | rear tyres: vehicle holding (the parking brake holds) | any braking function |
+| 41 | **Rear left parking-brake actuator** | rear-left calliper: parking clamp | rear-left tyre: vehicle holding (the park lock holds) | clamping force; the right side |
+| 42 | **12 V battery** (revised) | as before, plus both parking mechanisms and both rear tyres' vehicle holding | as before | |
+| 43 | **Brake-fluid reservoir** | master cylinder and ESC module: brake pressure; every line, hose and calliper's braking | | parking functions |
+| 44 | **One brake line (front left)** | that hose, calliper and pads | | other corners; parking |
+| 8 (revised) | **ESC module** | AD computer; both rear callipers: parking clamp | callipers: clamping force (lines fall back to the master cylinder); rear tyres: vehicle holding | |
+| — | **Any service-braking failure** | — | — | the park lock or parking brake as a fallback |
+
+**Simplification.** The park lock acts through the rear differential and drive shafts. Those links are not
+repeated in the holding chain. "Parking hold" needs the VCU and 12 V to engage, so the static model treats a
+dead 12 V supply as no holding. In reality a lock that is already engaged stays engaged.
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
