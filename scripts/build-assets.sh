@@ -1,5 +1,5 @@
 #!/bin/sh
-# Rebuild the Blender-modelled parts (wheel corners, subframes and anti-roll bars, drive units, battery pack, power
+# Rebuild the Blender-modelled parts (wheel corners, subframes and anti-roll bars, steering, brake supply, thermal circuits, drive units, battery pack, power
 # electronics) and compress them
 # for the web app.
 #   1. Blender (on this Mac, via uv) writes uncompressed models to web/assets-src/ and the visual
@@ -16,6 +16,9 @@ uv run --project blender python -I blender/corner.py
 uv run --project blender python -I blender/drive_unit.py
 uv run --project blender python -I blender/battery.py
 uv run --project blender python -I blender/chassis.py
+uv run --project blender python -I blender/steering.py
+uv run --project blender python -I blender/brakes.py
+uv run --project blender python -I blender/thermal.py
 
 for src in web/assets-src/*.glb; do
   name=$(basename "$src" .glb)

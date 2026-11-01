@@ -92,8 +92,10 @@ dependencies:
   - {dependent: "<a>-dc-link-capacitor", function: DC supply, provider: "<a>-inverter-busbars", needs: DC supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "<a>-power-module", function: phase current, provider: "<a>-dc-link-capacitor", needs: DC supply, kind: power, loss: lost, degradation: degraded}
   - {dependent: "<a>-power-module", function: phase current, provider: "<a>-gate-driver", needs: switching control, kind: control, loss: lost}
-  - {dependent: "<a>-power-module", function: phase current, provider: coolant-lines, needs: coolant flow, kind: cooling, loss: degraded,
+  - {dependent: "<a>-power-module", function: phase current, provider: "<a>-coolant-lines", needs: coolant flow, kind: cooling, loss: degraded,
      description: "Without coolant the inverter limits its current"}
+  - {dependent: "<a>-power-module", function: phase current, provider: coolant-valve, needs: coolant temperature, kind: cooling, loss: degraded,
+     degradation: degraded, description: "Warmer coolant: the inverter derates sooner"}
   - {dependent: "<a>-gate-driver", function: switching control, provider: "<a>-control-board", needs: motor control, kind: control, loss: lost,
      description: "Switching commands from the motor-control board"}
   - {dependent: "<a>-control-board", function: motor control, provider: vcu, needs: torque control, kind: control, loss: lost,
@@ -112,8 +114,10 @@ dependencies:
   - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-oil-cooler", needs: oil cooling, kind: cooling, loss: degraded,
      description: "Without oil cooling the end windings overheat: the motor limits its torque"}
   - {dependent: "<a>-oil-cooler", function: oil cooling, provider: "<a>-oil-pump", needs: oil flow, kind: lubrication, loss: lost}
-  - {dependent: "<a>-oil-cooler", function: oil cooling, provider: coolant-lines, needs: coolant flow, kind: cooling, loss: lost, degradation: degraded,
+  - {dependent: "<a>-oil-cooler", function: oil cooling, provider: "<a>-coolant-lines", needs: coolant flow, kind: cooling, loss: lost, degradation: degraded,
      description: "The oil gives its heat to the vehicle's coolant circuit"}
+  - {dependent: "<a>-oil-cooler", function: oil cooling, provider: coolant-valve, needs: coolant temperature, kind: cooling, loss: degraded,
+     degradation: degraded}
   - {dependent: "<a>-stator", function: magnetic field, provider: "<a>-motor", needs: housing support, kind: support, loss: lost}
   - {dependent: "<a>-rotor", function: drive torque, provider: "<a>-stator", needs: magnetic field, kind: torque, loss: lost, degradation: degraded}
   - {dependent: "<a>-rotor-shaft", function: drive torque, provider: "<a>-rotor", needs: drive torque, kind: torque, loss: lost, degradation: degraded}
@@ -176,9 +180,12 @@ dependencies:
      fallback: {backup: brake-pedal, description: "The pedal still pushes the master cylinder directly, with much higher effort"}}
   - {dependent: master-cylinder, function: brake pressure, provider: brake-pedal, needs: driver brake demand, kind: support, loss: lost,
      fallback: {backup: brake-booster, description: "The booster can still build pressure on electronic demand (automatic emergency braking)"}}
+  - {dependent: master-cylinder, function: brake pressure, provider: brake-fluid-reservoir, needs: fluid supply, kind: hydraulic, loss: lost,
+     description: "Without fluid the master cylinder draws air; neither the booster nor the pedal can make up for it"}
   - {dependent: esc-module, function: brake pressure, provider: master-cylinder, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
-  - {dependent: brake-hose-<c>, function: brake pressure, provider: esc-module, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded,
+  - {dependent: brake-line-<c>, function: brake pressure, provider: esc-module, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded,
      fallback: {backup: master-cylinder, description: "The hydraulic unit's valves fail open: pedal pressure passes through, unmodulated"}}
+  - {dependent: brake-hose-<c>, function: brake pressure, provider: brake-line-<c>, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
   - {dependent: caliper-<c>, function: clamping force, provider: brake-hose-<c>, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
   - {dependent: brake-pad-inner-<c>, function: friction braking, provider: caliper-<c>, needs: clamping force, kind: support, loss: lost, degradation: degraded}
   - {dependent: brake-pad-outer-<c>, function: friction braking, provider: caliper-<c>, needs: clamping force, kind: support, loss: lost, degradation: degraded}
@@ -186,8 +193,27 @@ dependencies:
      description: "With one wheel speed missing, anti-lock braking is switched off (warning light); base braking remains"}
   - {dependent: esc-module, function: stability control, provider: wheel-speed-sensor-<c>, needs: wheel speed, kind: data, loss: lost}
 
+  # ---- Parking: park lock and electric parking brake back each other up for holding the vehicle, never braking ----
+  - {dependent: esc-module, function: parking-brake control, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
+  - {dependent: "epb-actuator-r<s>", function: parking hold, provider: esc-module, needs: parking-brake control, kind: control, loss: lost}
+  - {dependent: "caliper-r<s>", function: parking clamp, provider: "epb-actuator-r<s>", needs: parking hold, kind: support, loss: lost,
+     description: "The actuator drives the calliper's piston mechanically; no hydraulic pressure is involved"}
+  - {dependent: "tyre-r<s>", function: vehicle holding, provider: rear-park-lock, needs: parking hold, kind: support, loss: lost,
+     fallback: {backup: "epb-actuator-r<s>", description: "The electric parking brake holds the car on its own"}}
+  - {dependent: "tyre-r<s>", function: vehicle holding, provider: "caliper-r<s>", needs: parking clamp, kind: support, loss: lost,
+     fallback: {backup: rear-park-lock, description: "The park lock still holds the car through the rear drive unit"}}
+
   # ---- Steering -----------------------------------------------------------------------------------------------
-  - {dependent: steering-rack, function: steering motion, provider: steering-column, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-column, function: driver steering input, provider: steering-wheel, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-intermediate-shaft, function: driver steering input, provider: steering-column, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-rack, function: steering motion, provider: steering-intermediate-shaft, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-torque-sensor, function: steering torque, provider: steering-intermediate-shaft, needs: driver steering input, kind: torque, loss: lost}
+  - {dependent: steering-ecu, function: steering control, provider: steering-torque-sensor, needs: steering torque, kind: data, loss: lost,
+     description: "Without the driver's torque the module cannot work out how much to assist, so it switches assistance off"}
+  - {dependent: steering-rack, function: steering motion, provider: "steering-rack-mount-<s>", needs: rack location, kind: support, loss: degraded,
+     description: "The other mount still holds the rack; it shifts under load and the steering feels vague"}
+  - {dependent: "steering-rack-mount-<s>", function: rack location, provider: front-subframe, needs: subframe location, kind: support, loss: lost,
+     degradation: degraded}
   - {dependent: steering-rack, function: steering assistance, provider: eps-motor, needs: power assistance, kind: torque, loss: lost,
      description: "Without assistance the car still steers, with much more effort"}
   - {dependent: eps-motor, function: power assistance, provider: steering-ecu, needs: steering control, kind: control, loss: lost}
@@ -210,7 +236,21 @@ dependencies:
   - {dependent: telematics, function: connectivity, provider: gateway, needs: network routing, kind: data, loss: lost}
 
   # ---- Thermal ------------------------------------------------------------------------------------------------
-  - {dependent: coolant-lines, function: coolant flow, provider: coolant-pump, needs: coolant flow, kind: cooling, loss: lost}
+  - {dependent: coolant-pump, function: coolant flow, provider: coolant-reservoir, needs: coolant supply, kind: cooling, loss: degraded,
+     description: "The sealed circuit keeps running but loses pressure and coolant over time"}
+  - {dependent: coolant-lines, function: coolant flow, provider: coolant-pump, needs: coolant flow, kind: cooling, loss: lost, degradation: degraded}
+  - {dependent: "<a>-coolant-lines", function: coolant flow, provider: coolant-pump, needs: coolant flow, kind: cooling, loss: lost, degradation: degraded}
+  - {dependent: coolant-valve, function: coolant temperature, provider: radiator, needs: heat rejection, kind: cooling, loss: degraded,
+     description: "The chiller can still take heat, with less margin"}
+  - {dependent: battery-coolant-manifold, function: coolant heating, provider: coolant-heater, needs: coolant heating, kind: cooling, loss: lost,
+     description: "No battery pre-conditioning in cold weather"}
+  - {dependent: hvac-module, function: cabin climate, provider: coolant-heater, needs: coolant heating, kind: cooling, loss: degraded,
+     description: "In cold weather the cabin is heated by the heat pump alone"}
+  - {dependent: coolant-valve, function: coolant temperature, provider: lv-harness, needs: 12 V distribution, kind: power, loss: degraded,
+     description: "An unpowered valve stays where it was"}
+  - {dependent: coolant-heater, function: coolant heating, provider: pdu, needs: HV distribution, kind: power, loss: lost}
+  - {dependent: battery-coolant-manifold, function: coolant flow, provider: coolant-valve, needs: coolant temperature, kind: cooling, loss: degraded,
+     degradation: degraded}
   - {dependent: battery-coolant-manifold, function: coolant flow, provider: coolant-lines, needs: coolant flow, kind: cooling, loss: lost}
   - {dependent: battery-cooling-plate, function: cell cooling, provider: battery-coolant-manifold, needs: coolant flow, kind: cooling, loss: lost}
   - {dependent: battery-coolant-manifold, function: coolant chilling, provider: battery-chiller, needs: coolant chilling, kind: cooling, loss: lost}
@@ -219,8 +259,12 @@ dependencies:
   - {dependent: "battery-module-<n>", function: cell power, provider: battery-cooling-plate, needs: cell cooling, kind: cooling, loss: degraded,
      each: {n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]},
      description: "Without cooling the BMS limits module power to protect the cells"}
-  - {dependent: battery-chiller, function: coolant chilling, provider: heat-pump-compressor, needs: refrigerant compression, kind: cooling, loss: lost}
-  - {dependent: hvac-module, function: cabin climate, provider: heat-pump-compressor, needs: refrigerant compression, kind: cooling, loss: lost}
+  - {dependent: refrigerant-lines, function: refrigerant flow, provider: heat-pump-compressor, needs: refrigerant compression, kind: cooling, loss: lost}
+  - {dependent: refrigerant-lines, function: refrigerant flow, provider: condenser, needs: refrigerant condensing, kind: cooling, loss: lost}
+  - {dependent: condenser, function: refrigerant condensing, provider: "cooling-fan-<s>", needs: airflow, kind: cooling, loss: degraded,
+     description: "Fan airflow matters at low speed; ram air remains when moving"}
+  - {dependent: battery-chiller, function: coolant chilling, provider: refrigerant-lines, needs: refrigerant flow, kind: cooling, loss: lost}
+  - {dependent: hvac-module, function: cabin climate, provider: refrigerant-lines, needs: refrigerant flow, kind: cooling, loss: lost}
   - {dependent: radiator, function: heat rejection, provider: "cooling-fan-<s>", needs: airflow, kind: cooling, loss: degraded,
      description: "Fan airflow matters at low speed; ram air remains when moving"}
 

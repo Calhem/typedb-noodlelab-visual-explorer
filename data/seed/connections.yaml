@@ -25,7 +25,9 @@ connections:
   - {kind: mechanical, joint: bolted, ends: [brake-shield-<c>, knuckle-<c>]}
   - {kind: mechanical, joint: bolted, ends: [wheel-speed-sensor-<c>, knuckle-<c>]}
   - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, caliper-<c>], description: "Banjo fitting"}
-  - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, esc-module], description: "Through the brake hard line"}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, brake-line-<c>], description: "Hose fitting at the body bracket"}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-line-<c>, esc-module], description: "Rigid steel line from the hydraulic unit"}
+  - {kind: data, network: hard-wired signal, ends: [epb-actuator-r<s>, esc-module], description: "Motor drive from the module's parking-brake stage"}
   - {kind: data, network: hard-wired signal, ends: [wheel-speed-sensor-<c>, esc-module]}
 
   # ---- Suspension -----------------------------------------------------------------------------------------
@@ -53,9 +55,15 @@ connections:
   - {kind: mechanical, joint: bolted, ends: [epb-actuator-r<s>, caliper-r<s>], description: "Motor-on-calliper parking brake"}
 
   # ---- Steering -------------------------------------------------------------------------------------------
-  - {kind: mechanical, joint: bolted, ends: [steering-rack, front-subframe]}
+  - {kind: mechanical, joint: bushed, ends: [steering-rack, steering-rack-mount-l], description: "Rubber bush round the rack housing"}
+  - {kind: mechanical, joint: bushed, ends: [steering-rack, steering-rack-mount-r], description: "Rubber bush round the rack housing"}
+  - {kind: mechanical, joint: bolted, ends: [steering-rack-mount-l, front-subframe]}
+  - {kind: mechanical, joint: bolted, ends: [steering-rack-mount-r, front-subframe]}
   - {kind: mechanical, joint: meshed, ends: [eps-motor, steering-rack], description: "Belt-and-ball-nut drive on the rack"}
-  - {kind: mechanical, joint: splined, ends: [steering-column, steering-rack], description: "Intermediate shaft to the pinion"}
+  - {kind: mechanical, joint: universal-joint, ends: [steering-column, steering-intermediate-shaft], description: "Upper universal joint, inside the cabin"}
+  - {kind: mechanical, joint: universal-joint, ends: [steering-intermediate-shaft, steering-rack], description: "Lower universal joint on the pinion shaft"}
+  - {kind: mechanical, joint: bolted, ends: [steering-torque-sensor, steering-rack], description: "On the pinion housing"}
+  - {kind: data, network: hard-wired signal, ends: [steering-torque-sensor, steering-ecu], description: "Torque and steering-angle signals"}
   - {kind: mechanical, joint: splined, ends: [steering-wheel, steering-column]}
   - {kind: mechanical, joint: bolted, ends: [steering-column, cross-car-beam]}
   - {kind: data, network: hard-wired signal, ends: [steering-ecu, eps-motor], description: "Motor phase and position signals"}
@@ -64,8 +72,8 @@ connections:
   - {kind: mechanical, joint: press-fit, ends: ["<a>-stator", "<a>-motor"], description: "Stator pressed into the housing"}
   - {kind: mechanical, joint: press-fit, ends: ["<a>-rotor", "<a>-rotor-shaft"]}
   - {kind: mechanical, joint: press-fit, ends: ["<a>-motor-bearing-<n>", "<a>-rotor-shaft"], each: {n: [1, 2]}}
-  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-1", "<a>-motor"]}
-  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-2", "<a>-motor-end-cover"]}
+  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-1", "<a>-motor-end-cover"], description: "Outer bearing, in the end cover"}
+  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-2", "<a>-gearbox"], description: "Inner bearing, seated in the gearbox casing's wall"}
   - {kind: mechanical, joint: bolted, ends: ["<a>-motor-end-cover", "<a>-motor"]}
   - {kind: mechanical, joint: splined, ends: ["<a>-rotor-shaft", "<a>-pinion"]}
   - {kind: mechanical, joint: meshed, ends: ["<a>-pinion", "<a>-intermediate-gear"], description: "First-stage helical mesh"}
@@ -170,12 +178,20 @@ connections:
 
   # ---- Thermal ------------------------------------------------------------------------------------------
   - {kind: fluid, fluid: coolant, ends: [coolant-pump, coolant-lines]}
-  - {kind: fluid, fluid: coolant, ends: [coolant-lines, "<unit>"], each: {unit: [battery-coolant-manifold, radiator, battery-chiller, front-inverter, rear-inverter, front-oil-cooler, rear-oil-cooler]}}
+  - {kind: fluid, fluid: coolant, ends: [coolant-lines, "<unit>"], each: {unit: [battery-coolant-manifold, radiator, battery-chiller, coolant-valve]}}
+  - {kind: fluid, fluid: coolant, ends: [coolant-valve, "<a>-coolant-lines"], description: "The valve's outlet to that drive unit"}
+  - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-inverter"]}
+  - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-oil-cooler"]}
+  - {kind: fluid, fluid: coolant, ends: [coolant-reservoir, coolant-pump], description: "Expansion tank feeding the pump's inlet"}
+  - {kind: fluid, fluid: coolant, ends: [coolant-valve, coolant-heater]}
+  - {kind: power, voltage: high-voltage, ends: [pdu, coolant-heater]}
+  - {kind: power, voltage: low-voltage, ends: [lv-harness, coolant-valve]}
   - {kind: fluid, fluid: coolant, ends: [battery-coolant-manifold, battery-cooling-plate]}
-  - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, battery-chiller]}
-  - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, hvac-module]}
+  - {kind: fluid, fluid: refrigerant, ends: [refrigerant-lines, "<unit>"], each: {unit: [heat-pump-compressor, condenser, battery-chiller, hvac-module]}}
+  - {kind: mechanical, joint: bolted, ends: [condenser, radiator], description: "Condenser clipped ahead of the radiator in one cooling module"}
   - {kind: mechanical, joint: ball-joint, ends: [brake-pedal, brake-booster], description: "Pedal pushrod"}
   - {kind: mechanical, joint: bolted, ends: [master-cylinder, brake-booster]}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-fluid-reservoir, master-cylinder], description: "Reservoir plugged into the master cylinder's inlets"}
   - {kind: fluid, fluid: brake fluid, ends: [master-cylinder, esc-module], description: "Two brake circuits"}
   - {kind: mechanical, joint: bolted, ends: [brake-booster, bulkhead]}
 

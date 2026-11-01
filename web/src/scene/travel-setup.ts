@@ -7,7 +7,7 @@ import { buildVehicle } from "./buildVehicle";
 import { loadParts } from "./clearance";
 import type { Corner, Pose } from "./kinematics";
 
-export const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+export const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
 
 /** Which part of a corner moves how. Ids are given without the corner suffix. */
 const WHEEL_GROUP = ["tyre", "wheel", "brake-disc", "caliper", "brake-pad-inner", "brake-pad-outer", "brake-shield", "hub", "hub-nut",

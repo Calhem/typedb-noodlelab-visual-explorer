@@ -128,10 +128,19 @@ components:
   - {id: steering-ecu, type: control-unit, assembly: steering, name: "Steering control module"}
   - {id: steering-column, type: steering-component, assembly: steering, name: "Steering column"}
   - {id: steering-wheel, type: steering-component, assembly: steering, name: "Steering wheel"}
+  - {id: steering-intermediate-shaft, type: steering-component, assembly: steering, name: "Steering intermediate shaft"}
+  - {id: steering-torque-sensor, type: torque-sensor, assembly: steering, name: "Steering torque sensor"}
+  - {id: steering-rack-mount-l, type: steering-component, assembly: steering, name: "Left steering-rack mount"}
+  - {id: steering-rack-mount-r, type: steering-component, assembly: steering, name: "Right steering-rack mount"}
   # brake-control
   - {id: brake-booster, type: actuator, assembly: brake-control, name: "Electric brake booster"}
   - {id: esc-module, type: control-unit, assembly: brake-control, name: "Stability control module (ABS/ESC)"}
   - {id: master-cylinder, type: brake-component, assembly: brake-control, name: "Brake master cylinder"}
+  - {id: brake-fluid-reservoir, type: brake-component, assembly: brake-control, name: "Brake-fluid reservoir"}
+  - {id: brake-line-fl, type: brake-component, assembly: brake-control, name: "Front left brake line"}
+  - {id: brake-line-fr, type: brake-component, assembly: brake-control, name: "Front right brake line"}
+  - {id: brake-line-rl, type: brake-component, assembly: brake-control, name: "Rear left brake line"}
+  - {id: brake-line-rr, type: brake-component, assembly: brake-control, name: "Rear right brake line"}
   - {id: brake-pedal, type: driver-control, assembly: brake-control, name: "Brake pedal"}
   # front-drive-unit
   - {id: front-motor, type: electric-motor, assembly: front-drive-unit, name: "Front electric motor"}
@@ -453,6 +462,13 @@ components:
   - {id: heat-pump-compressor, type: thermal-component, assembly: thermal, name: "Heat-pump compressor"}
   - {id: hvac-module, type: thermal-component, assembly: thermal, name: "Cabin climate module"}
   - {id: coolant-lines, type: thermal-component, assembly: thermal, name: "Battery coolant lines"}
+  - {id: front-coolant-lines, type: thermal-component, assembly: thermal, name: "Front drive-unit coolant lines"}
+  - {id: rear-coolant-lines, type: thermal-component, assembly: thermal, name: "Rear drive-unit coolant lines"}
+  - {id: coolant-reservoir, type: thermal-component, assembly: thermal, name: "Coolant reservoir"}
+  - {id: coolant-valve, type: thermal-component, assembly: thermal, name: "Thermal-mode valve"}
+  - {id: coolant-heater, type: thermal-component, assembly: thermal, name: "Coolant heater"}
+  - {id: condenser, type: thermal-component, assembly: thermal, name: "Condenser"}
+  - {id: refrigerant-lines, type: thermal-component, assembly: thermal, name: "Refrigerant lines"}
   # interior
   - {id: centre-console, type: interior-component, assembly: interior, name: "Centre console"}
   - {id: driver-display, type: interior-component, assembly: interior, name: "Driver display"}

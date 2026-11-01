@@ -90,9 +90,11 @@ def test_3_twelve_volt_battery(client):
 
 def test_4_coolant_pump(client):
     lost, degraded, _ = impact(client, "coolant-pump")
-    # revised in C3a: the drive units' oil coolers reject their heat into the same coolant
-    assert lost == {("coolant-lines", "coolant flow"), ("battery-coolant-manifold", "coolant flow"),
-                    ("battery-cooling-plate", "cell cooling"), ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
+    # revised in C3a: the drive units' oil coolers reject their heat into the same coolant;
+    # revised in C3c step 5: separate coolant lines to each drive unit
+    assert lost == {("coolant-lines", "coolant flow"), ("front-coolant-lines", "coolant flow"), ("rear-coolant-lines", "coolant flow"),
+                    ("battery-coolant-manifold", "coolant flow"), ("battery-cooling-plate", "cell cooling"),
+                    ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
     assert {(f"battery-module-{n}", "cell power") for n in range(1, 17)} <= degraded
     assert {("front-stator", "magnetic field"), ("rear-stator", "magnetic field")} <= degraded
     assert all_corners("tyre", "drive torque") <= degraded
@@ -119,10 +121,13 @@ def test_7_one_battery_module(client):
 
 
 def test_8_esc_module(client):
+    """Revised in C3c step 4: the fail-open fallback sits on the rigid lines; the module also drives the parking brake."""
     lost, degraded, fallbacks = impact(client, "esc-module")
-    assert lost == {("ad-compute", "automated driving")}
+    assert lost == {("ad-compute", "automated driving"), ("epb-actuator-rl", "parking hold"), ("epb-actuator-rr", "parking hold"),
+                    ("caliper-rl", "parking clamp"), ("caliper-rr", "parking clamp")}
     assert all_corners("caliper", "clamping force") <= degraded
-    assert {(f"brake-hose-{c}", "brake pressure", "master-cylinder") for c in CORNERS} <= fallbacks
+    assert {("tyre-rl", "vehicle holding"), ("tyre-rr", "vehicle holding")} <= degraded
+    assert {(f"brake-line-{c}", "brake pressure", "master-cylinder") for c in CORNERS} <= fallbacks
 
 
 def test_9_one_brake_hose(client):
@@ -209,8 +214,11 @@ def test_vehicle_level_propulsion_for_earlier_scenarios(client):
 
 
 def test_15_rear_park_lock(client):
+    """Revised in C3c step 4 (scenario 40): the park lock now holds the parked car, with the parking brake as backup;
+    driving is still unaffected."""
     lost, degraded, _ = impact(client, "rear-park-lock")
-    assert not lost and not degraded
+    assert not lost
+    assert not {k for k in degraded if k[1] != "vehicle holding"}
 
 
 def test_16_front_hv_connector(client):
@@ -361,6 +369,131 @@ def test_35_top_mount(client):
     assert lost == {("spring-fl", "load support"), ("coilover-fl", "damping")}
     assert degraded == {("tyre-fl", "road holding")}
 
+
+
+# ---- C3c step 5: thermal circuits (docs/dependency-semantics.md, scenarios 45-49) -----------------------------------
+
+TEMPERATURE_CONSUMERS = {("battery-coolant-manifold", "coolant flow"), ("front-power-module", "phase current"),
+                         ("rear-power-module", "phase current"), ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
+
+
+def test_45_radiator_degrades_coolant_temperature(client):
+    lost, degraded, _ = impact(client, "radiator")
+    assert not lost
+    assert {("coolant-valve", "coolant temperature")} | TEMPERATURE_CONSUMERS <= degraded
+
+
+def test_46_valve(client):
+    lost, degraded, _ = impact(client, "coolant-valve")
+    assert not lost
+    assert TEMPERATURE_CONSUMERS <= degraded
+
+
+def test_47_condenser(client):
+    lost, degraded, _ = impact(client, "condenser")
+    assert {("refrigerant-lines", "refrigerant flow"), ("battery-chiller", "coolant chilling"), ("hvac-module", "cabin climate")} <= lost
+    assert ("battery-cooling-plate", "cell cooling") in degraded
+    assert not {k for k in lost | degraded if k[1] == "drive torque"}
+
+
+def test_48_coolant_reservoir(client):
+    lost, degraded, _ = impact(client, "coolant-reservoir")
+    assert not lost
+    assert {("coolant-pump", "coolant flow"), ("coolant-lines", "coolant flow"), ("front-coolant-lines", "coolant flow"),
+            ("rear-coolant-lines", "coolant flow")} <= degraded
+
+
+def test_49_front_coolant_lines(client):
+    lost, degraded, _ = impact(client, "front-coolant-lines")
+    assert lost == {("front-oil-cooler", "oil cooling")}
+    assert {("front-power-module", "phase current"), ("front-stator", "magnetic field")} <= degraded
+    assert not {k for k in lost | degraded if k[0].startswith(("rear-", "battery-")) or k[0].endswith(("-rl", "-rr"))}
+
+
+# ---- C3c step 4: braking supply and parking (docs/dependency-semantics.md, scenarios 40-44) -------------------------
+
+HOLDING = {("tyre-rl", "vehicle holding"), ("tyre-rr", "vehicle holding")}
+PARKING = {"rear-park-lock", "epb-actuator-rl", "epb-actuator-rr"}
+SERVICE = ("clamping force", "friction braking", "brake pressure")
+
+
+def test_40_park_lock_only_degrades_holding(client):
+    lost, degraded, fallbacks = impact(client, "rear-park-lock")
+    assert not lost
+    assert degraded == HOLDING
+    assert {("tyre-rl", "vehicle holding", "epb-actuator-rl"), ("tyre-rr", "vehicle holding", "epb-actuator-rr")} <= fallbacks
+
+
+def test_41_one_parking_brake(client):
+    lost, degraded, _ = impact(client, "epb-actuator-rl")
+    assert lost == {("caliper-rl", "parking clamp")}
+    assert degraded == {("tyre-rl", "vehicle holding")}
+
+
+def test_42_twelve_volt_loses_both_parking_mechanisms(client):
+    lost, _, _ = impact(client, "lv-battery")
+    assert HOLDING | {("rear-park-lock", "parking hold"), ("epb-actuator-rl", "parking hold"), ("epb-actuator-rr", "parking hold")} <= lost
+
+
+def test_43_reservoir(client):
+    lost, degraded, fallbacks = impact(client, "brake-fluid-reservoir")
+    assert {("master-cylinder", "brake pressure"), ("esc-module", "brake pressure")} <= lost
+    assert all_corners("brake-line", "brake pressure") | all_corners("caliper", "clamping force") <= lost
+    assert not {k for k in lost | degraded if k[1] in ("vehicle holding", "parking hold", "parking clamp")}
+
+
+def test_44_one_brake_line(client):
+    lost, degraded, _ = impact(client, "brake-line-fl")
+    assert lost == {("brake-hose-fl", "brake pressure"), ("caliper-fl", "clamping force"), ("brake-pad-inner-fl", "friction braking"),
+                    ("brake-pad-outer-fl", "friction braking")}
+    assert not degraded
+
+
+def test_parking_never_backs_up_service_braking(client):
+    for d in DEPS:
+        if d["function"] in SERVICE:
+            assert d.get("fallback", {}).get("backup") not in PARKING, d
+    for failed in ("master-cylinder", "esc-module", "brake-booster", "brake-hose-rl"):
+        _, _, fallbacks = impact(client, failed)
+        assert not {f for f in fallbacks if f[1] in SERVICE and f[2] in PARKING}, failed
+
+
+# ---- C3c step 3: steering (docs/dependency-semantics.md, scenarios 36-39) --------------------------------------------
+
+FRONT_STEERING_CHAIN = {("steering-rack", "steering motion"), ("tie-rod-fl", "steering motion"), ("tie-rod-fr", "steering motion"),
+                        ("knuckle-fl", "wheel alignment"), ("knuckle-fr", "wheel alignment"), ("tyre-fl", "road holding"),
+                        ("tyre-fr", "road holding"), ("ad-compute", "automated driving")}
+ASSISTANCE = {("steering-ecu", "steering control"), ("eps-motor", "power assistance"), ("steering-rack", "steering assistance")}
+
+
+def test_36_torque_sensor_stops_assistance_not_steering(client):
+    lost, degraded, _ = impact(client, "steering-torque-sensor")
+    assert lost == ASSISTANCE | {("ad-compute", "automated driving")}
+    assert not degraded
+
+
+def test_37_intermediate_shaft(client):
+    lost, degraded, _ = impact(client, "steering-intermediate-shaft")
+    assert lost == FRONT_STEERING_CHAIN | ASSISTANCE | {("steering-torque-sensor", "steering torque")}
+    assert not {k for k in lost | degraded if k[0].endswith(("-rl", "-rr")) or k[0].startswith(("caliper", "brake", "front-motor", "rear-"))}
+
+
+def test_38_one_rack_mount_only_degrades(client):
+    lost, degraded, _ = impact(client, "steering-rack-mount-l")
+    assert not lost
+    assert degraded == {("steering-rack", "steering motion")}
+
+
+def test_39_steering_wheel(client):
+    lost, _, _ = impact(client, "steering-wheel")
+    assert lost == FRONT_STEERING_CHAIN | ASSISTANCE | {("steering-torque-sensor", "steering torque"),
+                                                        ("steering-column", "driver steering input"),
+                                                        ("steering-intermediate-shaft", "driver steering input")}
+
+
+def test_power_steering_loop_has_its_sensor(client):
+    data = get(client, "/api/components/steering-torque-sensor/relationships")["data"]
+    assert {(loop["name"], loop["role"]) for loop in data["control-loops"]} == {("Electric power steering", "sensor")}
 
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------
 

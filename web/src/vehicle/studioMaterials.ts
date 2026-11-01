@@ -220,6 +220,7 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["aluminium-forged", m({ color: c("#c9cdd1"), metalness: 1, roughness: 1, roughnessMap: forged })],
     // damper, spring, plastics
     ["plastic-black", m({ color: c("#1f2023"), metalness: 0, roughness: 0.5 })],
+    ["plastic-reservoir", m({ color: c("#ddd5bd"), metalness: 0, roughness: 0.35, clearcoat: 0.4, clearcoatRoughness: 0.2 })],
     ["spring-paint", m({ color: c("#2c3035"), metalness: 0.4, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.2 })],
     ["damper-paint", m({ color: c("#23262b"), metalness: 0.5, roughness: 0.3, clearcoat: 0.8 })],
     ["polyurethane", m({ color: c("#b88a2f"), metalness: 0, roughness: 0.55, sheen: 0.3, sheenColor: c("#e0b866") })],

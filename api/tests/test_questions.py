@@ -38,7 +38,7 @@ def test_drive_power(client):
 
 
 def test_sensors_by_type(client):
-    sensor_types = {"camera", "radar", "lidar", "gnss-receiver", "wheel-speed-sensor", "position-sensor", "current-sensor", "cell-monitor"}
+    sensor_types = {"camera", "radar", "lidar", "gnss-receiver", "wheel-speed-sensor", "position-sensor", "current-sensor", "cell-monitor", "torque-sensor"}
     expected = Counter(c["type"] for c in SEED["components"] if c["type"] in sensor_types)
     assert {r[0]: r[1] for r in ask(client, "sensors-by-type")["rows"]} == dict(expected)
 

@@ -1,6 +1,6 @@
 """C3c renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres hidden),
-the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, and
-the underside.
+the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, the
+steering system, the brake supply, the thermal circuits, and the underside.
     uv run --with websocket-client python -I scripts/browser/suspension.py <output-dir> [quality]
 Separate headless Chrome (see cdp.py), 1600x1000 at 2x.
 """
@@ -54,5 +54,20 @@ view("subframe-mount-close", ["front-subframe-mount-1"], 50, -12, 0.75, chassis 
 corner = lambda c, a: ids(f"corner-{c}") + [i for i in chassis if i.startswith(a)] + [f"{a}-halfshaft-r"]
 view("corner-front-inboard", ["hub-fr", "upper-arm-fr"], 215, 8, 2.3, corner("fr", "front"))
 view("corner-rear-inboard", ["hub-rr"], 155, 10, 1.9, corner("rr", "rear"))
+# steering: rack, mounts, motor and module, torque sensor, shaft and column, with the front suspension (no wheels)
+steer = ids("steering") + ["steering-wheel", "front-subframe", "front-halfshaft-l", "front-halfshaft-r"]
+steer += [i for c in ("fl", "fr") for i in ids(f"corner-{c}") if i.startswith(("tie-rod", "knuckle", "lower-arm"))]
+view("steering", ["steering-rack", "steering-intermediate-shaft"], 55, 32, 2.2, steer)
+view("steering-rack-close", ["steering-torque-sensor", "eps-motor"], -150, 25, 0.75, steer)
+# brake supply: pedal, booster, master cylinder and reservoir, ESC module, lines to the corners (with the steering)
+brakes = ids("brakes") + ids("steering") + ["steering-wheel", "front-subframe", "rear-subframe"]
+brakes += [i for c in ("fl", "fr", "rl", "rr") for i in ids(f"corner-{c}") if i.startswith(("caliper", "brake-hose", "brake-disc", "epb-actuator"))]
+view("brakes", ["esc-module", "master-cylinder"], 60, 30, 2.4, brakes)
+view("brakes-whole", ["brake-line-rl", "brake-line-fr"], 40, 35, 4.6, brakes)
+# thermal: cooling module, pump, reservoir, valve, heater, chiller, compressor, refrigerant and coolant lines, with the
+# drive units and the battery's coolant line
+thermal = ids("thermal") + ids("front-drive-unit") + ids("rear-drive-unit") + ["coolant-lines", "hvac-module", "battery-coolant-manifold"]
+view("thermal", ["coolant-valve", "radiator"], 40, 32, 1.5, thermal)
+view("thermal-whole", ["rear-coolant-lines"], 50, 30, 4.2, thermal)
 view("underside", ["front-subframe", "rear-subframe"], 35, -38, 6.2, hide=("underbody",))
 b.close()

@@ -81,6 +81,12 @@ properties:
     description: "Toe link: an adjustable rod from the subframe to the rear knuckle's arm; it sets the rear wheel's toe and stops it steering."
   - match: top-mount-*
     description: "Top mount: a rubber-isolated bearing plate bolting the damper and spring to the body."
+  - match: steering-intermediate-shaft
+    description: "Intermediate shaft: carries the steering column's rotation through the bulkhead to the rack's pinion, with a universal joint at each end and a rubber seal where it passes the bulkhead."
+  - match: steering-torque-sensor
+    description: "Torque sensor on the pinion shaft: a torsion bar twists slightly under the driver's effort and a non-contact sensor reads the twist and the steering angle."
+  - match: steering-rack-mount-*
+    description: "Steering-rack mount: a cast bracket on the subframe with a rubber bush clamped round the rack housing."
   - match: steering-rack
     description: "Rack-and-pinion steering gear: turns the rotation of the steering column into side-to-side movement of the tie rods."
   - match: eps-motor
@@ -255,6 +261,10 @@ properties:
     description: "Automated-driving computer: fuses the sensors, plans the path and commands steering, braking and drive torque."
   - match: vcu
     description: "Vehicle control unit: turns the accelerator pedal and driving mode into torque requests for the two drive units, including traction control."
+  - match: brake-fluid-reservoir
+    description: "Brake-fluid reservoir: a translucent tank on the master cylinder with a level sensor, keeping both brake circuits filled."
+  - match: brake-line-*
+    description: "Rigid brake line: coated steel tube from the stability-control module's outlet to the corner's flexible hose."
   - match: master-cylinder
     description: "Tandem master cylinder: turns pedal and booster force into brake-fluid pressure, in two separate circuits."
   - match: brake-pedal
@@ -275,6 +285,18 @@ properties:
   # ---- Thermal ----------------------------------------------------------------------------------------------
   - match: battery-cooling-plate
     description: "Liquid cooling plate under the modules: carries heat away from the cells."
+  - match: coolant-reservoir
+    description: "Coolant expansion tank: keeps the sealed circuit filled and takes up the coolant's expansion as it warms."
+  - match: coolant-valve
+    description: "Thermal-mode valve: routes the coolant through the radiator, the battery chiller or the heater, depending on whether the battery, drive units and cabin need cooling or warmth."
+  - match: coolant-heater
+    description: "High-voltage coolant heater: warms the coolant for the battery and cabin in cold weather."
+  - match: condenser
+    description: "Condenser: in front of the radiator, it passes the heat pump's heat to the outside air."
+  - match: refrigerant-lines
+    description: "Refrigerant lines: aluminium pipes joining the compressor, condenser, battery chiller and cabin climate module."
+  - match: [front-coolant-lines, rear-coolant-lines]
+    description: "Drive-unit coolant lines: supply and return hoses to the inverter's cold plate and the oil cooler."
   - match: coolant-pump
     description: "Electric coolant pump circulating coolant through the battery and drive-unit circuits."
   - match: battery-chiller

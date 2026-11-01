@@ -339,7 +339,7 @@ def brake_hose():
     # from a bracket on the inner wheelhouse behind the upper arm, staying inboard of the tyre and inside the rim
     # (on the calliper's side of the axle: behind it for a trailing calliper, ahead for a leading one)
     sx = math.copysign(1, inlet.x)
-    bracket = Vector((sx * 0.17, 0.36, -0.17))
+    bracket = Vector((sx * 0.17, 0.38, -0.31))  # inboard of the tyre's sweep at lock and bump (C3c step 4)
     path = [bracket, Vector((sx * 0.12, 0.3, -0.155)), Vector((sx * 0.08, 0.255, -0.135)), inlet + Vector((0.0, 0.025, -0.03)), inlet + Vector((0, 0.012, -0.01))]
     hose = kit.tube_path(path, 0.0058, 4)
     hose.data.materials.append(kit.material("rubber"))

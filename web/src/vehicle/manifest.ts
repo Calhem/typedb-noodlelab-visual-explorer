@@ -53,6 +53,11 @@ const hp = (c: { front: boolean; z: number }, key: "upperBall" | "lowerBall" | "
   return [x, y, c.z * z];
 };
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+/** A tube given by absolute points, placed at the centre of their bounding box (for long, uneven routes). */
+const boxTube = (points: Vec3[], radius: number): Pick<Part, "shape" | "position"> => {
+  const c: Vec3 = [0, 1, 2].map((k) => (Math.min(...points.map((p) => p[k])) + Math.max(...points.map((p) => p[k]))) / 2) as Vec3;
+  return { position: c, shape: { kind: "tube", radius, points: points.map((p) => [p[0] - c[0], p[1] - c[1], p[2] - c[2]] as Vec3) } };
+};
 const mid = (a: Vec3, b: Vec3, lift = 0): Vec3 => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + lift, (a[2] + b[2]) / 2];
 const panel = (id: PanelId, material: MaterialId): Part => ({ id, material, shape: { kind: "panel" } });
 
@@ -205,27 +210,47 @@ const steering: Part[] = [
     // ends at the tie rods' inner joints, chosen for low bump steer (C3c step 2b, web/src/vehicle/suspension.json)
     shape: { kind: "cylinder", radius: 0.03, length: 2 * hardPoints.front.linkInner[2], axis: "z" },
     position: [hardPoints.front.linkInner[0], hardPoints.front.linkInner[1], 0] },
+  // blender/steering.py has the detailed models: a rack-parallel motor behind the rack with the control module on its
+  // inner end, the torque sensor on the pinion (driver's side), rack mounts on the subframe, and the column and
+  // intermediate shaft through the bulkhead
   { id: "eps-motor", material: "cast",
-    shape: { kind: "cylinder", radius: 0.055, length: 0.16, axis: "x" }, position: [FRONT_AXLE_X - 0.34, 0.49, 0.18] },
+    shape: { kind: "cylinder", radius: 0.045, length: 0.13, axis: "z" }, position: [hardPoints.front.linkInner[0] - 0.08, 0.46, 0.125] },
   { id: "steering-ecu", material: "electronics",
-    shape: { kind: "finned-box", size: [0.1, 0.06, 0.14], fins: 5 }, position: [FRONT_AXLE_X - 0.31, 0.51, 0.32] },
-  // placeholder down to above the rack's pinion end, inboard of the tie rod's travel; step 3 adds the intermediate
-  // shaft and universal joints
+    shape: { kind: "finned-box", size: [0.1, 0.1, 0.05], fins: 5 }, position: [hardPoints.front.linkInner[0] - 0.08, 0.46, 0.03] },
+  { id: "steering-torque-sensor", material: "cast",
+    shape: { kind: "cylinder", radius: 0.042, length: 0.04, axis: "y" }, position: [hardPoints.front.linkInner[0] - 0.02, 0.58, 0.25] },
+  ...SIDES.map((s): Part => ({
+    id: `steering-rack-mount-${s.key}`, material: "cast",
+    shape: { kind: "box", size: [0.06, 0.25, 0.05], radius: 0.01 }, position: [1.335, 0.38, s.z > 0 ? 0.228 : -0.285] })),
+  { id: "steering-intermediate-shaft", material: "steel",
+    ...absTube([[hardPoints.front.linkInner[0], 0.635, 0.3], [0.95, 0.73, DRIVER_Z]], 0.012) },
   { id: "steering-column", material: "steel",
-    ...absTube([[FRONT_AXLE_X - 0.26, 0.57, 0.3], [FRONT_AXLE_X - 0.46, 0.71, DRIVER_Z], [FRONT_AXLE_X - 0.79, 0.91, DRIVER_Z]], 0.02) },
+    ...absTube([[0.95, 0.73, DRIVER_Z], [0.605, 0.968, DRIVER_Z]], 0.03) },
   { id: "steering-wheel", material: "leather",
     shape: { kind: "steering-wheel" }, position: [0.6, 0.97, DRIVER_Z], rotation: [0, 0, -0.42] },
 ];
 
 const brakeControl: Part[] = [
+  // blender/brakes.py has the detailed models: pedal, booster, master cylinder and reservoir on the driver's side
+  // of the bulkhead (inboard of the steering column), the ESC module in the front bay, rigid lines to the corners
   { id: "brake-booster", material: "cast",
-    shape: { kind: "cylinder", radius: 0.085, length: 0.16, axis: "x" }, position: [1.14, 0.84, DRIVER_Z] },
+    shape: { kind: "cylinder", radius: 0.075, length: 0.14, axis: "x" }, position: [1.135, 0.84, 0.29] },
   { id: "esc-module", material: "aluminium",
-    shape: { kind: "box", size: [0.15, 0.12, 0.14], radius: 0.02 }, position: [1.84, 0.7, 0.05] },
-  { id: "master-cylinder", material: "aluminium",
-    shape: { kind: "cylinder", radius: 0.03, length: 0.17, axis: "x" }, position: [1.28, 0.86, DRIVER_Z] },
+    shape: { kind: "box", size: [0.15, 0.1, 0.12], radius: 0.02 }, position: [1.84, 0.7, 0.05] },
+  { id: "master-cylinder", material: "aluminium", // with its two circuit pipes to the ESC module
+    ...absTube([[1.205, 0.86, 0.29], [1.355, 0.86, 0.29], [1.6, 0.9, 0.2], [1.78, 0.76, 0.09]], 0.026) },
+  { id: "brake-fluid-reservoir", material: "satin-black",
+    shape: { kind: "box", size: [0.11, 0.07, 0.07], radius: 0.01 }, position: [1.275, 0.95, 0.29] },
   { id: "brake-pedal", material: "satin-black",
-    shape: { kind: "box", size: [0.03, 0.09, 0.07], radius: 0.01 }, position: [0.86, 0.42, DRIVER_Z], rotation: [0, 0, 0.35] },
+    ...absTube([[0.92, 0.66, 0.29], [0.82, 0.44, 0.29], [0.9, 0.62, 0.29], [1.065, 0.82, 0.29]], 0.012) },
+  ...CORNERS.map((c): Part => {
+    const s = c.z, end: Vec3 = c.front ? [c.x + 0.17, 0.785, s * 0.505] : [c.x - 0.17, 0.785, s * 0.505];
+    const route: Vec3[] = c.front
+      ? [[1.84, 0.75, 0.05], [1.77, 0.75, s * 0.25], [1.78, 0.76, s * 0.42], end]
+      : [[1.84, 0.8, 0.05], [1.7, 0.86, s * 0.12], [1.12, 0.86, s * 0.12], [1.12, 0.4, s * 0.12], [1.1, 0.38, s * 0.5], [1.0, 0.365, s * 0.69],
+        [-0.99, 0.365, s * 0.69], [-1.03, 0.37, s * 0.625], [-1.1, 0.4, s * 0.625], [-1.12, 0.8, s * 0.625], [end[0] + 0.06, 0.8, s * 0.6], end];
+    return { id: `brake-line-${c.key}`, material: "steel", ...boxTube(route, 0.004) };
+  }),
 ];
 
 // Drive units: three parallel shafts along z (docs/engineering-references.md). The motor's axis is above the
@@ -343,7 +368,7 @@ const power: Part[] = [
   { id: "hv-harness-rear", material: "hv-orange",
     ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
   { id: "hv-harness-aux", material: "hv-orange",
-    ...absTube([[1.17, 0.29, -0.3], [1.25, 0.4, -0.29], [1.3, 0.75, -0.29], [1.45, 0.9, -0.28], [1.75, 0.89, -0.1], [1.8, 0.8, 0.27], [1.83, 0.66, 0.27]], 0.012) },
+    ...absTube([[1.17, 0.29, -0.3], [1.25, 0.4, -0.29], [1.3, 0.75, -0.29], [1.45, 0.9, -0.28], [1.75, 0.92, -0.1], [1.84, 0.92, 0.15], [1.82, 0.8, 0.27], [1.83, 0.66, 0.27]], 0.012) },
   { id: "hv-harness-charge", material: "hv-orange",
     ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.75, 0.47, -0.4], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
       [-1.1, 0.345, -0.12], [-1.02, 0.3, -0.1]], 0.012) },
@@ -481,7 +506,7 @@ const wheelDetail: Part[] = CORNERS.flatMap((c): Part[] => {
       shape: { kind: "cylinder", radius: discR + 0.012, length: 0.004, axis: "z", segments: 48 },
       position: [c.x, AXLE_Y, c.z * (TRACK_HALF - 0.105)] },
     { id: `brake-hose-${c.key}`, material: "rubber", // from the body bracket on the calliper's side of the axle
-      ...absTube([[c.x + fx * 0.17, AXLE_Y + 0.36, c.z * (TRACK_HALF - 0.17)], [c.x + fx * 0.12, AXLE_Y + 0.3, c.z * (TRACK_HALF - 0.155)],
+      ...absTube([[c.x + fx * 0.17, AXLE_Y + 0.38, c.z * (TRACK_HALF - 0.31)], [c.x + fx * 0.12, AXLE_Y + 0.3, c.z * (TRACK_HALF - 0.155)],
         [c.x + fx * 0.08, AXLE_Y + 0.255, c.z * (TRACK_HALF - 0.135)]], 0.006) },
     { id: `hub-nut-${c.key}`, material: "steel",
       shape: { kind: "cylinder", radius: 0.019, length: 0.016, axis: "z", segments: 6 }, position: [c.x, AXLE_Y, c.z * (TRACK_HALF + 0.05)] },
@@ -590,7 +615,7 @@ const driveUnitDetail = (key: DriveKey, x: number): Part[] => {
 
 const thermal: Part[] = [
   { id: "radiator", material: "aluminium",
-    shape: { kind: "slats", size: [0.04, 0.36, 0.9], count: 46 }, position: [2.2, 0.64, 0] },
+    shape: { kind: "slats", size: [0.04, 0.36, 0.8], count: 46 }, position: [2.19, 0.64, 0] },
   ...SIDES.map((s): Part => ({
     id: `cooling-fan-${s.key}`, material: "satin-black",
     shape: { kind: "fan", radius: 0.16 }, position: [2.12, 0.64, s.z * 0.22],
@@ -598,16 +623,31 @@ const thermal: Part[] = [
   { id: "coolant-pump", material: "cast",
     shape: { kind: "cylinder", radius: 0.04, length: 0.1, axis: "y" }, position: [1.75, 0.5, -0.25] },
   { id: "battery-chiller", material: "aluminium",
-    shape: { kind: "box", size: [0.14, 0.08, 0.1], radius: 0.01 }, position: [1.85, 0.46, -0.12] },
+    shape: { kind: "box", size: [0.12, 0.08, 0.08], radius: 0.01 }, position: [1.84, 0.46, -0.12] },
   { id: "heat-pump-compressor", material: "cast",
     shape: { kind: "cylinder", radius: 0.06, length: 0.16, axis: "x" }, position: [1.84, 0.47, 0.18] },
+  // blender/thermal.py has the detailed models of the cooling module, pump, reservoir, valve, heater, chiller,
+  // compressor, refrigerant lines and the drive units' coolant lines
+  { id: "condenser", material: "aluminium",
+    shape: { kind: "slats", size: [0.016, 0.3, 0.72], count: 34 }, position: [2.243, 0.64, 0] },
+  { id: "coolant-reservoir", material: "satin-black",
+    shape: { kind: "box", size: [0.12, 0.09, 0.1], radius: 0.012 }, position: [1.92, 0.76, -0.15] },
+  { id: "coolant-valve", material: "cast",
+    shape: { kind: "cylinder", radius: 0.03, length: 0.06, axis: "y" }, position: [1.76, 0.56, -0.15] },
+  { id: "coolant-heater", material: "cast",
+    shape: { kind: "box", size: [0.12, 0.08, 0.1], radius: 0.01 }, position: [1.88, 0.49, -0.25] },
+  { id: "refrigerant-lines", material: "aluminium",
+    ...boxTube([[1.92, 0.49, 0.18], [2.12, 0.43, 0.3], [2.27, 0.5, 0.4], [2.27, 0.5, -0.4], [2.12, 0.43, -0.3], [1.85, 0.46, -0.12],
+      [1.71, 0.93, 0.02], [1.1, 0.93, 0.02], [0.83, 0.66, -0.05]], 0.007) },
+  { id: "front-coolant-lines", material: "satin-black",
+    ...boxTube([[1.76, 0.56, -0.15], [1.7, 0.76, -0.15], [1.74, 0.27, -0.1], [1.45, 0.33, 0.07], [1.45, 0.47, 0.07]], 0.011) },
+  { id: "rear-coolant-lines", material: "satin-black",
+    ...boxTube([[1.76, 0.53, -0.19], [1.74, 0.165, -0.18], [-1.0, 0.165, 0.03], [-1.3, 0.3, 0.05], [-1.33, 0.5, 0.08], [-1.36, 0.74, 0.02]], 0.011) },
   { id: "hvac-module", material: "satin-black",
     shape: { kind: "box", size: [0.22, 0.2, 0.5], radius: 0.03 }, position: [0.72, 0.62, -0.1] },
-  { id: "coolant-lines", material: "satin-black",
-    // runs above the front-left drive shaft, beside the motor's end cover
-    // ends at the battery pack's coolant ports in the front bay
-    // over the front-left drive shaft, then down and under the rack's left end, clear of the tie rod's travel
-    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.46, 0.49, -0.38], [1.44, 0.38, -0.38], [1.36, 0.34, -0.4], [1.24, 0.3, -0.12], [1.212, 0.26, -0.07]], 0.013) },
+  { id: "coolant-lines", material: "satin-black", // blender/thermal.py: radiator > pump > valve > chiller > battery pack
+    ...boxTube([[2.16, 0.52, -0.4], [1.95, 0.4, -0.32], [1.75, 0.395, -0.25], [1.8, 0.56, -0.19], [1.82, 0.505, -0.12], [1.68, 0.5, -0.4],
+      [1.46, 0.49, -0.38], [1.36, 0.36, -0.4], [1.212, 0.26, -0.07]], 0.013) },
 ];
 
 const cabin: Part[] = [
