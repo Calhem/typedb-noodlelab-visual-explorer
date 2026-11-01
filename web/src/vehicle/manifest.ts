@@ -225,7 +225,7 @@ const steering: Part[] = [
   { id: "steering-intermediate-shaft", material: "steel",
     ...absTube([[hardPoints.front.linkInner[0], 0.635, 0.3], [0.95, 0.73, DRIVER_Z]], 0.012) },
   { id: "steering-column", material: "steel",
-    ...absTube([[0.95, 0.73, DRIVER_Z], [0.64, 0.95, DRIVER_Z]], 0.03) },
+    ...absTube([[0.95, 0.73, DRIVER_Z], [0.605, 0.968, DRIVER_Z]], 0.03) },
   { id: "steering-wheel", material: "leather",
     shape: { kind: "steering-wheel" }, position: [0.6, 0.97, DRIVER_Z], rotation: [0, 0, -0.42] },
 ];
@@ -645,13 +645,9 @@ const thermal: Part[] = [
     ...boxTube([[1.76, 0.53, -0.19], [1.74, 0.165, -0.18], [-1.0, 0.165, 0.03], [-1.3, 0.3, 0.05], [-1.33, 0.5, 0.08], [-1.36, 0.74, 0.02]], 0.011) },
   { id: "hvac-module", material: "satin-black",
     shape: { kind: "box", size: [0.22, 0.2, 0.5], radius: 0.03 }, position: [0.72, 0.62, -0.1] },
-  { id: "coolant-lines", material: "satin-black",
-    // runs above the front-left drive shaft, beside the motor's end cover
-    // ends at the battery pack's coolant ports in the front bay
-    // over the front-left drive shaft, then down and under the rack's left end, clear of the tie rod's travel, and
-    // behind the left rack mount and over the subframe's rear-left mount to the pack's ports
-    ...absTube([[2.12, 0.5, -0.3], [1.8, 0.5, -0.36], [1.46, 0.49, -0.38], [1.44, 0.38, -0.38], [1.36, 0.36, -0.4], [1.23, 0.38, -0.33],
-      [1.222, 0.29, -0.12], [1.212, 0.26, -0.07]], 0.013) },
+  { id: "coolant-lines", material: "satin-black", // blender/thermal.py: radiator > pump > valve > chiller > battery pack
+    ...boxTube([[2.16, 0.52, -0.4], [1.95, 0.4, -0.32], [1.75, 0.395, -0.25], [1.8, 0.56, -0.19], [1.82, 0.505, -0.12], [1.68, 0.5, -0.4],
+      [1.46, 0.49, -0.38], [1.36, 0.36, -0.4], [1.212, 0.26, -0.07]], 0.013) },
 ];
 
 const cabin: Part[] = [

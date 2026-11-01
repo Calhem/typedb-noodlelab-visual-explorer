@@ -129,6 +129,21 @@ def fan(c: Vector, side: int):
     return finish(f"cooling-fan-{'l' if side < 0 else 'r'}", parts)
 
 
+def battery_coolant_lines():
+    """The battery's coolant circuit (`coolant-lines`): radiator outlet > pump inlet, pump outlet > valve, valve >
+    chiller, then from the chiller over the front-left drive shaft, under the rack's left end, behind the left rack
+    mount and over the subframe's rear-left mount to the pack's ports (the route the simple shape used)."""
+    r, m = 0.013, "rubber"
+    lines = [
+        [(RAD_X - 0.04, RAD_Y[0] + 0.05, -(RAD_Z + 0.02)), (2.1, 0.44, -0.37), (1.95, 0.43, -0.32), (1.8, 0.43, -0.27), PUMP + Vector((0, -0.105, 0))],
+        [PUMP + Vector((0.065, -0.045, 0)), (1.8, 0.47, -0.2), (1.8, 0.56, -0.19), VALVE + Vector((0.0, 0.0, -0.045))],
+        [VALVE + Vector((0.045, 0, 0)), (1.83, 0.54, -0.13), CHILLER + Vector((-0.02, 0.045, 0.0))],
+        [CHILLER + Vector((-0.065, 0.0, -0.02)), (1.775, 0.46, -0.33), (1.7, 0.45, -0.4), (1.68, 0.5, -0.4), (1.46, 0.49, -0.38), (1.44, 0.38, -0.38),
+         (1.36, 0.36, -0.4), (1.31, 0.38, -0.36), (1.21, 0.31, -0.22), (1.212, 0.26, -0.07)],
+    ]
+    return finish("coolant-lines", [pipe(p, r, m) for p in lines])
+
+
 def coolant_pump():
     parts = [cyl(0.038, 0.09, PUMP + Vector((0, 0.01, 0)), "Y", "steel-dark", name="motor"),
              cyl(0.05, 0.03, PUMP + Vector((0, -0.045, 0)), "Y", "aluminium-cast", name="volute"),
@@ -156,6 +171,8 @@ def heater():
     parts = [bx((0.12, 0.08, 0.1), HEATER, "aluminium-cast", 0.004, "block"), bx((0.03, 0.03, 0.035), HEATER + Vector((-0.06, 0.02, 0.03)), "hv-orange", 0.003, "hv")]
     for dz in (-0.03, 0.03):
         parts.append(cyl(0.011, 0.04, HEATER + Vector((0.07, -0.02, dz)), "X", "aluminium-cast", name="stub"))
+    # hose to the valve's side port, over the chiller
+    parts.append(pipe([HEATER + Vector((-0.03, 0.04, 0.03)), (1.85, 0.56, -0.17), VALVE + Vector((0.055, 0, 0))], 0.01, "rubber", "hose"))
     return finish("coolant-heater", parts)
 
 
@@ -204,7 +221,7 @@ def coolant_lines(axle: str):
         trunk = [VALVE + Vector((0.0, -0.03, -0.04)), (1.74, 0.165, -0.18), (1.2, 0.165, 0.03), (-1.0, 0.165, 0.03), (-1.1, 0.3, 0.05), (-1.3, 0.3, 0.05)]
         lines = [
             trunk + [(-1.322, 0.3, 0.08), (-1.322, 0.5, 0.08), (-1.332, 0.5, 0.08)],  # oil cooler, through the gearbox wall
-            [(v.x, v.y, v.z + 0.03) if isinstance(v, Vector) else (v[0], v[1], v[2] + 0.03) for v in trunk[1:-1]] + [(-1.3, 0.3, 0.02), (-1.335, 0.32, 0.02), (-1.335, 0.74, 0.02), (-1.36, 0.74, 0.02)],
+            [(v.x, v.y, v.z + 0.03) if isinstance(v, Vector) else (v[0], v[1], v[2] + 0.03) for v in trunk[1:-1]] + [(-1.3, 0.3, 0.02), (-1.335, 0.32, 0.02), (-1.335, 0.74, 0.02), (-1.372, 0.74, 0.02)],
         ]
     return finish(f"{axle}-coolant-lines", [pipe(p, r, m) for p in lines])
 
@@ -225,6 +242,7 @@ def build():
         "refrigerant-lines": refrigerant_lines(),
         "front-coolant-lines": coolant_lines("front"),
         "rear-coolant-lines": coolant_lines("rear"),
+        "coolant-lines": battery_coolant_lines(),
     }
     keep = {o.name for o in parts.values()}
     for o in list(bpy.data.objects):

@@ -46,7 +46,7 @@ MOUNT_Z = {-1: 0.285, 1: 0.228}  # rack mounts: the left one outboard of the fro
 SUBFRAME_TOP, CROSS_X = 0.25, 1.30  # front subframe's top and its rear cross member (blender/chassis.py)
 UJ_LOW = Vector((RACK_X, RACK_Y + 0.13, PINION_Z))  # lower universal joint, above the torque sensor
 UJ_HIGH = Vector((0.95, 0.73, 0.37))  # upper universal joint, under the dashboard, below the brake booster
-WHEEL_HUB = Vector((0.64, 0.95, 0.37))  # where the column meets the steering wheel
+WHEEL_HUB = Vector((0.605, 0.968, 0.37))  # where the column meets the steering wheel
 BULKHEAD_X = 1.045
 
 
@@ -203,7 +203,7 @@ def intermediate_shaft():
 
 def column():
     d = (WHEEL_HUB - UJ_HIGH).normalized()
-    a, b = UJ_HIGH + d * 0.04, WHEEL_HUB - d * 0.03
+    a, b = UJ_HIGH + d * 0.04, WHEEL_HUB
     jacket = rod(a + d * 0.06, b - d * 0.05, 0.03, 32)
     shaft = rod(a, b, 0.012, 24)
     # tilt-and-reach housing and a bracket up to the cross-car beam

@@ -570,3 +570,35 @@ or dropping their ambient-occlusion pass.
 - **Step 7:** the ghosting cost above and the impact queries.
 - **Step 8:** the body-interfaces document for the body rebuild.
 - **Step 9:** the final review package.
+
+## Step 6: connection check (1 November 2026)
+
+**The check.**
+- **What it compares:** every mechanical, power and fluid connection in TypeDB (451) against the drawn vehicle.
+- **How:** it measures the gap between the two parts' surfaces in the assembled vehicle.
+- **Tool:** `web/src/semantic/connections.analysis.test.ts`, run on demand with `TYPEDB_INTEGRATION=1 ANALYSE=1`.
+- **Scope:** a light, review-by-eye check, not a geometric validation framework. Data connections are left out,
+  since a signal needs no contact.
+
+**Fixed, because they were visible or wrong:**
+
+| Problem | Fix |
+|---|---|
+| The steering wheel floated 42 mm off the column | Column extended to the wheel's hub |
+| The battery's coolant line ran from the radiator straight to the pack, never reaching the pump, valve or chiller it is connected to | It is now a modelled part with branches: radiator → pump → valve → chiller → pack |
+| No hose between the coolant heater and the valve | Hose added |
+| The motor bearings' connections were swapped relative to the drawing | Data corrected: bearing 1 sits in the end cover, bearing 2 in the gearbox casing |
+| The drive-unit coolant lines were recorded as joining the pump | Corrected to the valve, where they leave |
+
+**Remaining (102 of 451, more than 15 mm apart), by kind:**
+- **12 V harness (24):** drawn as one representative cable. Its links to every 12 V unit are logical, not drawn
+  one by one.
+- **Power cables between modules (7):** OBC to PDU, OBC to charge port, PDU to heater, compressor and DC-DC,
+  DC-DC to the 12 V battery, 12 V battery to the fuse box. These are not drawn and stay abstracted.
+- **Body placeholders (30):** the body milestone's job, and listed in its requirements
+  (`docs/c3c/body-interfaces.md`):
+  - top mounts, upper-arm pivots and subframe mounts that should reach the body;
+  - the pack's tabs to the sills;
+  - glass and window regulators, mirrors, roof, bonnet and tailgate.
+- **Inside housings (41):** not visible. Busbars, bearings, gate drivers, side gears, monitors, the drive shafts'
+  splines in the hubs, and the coolant ports that pass through the gearbox and pack walls.

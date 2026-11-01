@@ -72,8 +72,8 @@ connections:
   - {kind: mechanical, joint: press-fit, ends: ["<a>-stator", "<a>-motor"], description: "Stator pressed into the housing"}
   - {kind: mechanical, joint: press-fit, ends: ["<a>-rotor", "<a>-rotor-shaft"]}
   - {kind: mechanical, joint: press-fit, ends: ["<a>-motor-bearing-<n>", "<a>-rotor-shaft"], each: {n: [1, 2]}}
-  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-1", "<a>-motor"]}
-  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-2", "<a>-motor-end-cover"]}
+  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-1", "<a>-motor-end-cover"], description: "Outer bearing, in the end cover"}
+  - {kind: mechanical, joint: bearing, ends: ["<a>-motor-bearing-2", "<a>-gearbox"], description: "Inner bearing, seated in the gearbox casing's wall"}
   - {kind: mechanical, joint: bolted, ends: ["<a>-motor-end-cover", "<a>-motor"]}
   - {kind: mechanical, joint: splined, ends: ["<a>-rotor-shaft", "<a>-pinion"]}
   - {kind: mechanical, joint: meshed, ends: ["<a>-pinion", "<a>-intermediate-gear"], description: "First-stage helical mesh"}
@@ -179,7 +179,7 @@ connections:
   # ---- Thermal ------------------------------------------------------------------------------------------
   - {kind: fluid, fluid: coolant, ends: [coolant-pump, coolant-lines]}
   - {kind: fluid, fluid: coolant, ends: [coolant-lines, "<unit>"], each: {unit: [battery-coolant-manifold, radiator, battery-chiller, coolant-valve]}}
-  - {kind: fluid, fluid: coolant, ends: [coolant-pump, "<a>-coolant-lines"]}
+  - {kind: fluid, fluid: coolant, ends: [coolant-valve, "<a>-coolant-lines"], description: "The valve's outlet to that drive unit"}
   - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-inverter"]}
   - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-oil-cooler"]}
   - {kind: fluid, fluid: coolant, ends: [coolant-reservoir, coolant-pump], description: "Expansion tank feeding the pump's inlet"}

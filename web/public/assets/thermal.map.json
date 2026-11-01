@@ -13,6 +13,7 @@
     "heat-pump-compressor": "heat-pump-compressor",
     "refrigerant-lines": "refrigerant-lines",
     "front-coolant-lines": "front-coolant-lines",
-    "rear-coolant-lines": "rear-coolant-lines"
+    "rear-coolant-lines": "rear-coolant-lines",
+    "coolant-lines": "coolant-lines"
   }
 }
