@@ -503,3 +503,70 @@ in TypeDB. No further geometric optimisation.
 
 ![Brake supply](step4/brakes.jpg)
 ![Lines to all four corners](step4/brakes-whole.jpg)
+
+## Step 5: thermal circuits (1 November 2026)
+
+**Model** (`blender/thermal.py` → `thermal.glb`, 13 parts):
+- **Front cooling module:** condenser, radiator with end tanks, fan shroud and two fans. It is narrowed to fit
+  between the front rails.
+- **Coolant parts:** pump, expansion reservoir, thermal-mode valve and HV coolant heater.
+- **Heat pump:** battery chiller and compressor.
+- **Refrigerant lines:** round the front loop, and over the front drive unit and through the bulkhead to the cabin
+  climate module.
+- **Drive-unit coolant lines:** the front pair goes to the inverter and to the oil cooler from below. The rear
+  pair runs under the battery pack to the rear drive unit.
+
+**TypeDB.**
+- **Seven new parts:** reservoir, valve, heater, condenser, refrigerant lines, front and rear coolant lines.
+- **`coolant-lines`** keeps its id and is now the battery's circuit.
+- **Radiator:** its heat rejection now matters. It feeds the valve's *coolant temperature*, which the battery
+  manifold, both inverters and both oil coolers need.
+- **Refrigerant:** the lines need the compressor and the condenser; the condenser needs the fans' airflow.
+- **Heater:** serves the battery circuit and the cabin.
+- **Expected outcomes:** scenarios 45–49 and revised 4. One rule changed while implementing: letting the chiller
+  and heater degrade coolant temperature derated all four motors whenever the heat pump stopped (scenario 27).
+  That was too strong, so it was dropped and the change is recorded in `docs/dependency-semantics.md`.
+- **Counts:** 408 components, 534 connections, 376 dependencies, 89 vehicle functions.
+
+**Packaging.**
+- **Designed contacts listed:**
+  - the radiator outlet in the battery line;
+  - the refrigerant line through the bulkhead;
+  - the coolant hoses on the inverter and oil-cooler ports. The rear cooler's ports pass through the gearbox wall.
+- **Fixed:** the chiller moved clear of the DC-DC converter.
+- **Motion check:** passes.
+
+**Simplification:** one valve stands for the circuit's thermal modes, and the hoses are drawn as smooth tubes.
+
+**Tests:** web 61 passed (11 skipped), API and TypeDB 106 passed, web against live TypeDB 7 passed.
+
+![Cooling module, pump, reservoir, valve](step5/thermal.jpg)
+![Coolant to the rear drive unit, refrigerant to the cabin](step5/thermal-whole.jpg)
+
+## Checkpoint: steps 3–5 (1 November 2026)
+
+Steering, brake supply and thermal circuits are now Blender models joined into complete chains in TypeDB.
+
+| | Step 2b | Now |
+|---|---|---|
+| Components / connections / dependencies / vehicle functions | 392 / 511 / 337 / 78 | **408 / 534 / 376 / 89** |
+| Systems / control loops / fallbacks | 34 / 9 / 7 | **35 / 10 / 11** (new *Parking* system and parking-brake loop) |
+| Blender-modelled models / download | 18 files / 14.3 MB | **24 files / 15.7 MB**, loaded in 0.44 s locally |
+| Triangles / draw calls (assembled) | 1.34 M / 799 | **1.41 M / 855** |
+| Impact query (typical / 12 V battery) | 0.8–1.1 s (C3b) | **1.0 s / 1.4 s**, with the deeper shared-cause rule |
+
+**Frame time (high tier).**
+- **Unchanged:** 60 fps median in every state, and the same GPU time as before (16–24 ms).
+- **Open item:** CPU time per frame while a system is highlighted reads 16–19 ms, up from about 7 ms. Draw calls
+  in that state are about 3,150. The CPU appears to be waiting on the GPU, which is over budget there, and the
+  profiler charges the wait to WebGL calls. The ghosted, transparent parts are the cost.
+- **Medium tier:** unaffected (7–8 ms).
+
+Proposed for the C3c performance step: make ghosting cheaper, for example by merging ghosted meshes per material
+or dropping their ambient-occlusion pass.
+
+**Remaining C3c work (proportionate):**
+- **Step 6:** a light interface check. Fluid and power connections between modelled parts should touch.
+- **Step 7:** the ghosting cost above and the impact queries.
+- **Step 8:** the body-interfaces document for the body rebuild.
+- **Step 9:** the final review package.
