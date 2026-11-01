@@ -44,3 +44,11 @@ against their neighbours); the sill-tyre overlaps are recorded here from the bou
   (`blender/exterior_panels.py`).
 
 The static packaging check and the motion check now have no known groups. Every body part is checked in full.
+
+## Status after D1.4 (1 November 2026)
+
+- The body's lower edge now covers the pack's protection plate (sills and bumpers at about 0.18 m).
+- The structure's faces inside the wheelhouses carry black underbody protection (only those faces; the parts are unchanged).
+- The front arch liners continue down to the A pillar's foot (a designed contact in the packaging check).
+- Sensors sit on real mounting points: lidar on the front header, antenna through the roof, cameras on the windscreen and
+  tailgate, front radar on the bumper beam (docs/d1/d1.4/README.md).

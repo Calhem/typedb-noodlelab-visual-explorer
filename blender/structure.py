@@ -349,6 +349,32 @@ def roof_bow(name: str):
     return part(name, [sweep(pts, 0.04, 0.06, Vector((0, 1, 0)))], STEEL, 0.004)
 
 
+def coat_wheelhouses(o: bpy.types.Object) -> None:
+    """D1.4: the structure's faces that look into a wheelhouse get the black underbody protection a production body
+    carries there, so the arches read dark in the assembled car. Only those faces change: every part stays whole and
+    visible for the engineering views."""
+    wheels = [(HP[a]["wheel"][0], s) for a in ("front", "rear") for _, s in SIDES]
+
+    def facing_a_wheel(p) -> bool:
+        c = o.matrix_world @ p.center
+        for ax, s in wheels:
+            if c.z * s < 0.25 or math.hypot(c.x - ax, c.y - 0.405) > 0.80:
+                continue
+            to_wheel = Vector((ax, 0.405, s * 0.80)) - c
+            if (o.matrix_world.to_3x3() @ p.normal).normalized().dot(to_wheel.normalized()) > 0.25:
+                return True
+        return False
+
+    mesh = o.data
+    names = [m.name for m in mesh.materials]
+    if "underbody-coat" not in names:
+        mesh.materials.append(kit.material("underbody-coat"))
+    idx = [m.name for m in mesh.materials].index("underbody-coat")
+    for p in mesh.polygons:
+        if facing_a_wheel(p):
+            p.material_index = idx
+
+
 def build():
     kit.reset()
     parts = {}
@@ -381,6 +407,8 @@ def build():
     for name in ROOF_BOWS:
         add(roof_bow(name))
 
+    for o in parts.values():
+        coat_wheelhouses(o)
     keep = set(parts.values())
     for o in list(bpy.data.objects):
         if o not in keep:

@@ -217,7 +217,7 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["tail-lens", m({ color: c("#3a0508"), metalness: 0, roughness: 0.03, transparent: true, opacity: 0.45, clearcoat: 1, depthWrite: false })],
     ["lamp-housing", m({ color: c("#040405"), metalness: 0, roughness: 0.6 })],
     ["lamp-bezel", m({ color: c("#5c6168"), metalness: 1, roughness: 0.22 })],
-    ["trim-dark-metal", m({ color: c("#4a4f56"), metalness: 1, roughness: 0.32 })],
+    ["trim-dark-metal", m({ color: c("#2b2f34"), metalness: 0.9, roughness: 0.5 })],
     // the panels' cut edges, seen in the shut lines: near black, so the gaps read as dark lines
     ["shut-black", m({ color: c("#060607"), metalness: 0, roughness: 0.9 })],
     ["mirror-glass", m({ color: c("#9aa2ab"), metalness: 1, roughness: 0.03 })],
@@ -225,6 +225,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["sensor-window", m({ color: c("#07090c"), metalness: 0.5, roughness: 0.04, clearcoat: 1 })],
     // body-in-white: pressed steel in its grey electro-coat (D1.2)
     ["body-ecoat", m({ color: c("#6c7279"), metalness: 0.2, roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.35 })],
+    // the black underbody protection on the structure's faces inside the wheelhouses (D1.4)
+    ["underbody-coat", m({ color: c("#141518"), metalness: 0, roughness: 0.85 })],
     ["steel-machined", m({ color: c("#c7cbcf"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.7, anisotropyMap: brushing })],
     // brakes: machined friction faces with circular brushing; cast iron vanes; anodised aluminium hat;
     // calliper in an anodised bronze (a restrained warm accent against the cool metals)
@@ -263,8 +265,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
 
 /** The exterior lamps lit or unlit: the lit elements' glow, restrained so there is no bloom-like flare. */
 export function setExteriorLights(library: Map<string, THREE.MeshPhysicalMaterial>, on: boolean) {
-  library.get("lamp")!.emissiveIntensity = on ? 2.6 : 0.04;
-  library.get("tail-lamp")!.emissiveIntensity = on ? 3.0 : 0.05;
+  library.get("lamp")!.emissiveIntensity = on ? 4.0 : 0.04;
+  library.get("tail-lamp")!.emissiveIntensity = on ? 3.5 : 0.05;
 }
 
 /** Swap the placeholder materials on a loaded object for the studio materials of the same name. */

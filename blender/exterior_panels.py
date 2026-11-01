@@ -47,6 +47,7 @@ F, R = d13.F, d13.R
 GAP = 0.0015           # half a shut line
 SKIN = 0.002           # sheet thickness of painted panels
 OPENING = 0.473        # wheel-opening radius (as D1.1 / D1.3 renders)
+CLIPPED_IN = ("grille", "rear-diffuser")  # trims clipped tight into their bumpers: no open shut line (D1.4)
 SKINS: set[str] = set()  # the panel ids cut from the shell
 MATERIALS = {"paint": "body-paint", "glass": "body-glass", "glass-roof": "roof-glass", "cladding": "satin-black",
              "gloss-black": "gloss-black"}
@@ -495,10 +496,11 @@ def build():
 
     # the panels, with their shut lines opened and their thickness
     for pid, bm in skins.items():
-        pull_edges(bm, GAP)
+        pull_edges(bm, 0.0002 if pid in CLIPPED_IN else GAP)
         glazing = pid in ("windscreen", "tailgate-glass") or pid.startswith(("glass-", "quarter-glass-"))
         mats = [names[i] for i in range(len(body.data.materials))]
-        parts[pid] = to_object(pid, bm, mats, 0.004 if glazing else SKIN, inside=None if glazing else "body-paint")
+        # insides near black (D1.4): seen only through the shut lines and the intake's edges, where paint read as light lines
+        parts[pid] = to_object(pid, bm, mats, 0.004 if glazing else SKIN, inside=None if glazing else "shut-black")
 
     # arch lips: part of the wings (front) and quarter panels (rear)
     for x, owner in ((F, "fender"), (R, "quarter")):
