@@ -158,6 +158,15 @@ function Studio() {
   );
 }
 
+/** Ambient occlusion for opaque parts only. N8AO otherwise notices the ghosted (transparent) parts of a semantic focus
+ * and renders every one of them twice more per frame for its transparency compositing: about 1,450 extra draw calls
+ * and a full scene walk each time, for no visible gain on a part at 11% opacity (C3c step 7). */
+function opaqueOnly(pass: { autoDetectTransparency: boolean; configuration: { transparencyAware: boolean } } | null) {
+  if (!pass) return;
+  pass.autoDetectTransparency = false;
+  pass.configuration.transparencyAware = false;
+}
+
 /** Post-processing for the current quality tier (see settings.ts). Steps down a tier when frames are slow. */
 function Effects({ tier }: { tier: Tier }) {
   const { size, viewport } = useThree();
@@ -168,7 +177,7 @@ function Effects({ tier }: { tier: Tier }) {
   return (
     <EffectComposer multisampling={tier === "high" ? 4 : 2}>
       {/* Ambient occlusion: soft darkening where surfaces meet (crevices, contact between parts). */}
-      <N8AO aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality={tier === "high" ? "high" : "medium"} halfRes={halfRes} />
+      <N8AO ref={opaqueOnly} aoRadius={0.18} distanceFalloff={0.6} intensity={2.4} quality={tier === "high" ? "high" : "medium"} halfRes={halfRes} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   );

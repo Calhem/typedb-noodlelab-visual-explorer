@@ -602,3 +602,34 @@ or dropping their ambient-occlusion pass.
   - glass and window regulators, mirrors, roof, bonnet and tailgate.
 - **Inside housings (41):** not visible. Busbars, bearings, gate drivers, side gears, monitors, the drive shafts'
   splines in the hubs, and the coolant ports that pass through the gearbox and pack walls.
+
+## Step 7: performance (1 November 2026)
+
+**The highlighted-state slowdown.**
+- **Cause, found from a CPU profile and a draw-call count:** the ambient-occlusion effect (N8AO) detects any
+  transparent material. A semantic focus ghosts about 1,300 meshes, and N8AO then rendered every one of them in two
+  extra passes per frame, walking the whole scene four times to switch visibility. That added about 1,450 draw
+  calls.
+- **Fix:** ambient occlusion now ignores transparent parts. `web/src/scene/Stage.tsx` turns N8AO's transparency
+  detection off. A ghost at 11% opacity gains nothing visible from occlusion.
+
+Measured in the same session (the machine was capping the browser at 30 fps throughout, so frame intervals are not
+comparable; frame costs are):
+
+| Braking highlighted | Before | After |
+|---|---|---|
+| Draw calls | 3,154 | **1,686** (the same as with no focus) |
+| CPU per frame, high / medium tier | 8.3 / 9.3 ms | **4.6 / 4.9 ms** |
+| GPU per frame, high / medium tier | 24.7 / 19.5 ms | **21.7 / 17.8 ms** |
+
+![Braking highlighted after the change](step7/braking-highlighted.jpg)
+
+**Left for the final optimisation phase:**
+- **GPU time, high tier with a focus:** still about 22 ms. The rest is transparency overdraw from ghosted parts,
+  at 4× antialiasing. A cheaper ghost style (merged ghost meshes, or ghosts at lower resolution) is architectural
+  work.
+- **Shared geometry:** the four corner models still carry their own copies of the same geometry (about 8 MB, in the
+  backlog since step 1).
+
+**Impact queries:** about 1 s, accepted as they are. No query changes were made, so the reasoning semantics are
+untouched.
