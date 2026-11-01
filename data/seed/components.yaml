@@ -70,6 +70,21 @@ components:
   - {id: front-crash-beam, type: structural-member, assembly: structure, name: "Front crash beam"}
   - {id: rear-crash-beam, type: structural-member, assembly: structure, name: "Rear crash beam"}
   - {id: bulkhead, type: structural-member, assembly: structure, name: "Front bulkhead"}
+  # structure, D1.2: the body-in-white's towers, crash structure and rear floor
+  - {id: front-tower-l, type: structural-member, assembly: structure, name: "Left front suspension tower"}
+  - {id: front-tower-r, type: structural-member, assembly: structure, name: "Right front suspension tower"}
+  - {id: rear-tower-l, type: structural-member, assembly: structure, name: "Left rear suspension tower"}
+  - {id: rear-tower-r, type: structural-member, assembly: structure, name: "Right rear suspension tower"}
+  - {id: front-floor-rail-l, type: structural-member, assembly: structure, name: "Left front floor rail"}
+  - {id: front-floor-rail-r, type: structural-member, assembly: structure, name: "Right front floor rail"}
+  - {id: wheelhouse-rl, type: structural-member, assembly: structure, name: "Rear left wheelhouse inner"}
+  - {id: wheelhouse-rr, type: structural-member, assembly: structure, name: "Rear right wheelhouse inner"}
+  - {id: front-crash-box-l, type: structural-member, assembly: structure, name: "Left front crash box"}
+  - {id: front-crash-box-r, type: structural-member, assembly: structure, name: "Right front crash box"}
+  - {id: rear-crash-box-l, type: structural-member, assembly: structure, name: "Left rear crash box"}
+  - {id: rear-crash-box-r, type: structural-member, assembly: structure, name: "Right rear crash box"}
+  - {id: front-end-carrier, type: structural-member, assembly: structure, name: "Front-end carrier"}
+  - {id: rear-floor, type: structural-member, assembly: structure, name: "Rear floor and back panel"}
   # corner-fl
   - {id: tyre-fl, type: tyre, assembly: corner-fl, name: "Front left tyre"}
   - {id: wheel-fl, type: wheel, assembly: corner-fl, name: "Front left wheel"}
@@ -272,6 +287,7 @@ components:
   - {id: cabin-floor, type: structural-member, assembly: structure, name: "Cabin floor panel"}
   - {id: floor-crossmember-1, type: structural-member, assembly: structure, name: "Floor crossmember 1"}
   - {id: floor-crossmember-2, type: structural-member, assembly: structure, name: "Floor crossmember 2"}
+  - {id: floor-crossmember-3, type: structural-member, assembly: structure, name: "Rear seat crossmember"}
   # door-fl
   - {id: door-structure-fl, type: structural-member, assembly: door-fl, name: "Front left door inner structure"}
   - {id: window-regulator-fl, type: actuator, assembly: door-fl, name: "Front left window lift"}

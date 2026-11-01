@@ -8,6 +8,7 @@
 import { bodyLines, type PanelId } from "./body";
 import { AXLE_Y, DRIVER_Z, FRONT_AXLE_X, REAR_AXLE_X, TRACK_HALF } from "./dimensions";
 import hardPoints from "./suspension.json";
+import structureStandIns from "./structure-stand-ins.json";
 import type { Shape, Vec3 } from "./shapes";
 
 export type MaterialId =
@@ -103,32 +104,20 @@ const body: Part[] = [
   })),
 ];
 
+// The body structure (blender/structure.py, D1.2): drawn from the Blender model; these boxes (each part's
+// bounding box, written by the build) only stand in for it when the models are switched off.
+const standIn = (id: string): Part => {
+  const { centre, size } = (structureStandIns as Record<string, { centre: number[]; size: number[] }>)[id];
+  return { id, material: "aluminium", shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
+};
+
 const structure: Part[] = [
   panel("underbody", "satin-black"),
   ...CORNERS.map((c): Part => ({
     id: `arch-liner-${c.key}`, material: "satin-black",
     shape: { kind: "arch-liner" }, position: [c.x, AXLE_Y, c.z * 0.79],
   })),
-  ...SIDES.map((s): Part => ({
-    id: `sill-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [3.0, 0.11, 0.09], radius: 0.02 }, position: [-0.02, 0.4, s.z * 0.76],
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `front-rail-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [1.1, 0.1, 0.07], radius: 0.015 }, position: [1.78, 0.56, s.z * 0.5],
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `rear-rail-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [1.0, 0.1, 0.07], radius: 0.015 }, position: [-1.86, 0.56, s.z * 0.55],
-  })),
-  { id: "front-crash-beam", material: "aluminium",
-    shape: { kind: "tube", radius: 0.035, points: [[-0.06, 0, -0.78], [0.02, 0, -0.4], [0.04, 0, 0], [0.02, 0, 0.4], [-0.06, 0, 0.78]] },
-    position: [2.34, 0.52, 0] },
-  { id: "rear-crash-beam", material: "aluminium",
-    shape: { kind: "tube", radius: 0.035, points: [[0.06, 0, -0.78], [-0.02, 0, -0.4], [-0.04, 0, 0], [-0.02, 0, 0.4], [0.06, 0, 0.78]] },
-    position: [-2.38, 0.56, 0] },
-  { id: "bulkhead", material: "aluminium",
-    shape: { kind: "box", size: [0.02, 0.48, 1.42], radius: 0.008 }, position: [1.04, 0.66, 0], rotation: [0, 0, 0.12] },
+  ...Object.keys(structureStandIns).map(standIn),
 ];
 
 // Each axle has its own hard points (blender/corner.py, web/src/vehicle/suspension.json): a leading calliper at
@@ -363,21 +352,23 @@ const power: Part[] = [
   // unit, and the rear inverter through the pack's internal rear feed. The DC charge harness runs from the
   // charge port, under the rear-left drive shaft, to the pack's rear charging outlet.
   { id: "hv-harness-front", material: "hv-orange",
-    // up over the rear-left subframe mount, clear of the front-left tyre's sweep at full lock
-    ...absTube([[1.17, 0.29, -0.4], [1.21, 0.38, -0.4], [1.29, 0.6, -0.32], [1.36, 0.773, -0.17]], 0.014) },
+    // inboard of the front-left subframe mount and its body bracket (D1.2), up ahead of the subframe and the
+    // steering rack's mount, then over the rack to the inverter
+    ...absTube([[1.17, 0.29, -0.22], [1.185, 0.35, -0.235], [1.235, 0.42, -0.23], [1.24, 0.6, -0.21], [1.3, 0.72, -0.18], [1.36, 0.773, -0.17]], 0.014) },
   { id: "hv-harness-rear", material: "hv-orange",
     ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
   { id: "hv-harness-aux", material: "hv-orange",
     ...absTube([[1.17, 0.29, -0.3], [1.25, 0.4, -0.29], [1.3, 0.75, -0.29], [1.45, 0.9, -0.28], [1.75, 0.92, -0.1], [1.84, 0.92, 0.15], [1.82, 0.8, 0.27], [1.83, 0.66, 0.27]], 0.012) },
   { id: "hv-harness-charge", material: "hv-orange",
-    ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.75, 0.47, -0.4], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
+    ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.7, 0.48, -0.47], [-1.62, 0.4, -0.42], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
       [-1.1, 0.345, -0.12], [-1.02, 0.3, -0.1]], 0.012) },
   { id: "lv-harness", material: "satin-black",
-    // along the left sill, then inboard of the rear-left damper and the upper arm's pivots, over the drive shaft, to
-    // the rear compartment
-    // high and inboard of the front-left spring and the upper arm's pivots, then down along the left sill
-    ...absTube([[1.95, 0.7, -0.17], [1.85, 0.78, -0.3], [1.3, 0.8, -0.33], [1.0, 0.75, -0.62], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.0, 0.44, -0.6], [-1.2, 0.47, -0.42],
-      [-1.45, 0.52, -0.4], [-1.68, 0.53, -0.4], [-1.74, 0.56, -0.5], [-1.9, 0.62, -0.5]], 0.012) },
+    // high and inboard of the front-left spring and the upper arm's pivots, through the bulkhead's grommet, along the
+    // left sill over the floor crossmembers, up in front of the rear wheelhouse, over the boot floor beside it, and
+    // down through a grommet to the rear electrics (D1.2)
+    ...absTube([[1.95, 0.7, -0.17], [1.85, 0.78, -0.3], [1.3, 0.8, -0.33], [1.0, 0.75, -0.62], [0.75, 0.6, -0.675], [0.5, 0.47, -0.675],
+      [0.2, 0.47, -0.675], [-0.6, 0.47, -0.675], [-0.9, 0.47, -0.675], [-0.945, 0.55, -0.672], [-0.95, 0.885, -0.66], [-1.1, 0.885, -0.62], [-1.8, 0.885, -0.62], [-1.85, 0.8, -0.58],
+      [-1.88, 0.7, -0.52], [-1.9, 0.62, -0.5]], 0.012) },
 ];
 
 const sensors: Part[] = [
@@ -426,15 +417,16 @@ const interior: Part[] = [
       { ...seat, id: `seat-frame-front-${s.key}`, material: "steel", shape: { kind: "seat", width: 0.52, piece: "frame" } },
     ];
   }),
+  // forward of the heel kick-up and narrower than the rear wheelhouses and the brake lines' rise (R6, D1.2)
   { id: "seat-rear", material: "leather",
-    shape: { kind: "seat", width: 1.3, piece: "cushion" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "cushion" }, position: [-0.8, 0.58, 0] },
   { id: "seat-back-rear", material: "leather",
-    shape: { kind: "seat", width: 1.3, piece: "back" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "back" }, position: [-0.8, 0.58, 0] },
   { id: "seat-frame-rear", material: "steel",
-    shape: { kind: "seat", width: 1.3, piece: "frame" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "frame" }, position: [-0.8, 0.58, 0] },
   ...SIDES.map((s): Part => ({
     id: `headrest-rear-${s.key}`, material: "leather",
-    shape: { kind: "seat", width: 0.52, piece: "headrest" }, position: [-0.95, 0.58, s.z * 0.38],
+    shape: { kind: "seat", width: 0.52, piece: "headrest" }, position: [-0.8, 0.58, s.z * 0.38],
   })),
   { id: "dashboard", material: "satin-black",
     shape: { kind: "box", size: [0.36, 0.2, 1.46], radius: 0.06 }, position: [0.74, 0.88, 0] },
@@ -442,35 +434,7 @@ const interior: Part[] = [
 
 // ---- Detail layers: what makes the exploded view read as an engineering assembly -----------------
 
-const { topLine: T, beltLine: B, halfWidth: W, roofHalfWidth: RW, bottomLine: Y } = bodyLines;
-const roofPt = (x: number, z: 1 | -1): Vec3 => [x, T(x) - 0.075, z * (RW(x) - 0.01)];
-const beltPt = (x: number, z: 1 | -1): Vec3 => [x, B(x) - 0.02, z * (W(x) - 0.11)];
-const sillPt = (x: number, z: 1 | -1): Vec3 => [x, Y(x) + 0.12, z * (W(x) - 0.08)];
-const frameTube = (id: string, points: Vec3[], radius = 0.026): Part => ({
-  id, material: "aluminium", ...absTube(points, radius),
-});
-
-const bodyFrame: Part[] = [
-  ...SIDES.flatMap((s): Part[] => [
-    frameTube(`a-pillar-${s.key}`, [beltPt(0.9, s.z), mid(beltPt(0.9, s.z), roofPt(0.2, s.z), 0.04), roofPt(0.2, s.z)]),
-    frameTube(`b-pillar-${s.key}`, [sillPt(-0.1, s.z), beltPt(-0.1, s.z), roofPt(-0.1, s.z)], 0.03),
-    frameTube(`c-pillar-${s.key}`, [beltPt(-1.27, s.z), roofPt(-1.27, s.z)]),
-    frameTube(`d-pillar-${s.key}`, [beltPt(-2.1, s.z), mid(beltPt(-2.1, s.z), roofPt(-1.95, s.z)), roofPt(-1.95, s.z)]),
-    frameTube(`roof-rail-${s.key}`, [0.2, -0.4, -1.0, -1.6, -1.95].map((x) => roofPt(x, s.z)), 0.024),
-  ]),
-  ...([[0.2, "front-header"], [-0.55, "roof-bow-1"], [-1.25, "roof-bow-2"], [-1.95, "rear-header"]] as const).map(([x, id]) =>
-    frameTube(id, [roofPt(x, -1), [x, T(x) - 0.06, 0], roofPt(x, 1)], 0.02)),
-  frameTube("cross-car-beam", [[0.8, 0.9, -0.78], [0.8, 0.94, 0], [0.8, 0.9, 0.78]], 0.032),
-];
-
-const floor: Part[] = [
-  { id: "cabin-floor", material: "satin-black",
-    shape: { kind: "box", size: [2.3, 0.012, 1.42], radius: 0.004 }, position: [-0.15, 0.39, 0] },
-  ...([[0.45, 1], [-0.55, 2]] as const).map(([x, n]): Part => ({
-    id: `floor-crossmember-${n}`, material: "aluminium",
-    shape: { kind: "box", size: [0.08, 0.06, 1.42], radius: 0.012 }, position: [x, 0.43, 0],
-  })),
-];
+const { halfWidth: W } = bodyLines;
 
 const doorLayers: Part[] = CORNERS.flatMap((c): Part[] => {
   const cx = c.front ? 0.4 : -0.63;
@@ -675,8 +639,6 @@ export const PARTS: Part[] = [
   ...sensors,
   ...electronics,
   ...interior,
-  ...bodyFrame,
-  ...floor,
   ...doorLayers,
   ...wheelDetail,
   ...upperArms,

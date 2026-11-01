@@ -33,6 +33,16 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/^lower-arm-/, /^(front|rear)-subframe$/],
   [/^toe-link-r[lr]$/, /^rear-subframe$/],
   [/^front-subframe-mount-/, /^front-rail-[lr]$/],
+  // D1.2, the body structure: subframe mounts on their body brackets; top mounts under the towers' turrets and the upper
+  // arms' bushes in the towers' brackets; the radiator in the front-end carrier; the column's bracket on the cross-car
+  // beam; lines and the 12 V harness clipped through grommets in the tower, wheelhouse, bulkhead and boot floor
+  [/-subframe-mount-\d$/, /^(front-floor-rail-[lr]|rear-rail-[lr]|floor-crossmember-3)$/],
+  [/^(top-mount|upper-arm)-[fr][lr]$/, /^(front|rear)-tower-[lr]$/],
+  [/^radiator$/, /^front-end-carrier$/],
+  [/^steering-column$/, /^cross-car-beam$/],
+  [/^brake-line-f[lr]$/, /^front-tower-[lr]$/],
+  [/^brake-hose-r[lr]$/, /^wheelhouse-r[lr]$/],
+  [/^lv-harness$/, /^(bulkhead|rear-floor)$/],
   // C3c step 3: the rack mounts bolted to the subframe; the intermediate shaft through the bulkhead in its rubber seal
   [/^steering-rack-mount-[lr]$/, /^front-subframe$/],
   [/^steering-intermediate-shaft$/, /^bulkhead$/],
@@ -51,19 +61,17 @@ const SKIP = new Set(["underbody"]);
 
 /** Known clashes, each listed with where it is tracked. They are not ignored: the check prints every one on every
  * run, fails if anything new appears, and fails if a listed group no longer occurs (so the list is kept current).
- * B1-B6: docs/body-structure-backlog.md (the simple body structure; fixed by the body reconstruction).
+ * B4, B5, B7: docs/body-structure-backlog.md (body placeholders, rebuilt in D1.3). B1-B3 and B6 were resolved by the
+ * D1.2 body structure.
  * (C3c step 1's temporary group C3c-2, placeholder suspension parts, was resolved in step 2.) */
 const KNOWN: [string, RegExp][] = [
-  ["B1", /^.+-(fl|fr|rl|rr)(-\d)? \/ sill-[lr]$|^rear-halfshaft-[lr] \/ sill-[lr]$/],
-  ["B2", /^(upper-arm|spring|coilover|drop-link|tie-rod)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
-  ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link|brake-line)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
   ["B4", /^tyre-r[lr] \/ door-(structure|trim)-r[lr]$/],
   ["B5", /^knuckle-f[lr] \/ arch-liner-f[lr]$|^brake-line-r[lr] \/ arch-liner-r[lr]$/],
-  ["B6", /^brake-line-r[lr] \/ seat-(rear|back-rear)$/],
+  ["B7", /^(sill-[lr]|[abc]-pillar-[lr]|wheelhouse-r[lr]) \/ (door-(structure|trim|latch|seal)|arch-liner)-[fr][lr]$/],
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics", "body-structure"];
 
 describe("mechanical packaging", () => {
   it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {

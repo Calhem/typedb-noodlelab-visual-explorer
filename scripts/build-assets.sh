@@ -1,6 +1,6 @@
 #!/bin/sh
 # Rebuild the Blender-modelled parts (wheel corners, subframes and anti-roll bars, steering, brake supply, thermal circuits, drive units, battery pack, power
-# electronics) and compress them
+# electronics, body structure) and compress them
 # for the web app.
 #   1. Blender (on this Mac, via uv) writes uncompressed models to web/assets-src/ and the visual
 #      mapping files (node -> component id) to web/public/assets/. -kv keeps texture coordinates even
@@ -19,6 +19,7 @@ uv run --project blender python -I blender/chassis.py
 uv run --project blender python -I blender/steering.py
 uv run --project blender python -I blender/brakes.py
 uv run --project blender python -I blender/thermal.py
+uv run --project blender python -I blender/structure.py
 
 for src in web/assets-src/*.glb; do
   name=$(basename "$src" .glb)

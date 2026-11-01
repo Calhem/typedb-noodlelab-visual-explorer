@@ -203,6 +203,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["steel-chrome", m({ color: c("#eef0f2"), metalness: 1, roughness: 0.07 })],
     ["steel-zinc", m({ color: c("#bdb8aa"), metalness: 1, roughness: 0.36 })],
     ["steel-dark", m({ color: c("#3d4045"), metalness: 0.6, roughness: 0.5 })],
+    // body-in-white: pressed steel in its grey electro-coat (D1.2)
+    ["body-ecoat", m({ color: c("#6c7279"), metalness: 0.2, roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.35 })],
     ["steel-machined", m({ color: c("#c7cbcf"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.7, anisotropyMap: brushing })],
     // brakes: machined friction faces with circular brushing; cast iron vanes; anodised aluminium hat;
     // calliper in an anodised bronze (a restrained warm accent against the cool metals)

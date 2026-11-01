@@ -15,3 +15,19 @@ The drive-shaft clashes are the ones the packaging check can see (it checks driv
 against their neighbours); the sill-tyre overlaps are recorded here from the bounding-box survey.
 | B5 | **Front wheel arches too tight for steering and travel** | In motion only: at full lock and bump the front tyres reach `arch-liner-fl` / `-fr` (18 pose records in the C3c travel check); since C3c step 2b the top of the goose-neck knuckle (upper ball joint above the tyre, about 0.85 m high) reaches the liners' crown statically too; since C3c step 4 the rear brake lines, rising ahead of the rear wheels, graze the rear liners' front edge (x about -1.0 m) | The arch liners were sized for a static wheel | Size the arches from the wheel envelopes in docs/c3c/body-interfaces.md | C3c step 2 |
 | B6 | **Rear seat sits over the rear suspension** | The rear upper arms' body pivots (x about -1.22 m, 0.62 m high, 0.47 m out) are inside `seat-rear` and `seat-back-rear` (4 static pairs, more in motion) | The simple rear seat was placed before the rear suspension had geometry | Move the rear seat forward of the rear suspension towers, or raise it on a heel kick-up. **Status (C3c step 2b):** no longer occurs. The rear upper arm now sits inside the wheel (pivots 0.57 m high), and the motion check finds no seat pair under 10 mm (closest: rear tyre to `seat-back-rear`, 13.9 mm at full bump). Kept here so the rebuilt seat keeps that margin. Since C3c step 4 the rear brake lines, which rise in the rear wheelhouses inboard of the tyres, pass through the seat cushion's and back's outer edges (the seat reaches into the wheelhouse) | C3c step 2 |
+| B7 | **Placeholder doors and rear arch liners overlap the new structure** | The simple door layers (`door-structure-*`, `door-trim-r*`, `door-latch-r*`) cross the new sills, B- and C-pillars and rear wheelhouses, and the rear arch liners cross the wheelhouses and C-pillars (22 static pairs) | The doors and liners were sized for the milestone 2.1 body; the D1.2 structure follows the provisional D1.1 exterior | Rebuild the doors (closures) and arch liners against the new structure in D1.3, with B4 and B5 | D1.2 |
+
+## Status after D1.2 (body structure, 1 November 2026)
+
+- **Resolved:**
+  - **B1:** the sills now run from x −1.00 to 1.06, clear of both wheels' sweep.
+  - **B2:** the front rails stop at the towers, ahead of the rack and tie rods. The rear rails rise over the rear
+    suspension.
+  - **B3:** the floor kicks up over the rear subframe, and the wheelhouses stand inboard of the rear tyres.
+  - **B6:** the rear seat has moved forward to x −0.80 and narrowed to 1.18 m.
+  - These groups are gone from both the static packaging check and the motion check. The motion check now covers
+    the whole new structure.
+- **Open, for D1.3:**
+  - **B4:** the rear doors reach the tyres.
+  - **B5:** the arch liners are too tight.
+  - **B7:** the placeholder doors and liners overlap the new structure.

@@ -7,7 +7,7 @@ import { buildVehicle } from "./buildVehicle";
 import { loadParts } from "./clearance";
 import type { Corner, Pose } from "./kinematics";
 
-export const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+export const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics", "body-structure"];
 
 /** Which part of a corner moves how. Ids are given without the corner suffix. */
 const WHEEL_GROUP = ["tyre", "wheel", "brake-disc", "caliper", "brake-pad-inner", "brake-pad-outer", "brake-shield", "hub", "hub-nut",
@@ -34,6 +34,8 @@ const JOINTS: [RegExp, RegExp][] = [
   [/^front-halfshaft-/, /^front-(?!halfshaft)/],
   [/^rear-halfshaft-/, /^rear-(?!halfshaft)/],
   [/^lower-arm-/, /^(front|rear)-subframe$/],
+  // the upper arms' bushes in the suspension towers' brackets (D1.2)
+  [/^upper-arm-/, /^(front|rear)-tower-[lr]$/],
   [/^tie-rod-/, /^steering-rack$/],
   [/^toe-link-/, /^rear-subframe$/],
   [/^drop-link-/, /-anti-roll-bar$/],
@@ -42,14 +44,12 @@ const JOINTS: [RegExp, RegExp][] = [
 ];
 export const joint = (a: string, b: string) => JOINTS.some(([p, q]) => (p.test(a) && q.test(b)) || (p.test(b) && q.test(a)));
 
-/** Known body-structure clashes (docs/body-structure-backlog.md). */
+/** Known body clashes (docs/body-structure-backlog.md): the placeholder rear doors and arch liners, rebuilt in D1.3.
+ * B1-B3 and B6 (sills, rails, floor and rear seat) were resolved by the D1.2 body structure, which this check now
+ * covers in full. */
 export const KNOWN: [string, RegExp][] = [
-  ["B1", / \/ sill-[lr]$|^sill-[lr] \//],
-  ["B2", /(front|rear)-rail-[lr]/],
-  ["B3", /cabin-floor/],
   ["B4", /door-(structure|trim|seal)-r[lr]/],
   ["B5", /arch-liner-/],
-  ["B6", /^upper-arm-r[lr] \/ seat-(rear|back-rear)$/],
 ];
 
 /** Every part placed as in the app; models loaded from the real compressed files. */
