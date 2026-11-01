@@ -74,7 +74,12 @@ systems:
     parent: braking
     name: "Brake control and stability"
     description: "Builds and modulates brake pressure: anti-lock braking and stability control."
-    members: [brake-pedal, brake-booster, master-cylinder, esc-module, wheel-speed-sensor-*]
+    members: [brake-pedal, brake-booster, master-cylinder, brake-fluid-reservoir, esc-module, brake-line-*, wheel-speed-sensor-*]
+  - id: parking
+    parent: braking
+    name: "Parking"
+    description: "Holds the parked vehicle: the park lock in the rear drive unit and the electric parking brake at the rear callipers, each the other's backup. Neither stands in for the service brakes."
+    members: [rear-park-lock, epb-actuator-*]
 
   - id: steering
     name: "Steering"

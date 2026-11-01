@@ -119,10 +119,13 @@ def test_7_one_battery_module(client):
 
 
 def test_8_esc_module(client):
+    """Revised in C3c step 4: the fail-open fallback sits on the rigid lines; the module also drives the parking brake."""
     lost, degraded, fallbacks = impact(client, "esc-module")
-    assert lost == {("ad-compute", "automated driving")}
+    assert lost == {("ad-compute", "automated driving"), ("epb-actuator-rl", "parking hold"), ("epb-actuator-rr", "parking hold"),
+                    ("caliper-rl", "parking clamp"), ("caliper-rr", "parking clamp")}
     assert all_corners("caliper", "clamping force") <= degraded
-    assert {(f"brake-hose-{c}", "brake pressure", "master-cylinder") for c in CORNERS} <= fallbacks
+    assert {("tyre-rl", "vehicle holding"), ("tyre-rr", "vehicle holding")} <= degraded
+    assert {(f"brake-line-{c}", "brake pressure", "master-cylinder") for c in CORNERS} <= fallbacks
 
 
 def test_9_one_brake_hose(client):
@@ -209,8 +212,11 @@ def test_vehicle_level_propulsion_for_earlier_scenarios(client):
 
 
 def test_15_rear_park_lock(client):
+    """Revised in C3c step 4 (scenario 40): the park lock now holds the parked car, with the parking brake as backup;
+    driving is still unaffected."""
     lost, degraded, _ = impact(client, "rear-park-lock")
-    assert not lost and not degraded
+    assert not lost
+    assert not {k for k in degraded if k[1] != "vehicle holding"}
 
 
 def test_16_front_hv_connector(client):
@@ -361,6 +367,54 @@ def test_35_top_mount(client):
     assert lost == {("spring-fl", "load support"), ("coilover-fl", "damping")}
     assert degraded == {("tyre-fl", "road holding")}
 
+
+
+# ---- C3c step 4: braking supply and parking (docs/dependency-semantics.md, scenarios 40-44) -------------------------
+
+HOLDING = {("tyre-rl", "vehicle holding"), ("tyre-rr", "vehicle holding")}
+PARKING = {"rear-park-lock", "epb-actuator-rl", "epb-actuator-rr"}
+SERVICE = ("clamping force", "friction braking", "brake pressure")
+
+
+def test_40_park_lock_only_degrades_holding(client):
+    lost, degraded, fallbacks = impact(client, "rear-park-lock")
+    assert not lost
+    assert degraded == HOLDING
+    assert {("tyre-rl", "vehicle holding", "epb-actuator-rl"), ("tyre-rr", "vehicle holding", "epb-actuator-rr")} <= fallbacks
+
+
+def test_41_one_parking_brake(client):
+    lost, degraded, _ = impact(client, "epb-actuator-rl")
+    assert lost == {("caliper-rl", "parking clamp")}
+    assert degraded == {("tyre-rl", "vehicle holding")}
+
+
+def test_42_twelve_volt_loses_both_parking_mechanisms(client):
+    lost, _, _ = impact(client, "lv-battery")
+    assert HOLDING | {("rear-park-lock", "parking hold"), ("epb-actuator-rl", "parking hold"), ("epb-actuator-rr", "parking hold")} <= lost
+
+
+def test_43_reservoir(client):
+    lost, degraded, fallbacks = impact(client, "brake-fluid-reservoir")
+    assert {("master-cylinder", "brake pressure"), ("esc-module", "brake pressure")} <= lost
+    assert all_corners("brake-line", "brake pressure") | all_corners("caliper", "clamping force") <= lost
+    assert not {k for k in lost | degraded if k[1] in ("vehicle holding", "parking hold", "parking clamp")}
+
+
+def test_44_one_brake_line(client):
+    lost, degraded, _ = impact(client, "brake-line-fl")
+    assert lost == {("brake-hose-fl", "brake pressure"), ("caliper-fl", "clamping force"), ("brake-pad-inner-fl", "friction braking"),
+                    ("brake-pad-outer-fl", "friction braking")}
+    assert not degraded
+
+
+def test_parking_never_backs_up_service_braking(client):
+    for d in DEPS:
+        if d["function"] in SERVICE:
+            assert d.get("fallback", {}).get("backup") not in PARKING, d
+    for failed in ("master-cylinder", "esc-module", "brake-booster", "brake-hose-rl"):
+        _, _, fallbacks = impact(client, failed)
+        assert not {f for f in fallbacks if f[1] in SERVICE and f[2] in PARKING}, failed
 
 
 # ---- C3c step 3: steering (docs/dependency-semantics.md, scenarios 36-39) --------------------------------------------

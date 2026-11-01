@@ -447,3 +447,59 @@ in TypeDB. No further geometric optimisation.
 
 ![Steering](step3/steering.jpg)
 ![Rack, motor, module and torque sensor](step3/steering-rack-close.jpg)
+
+## Step 4: braking supply and parking (1 November 2026)
+
+**Model** (`blender/brakes.py` → `brakes.glb`, 9 parts):
+- **Pedal and booster:** the pedal box sits under the steering column, and its pushrod passes through the
+  bulkhead to the ribbed electric booster.
+- **Master cylinder:** with its fluid reservoir, and two circuit pipes over the upper arm's pivots to the ESC
+  module.
+- **ESC module:** a valve block with its pump motor and control unit.
+- **Four rigid brake lines:**
+  - front: over the power distribution unit;
+  - rear: under the cabin floor between the battery pack and the sill, then up inside the rear wheelhouses.
+- **Hose brackets:** moved 14 cm inboard, out of the front tyre's sweep at lock and bump.
+
+**TypeDB.**
+- **New parts:** the brake-fluid reservoir and four brake lines.
+- **New system:** *Parking* (under Braking), with an *Electric parking brake* control loop. The ESC module drives
+  the rear actuators.
+- **Brake chain:** reservoir → master cylinder → ESC → line → hose → calliper. The ESC's fail-open fallback now
+  sits on the lines.
+- **Parking:** the park lock and the electric parking brake each back the other up for *vehicle holding* at the
+  rear tyres. Neither can stand in for service braking, and a test checks that over every dependency and
+  several failures.
+- **Expected outcomes:** scenarios 40–44 and revised 8, 15 and 12 V, all written before the data.
+- **Counts:** 401 components, 524 connections, 359 dependencies, 84 vehicle functions, 11 fallbacks.
+
+**One reasoning change, found by the oracle test.**
+- **The problem:** a 12 V failure takes out both parking mechanisms through different chains (VCU and ESC).
+  TypeDB's fallback rule only noticed a backup failing when it depended *directly* on the failed part, so it
+  still counted each mechanism as the other's backup.
+- **The fix:** a new function, `hard_losses`, finds what a failure removes through dependencies that have no
+  fallback. A backup no longer counts if it is among them.
+- **Result:** the oracle now agrees for every one of the 401 components.
+- **Cost:** the API suite takes about 140 s instead of 110 s. Query timing is re-measured in the performance step.
+
+**Packaging.**
+- **Designed contacts listed:**
+  - lines into their hoses;
+  - the booster bolted to the bulkhead;
+  - the pedal pushrod through the bulkhead.
+- **Moved:** the auxiliary HV harness, raised over the ESC module.
+- **Body items:**
+  - the rear lines graze the placeholder rear arch liners (B5);
+  - inside the rear wheelhouses they meet the placeholder floor and rear seat, which reach into the arches
+    (B3, B6).
+- **Motion check:** passes. It caught the front lines and hose brackets in the tyre's sweep, and the rear lines
+  too close to the front tyre at full lock; both were rerouted.
+
+**Simplification:** lines are drawn as smooth tubes with a few clips, with no bends to exact production radii.
+
+**Tests:** web 58 passed (11 skipped), API and TypeDB 101 passed, web against live TypeDB 7 passed.
+
+**Size:** `brakes.glb` is about 0.3 MB.
+
+![Brake supply](step4/brakes.jpg)
+![Lines to all four corners](step4/brakes-whole.jpg)

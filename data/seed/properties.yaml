@@ -261,6 +261,10 @@ properties:
     description: "Automated-driving computer: fuses the sensors, plans the path and commands steering, braking and drive torque."
   - match: vcu
     description: "Vehicle control unit: turns the accelerator pedal and driving mode into torque requests for the two drive units, including traction control."
+  - match: brake-fluid-reservoir
+    description: "Brake-fluid reservoir: a translucent tank on the master cylinder with a level sensor, keeping both brake circuits filled."
+  - match: brake-line-*
+    description: "Rigid brake line: coated steel tube from the stability-control module's outlet to the corner's flexible hose."
   - match: master-cylinder
     description: "Tandem master cylinder: turns pedal and booster force into brake-fluid pressure, in two separate circuits."
   - match: brake-pedal

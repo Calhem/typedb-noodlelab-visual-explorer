@@ -136,6 +136,11 @@ components:
   - {id: brake-booster, type: actuator, assembly: brake-control, name: "Electric brake booster"}
   - {id: esc-module, type: control-unit, assembly: brake-control, name: "Stability control module (ABS/ESC)"}
   - {id: master-cylinder, type: brake-component, assembly: brake-control, name: "Brake master cylinder"}
+  - {id: brake-fluid-reservoir, type: brake-component, assembly: brake-control, name: "Brake-fluid reservoir"}
+  - {id: brake-line-fl, type: brake-component, assembly: brake-control, name: "Front left brake line"}
+  - {id: brake-line-fr, type: brake-component, assembly: brake-control, name: "Front right brake line"}
+  - {id: brake-line-rl, type: brake-component, assembly: brake-control, name: "Rear left brake line"}
+  - {id: brake-line-rr, type: brake-component, assembly: brake-control, name: "Rear right brake line"}
   - {id: brake-pedal, type: driver-control, assembly: brake-control, name: "Brake pedal"}
   # front-drive-unit
   - {id: front-motor, type: electric-motor, assembly: front-drive-unit, name: "Front electric motor"}

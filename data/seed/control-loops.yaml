@@ -50,7 +50,13 @@ control-loops:
     controller: vcu
     sensors: []
     actuators: [rear-park-lock]
-    system: rear-axle-drive
+    system: parking
+  - name: "Electric parking brake"
+    description: "The stability-control module applies and releases the rear callipers' parking-brake motors (switch, automatic hold on stopping, release on driving away)."
+    controller: esc-module
+    sensors: []
+    actuators: [epb-actuator-*]
+    system: parking
   - name: "Battery management"
     description: "The BMS reads every cell's voltage and temperature through the module monitors and the pack current through the shunt, and closes or opens the main contactors (through the pre-charge path first)."
     controller: bms

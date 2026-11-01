@@ -176,15 +176,28 @@ dependencies:
      fallback: {backup: brake-pedal, description: "The pedal still pushes the master cylinder directly, with much higher effort"}}
   - {dependent: master-cylinder, function: brake pressure, provider: brake-pedal, needs: driver brake demand, kind: support, loss: lost,
      fallback: {backup: brake-booster, description: "The booster can still build pressure on electronic demand (automatic emergency braking)"}}
+  - {dependent: master-cylinder, function: brake pressure, provider: brake-fluid-reservoir, needs: fluid supply, kind: hydraulic, loss: lost,
+     description: "Without fluid the master cylinder draws air; neither the booster nor the pedal can make up for it"}
   - {dependent: esc-module, function: brake pressure, provider: master-cylinder, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
-  - {dependent: brake-hose-<c>, function: brake pressure, provider: esc-module, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded,
+  - {dependent: brake-line-<c>, function: brake pressure, provider: esc-module, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded,
      fallback: {backup: master-cylinder, description: "The hydraulic unit's valves fail open: pedal pressure passes through, unmodulated"}}
+  - {dependent: brake-hose-<c>, function: brake pressure, provider: brake-line-<c>, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
   - {dependent: caliper-<c>, function: clamping force, provider: brake-hose-<c>, needs: brake pressure, kind: hydraulic, loss: lost, degradation: degraded}
   - {dependent: brake-pad-inner-<c>, function: friction braking, provider: caliper-<c>, needs: clamping force, kind: support, loss: lost, degradation: degraded}
   - {dependent: brake-pad-outer-<c>, function: friction braking, provider: caliper-<c>, needs: clamping force, kind: support, loss: lost, degradation: degraded}
   - {dependent: esc-module, function: anti-lock braking, provider: wheel-speed-sensor-<c>, needs: wheel speed, kind: data, loss: lost,
      description: "With one wheel speed missing, anti-lock braking is switched off (warning light); base braking remains"}
   - {dependent: esc-module, function: stability control, provider: wheel-speed-sensor-<c>, needs: wheel speed, kind: data, loss: lost}
+
+  # ---- Parking: park lock and electric parking brake back each other up for holding the vehicle, never braking ----
+  - {dependent: esc-module, function: parking-brake control, provider: lv-harness, needs: 12 V distribution, kind: power, loss: lost}
+  - {dependent: "epb-actuator-r<s>", function: parking hold, provider: esc-module, needs: parking-brake control, kind: control, loss: lost}
+  - {dependent: "caliper-r<s>", function: parking clamp, provider: "epb-actuator-r<s>", needs: parking hold, kind: support, loss: lost,
+     description: "The actuator drives the calliper's piston mechanically; no hydraulic pressure is involved"}
+  - {dependent: "tyre-r<s>", function: vehicle holding, provider: rear-park-lock, needs: parking hold, kind: support, loss: lost,
+     fallback: {backup: "epb-actuator-r<s>", description: "The electric parking brake holds the car on its own"}}
+  - {dependent: "tyre-r<s>", function: vehicle holding, provider: "caliper-r<s>", needs: parking clamp, kind: support, loss: lost,
+     fallback: {backup: rear-park-lock, description: "The park lock still holds the car through the rear drive unit"}}
 
   # ---- Steering -----------------------------------------------------------------------------------------------
   - {dependent: steering-column, function: driver steering input, provider: steering-wheel, needs: driver steering input, kind: torque, loss: lost}

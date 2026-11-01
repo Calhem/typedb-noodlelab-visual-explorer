@@ -36,24 +36,28 @@ const CONTACTS: [RegExp, RegExp][] = [
   // C3c step 3: the rack mounts bolted to the subframe; the intermediate shaft through the bulkhead in its rubber seal
   [/^steering-rack-mount-[lr]$/, /^front-subframe$/],
   [/^steering-intermediate-shaft$/, /^bulkhead$/],
+  // C3c step 4: each rigid line screwed into its hose; the booster bolted to the bulkhead, the pedal's pushrod through it
+  [/^brake-line-/, /^brake-hose-/],
+  [/^(brake-booster|brake-pedal)$/, /^bulkhead$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
 
 /** Known clashes, each listed with where it is tracked. They are not ignored: the check prints every one on every
  * run, fails if anything new appears, and fails if a listed group no longer occurs (so the list is kept current).
- * B1-B5: docs/body-structure-backlog.md (B6 occurs only in motion) (the simple body structure; fixed by the body reconstruction).
+ * B1-B6: docs/body-structure-backlog.md (the simple body structure; fixed by the body reconstruction).
  * (C3c step 1's temporary group C3c-2, placeholder suspension parts, was resolved in step 2.) */
 const KNOWN: [string, RegExp][] = [
   ["B1", /^.+-(fl|fr|rl|rr)(-\d)? \/ sill-[lr]$|^rear-halfshaft-[lr] \/ sill-[lr]$/],
   ["B2", /^(upper-arm|spring|coilover|drop-link|tie-rod)-(fl|fr|rl|rr) \/ (front|rear)-rail-[lr]$/],
-  ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
+  ["B3", /^(tyre|wheel|knuckle|toe-link|drop-link|brake-line)-r[lr] \/ cabin-floor$|^rear-subframe \/ cabin-floor$/],
   ["B4", /^tyre-r[lr] \/ door-(structure|trim)-r[lr]$/],
-  ["B5", /^knuckle-f[lr] \/ arch-liner-f[lr]$/],
+  ["B5", /^knuckle-f[lr] \/ arch-liner-f[lr]$|^brake-line-r[lr] \/ arch-liner-r[lr]$/],
+  ["B6", /^brake-line-r[lr] \/ seat-(rear|back-rear)$/],
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
 
 describe("mechanical packaging", () => {
   it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {

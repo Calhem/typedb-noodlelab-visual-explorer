@@ -25,7 +25,9 @@ connections:
   - {kind: mechanical, joint: bolted, ends: [brake-shield-<c>, knuckle-<c>]}
   - {kind: mechanical, joint: bolted, ends: [wheel-speed-sensor-<c>, knuckle-<c>]}
   - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, caliper-<c>], description: "Banjo fitting"}
-  - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, esc-module], description: "Through the brake hard line"}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-hose-<c>, brake-line-<c>], description: "Hose fitting at the body bracket"}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-line-<c>, esc-module], description: "Rigid steel line from the hydraulic unit"}
+  - {kind: data, network: hard-wired signal, ends: [epb-actuator-r<s>, esc-module], description: "Motor drive from the module's parking-brake stage"}
   - {kind: data, network: hard-wired signal, ends: [wheel-speed-sensor-<c>, esc-module]}
 
   # ---- Suspension -----------------------------------------------------------------------------------------
@@ -182,6 +184,7 @@ connections:
   - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, hvac-module]}
   - {kind: mechanical, joint: ball-joint, ends: [brake-pedal, brake-booster], description: "Pedal pushrod"}
   - {kind: mechanical, joint: bolted, ends: [master-cylinder, brake-booster]}
+  - {kind: fluid, fluid: brake fluid, ends: [brake-fluid-reservoir, master-cylinder], description: "Reservoir plugged into the master cylinder's inlets"}
   - {kind: fluid, fluid: brake fluid, ends: [master-cylinder, esc-module], description: "Two brake circuits"}
   - {kind: mechanical, joint: bolted, ends: [brake-booster, bulkhead]}
 

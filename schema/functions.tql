@@ -38,10 +38,20 @@ fun system_components($s: system) -> { component }:
 #   lost_steps      the dependent's function is LOST
 #   degraded_steps  the dependent's function is DEGRADED
 # Each returns the steps (provider, its function, dependent, its function). A function reached both ways is
-# lost (callers apply that). Fallbacks: a backup counts unless it is the failed part itself, or depends directly
-# on the failed part with a "lost" effect (a shared cause: the charge port feeds both DC charging and its backup,
-# the on-board charger). Deeper shared causes are not detected; the tests compare every failure with an exact
-# oracle, which checks this simpler rule is sufficient for the data.
+# lost (callers apply that). Fallbacks: a backup counts unless it is the failed part itself, or the failure takes
+# away one of the backup's functions through dependencies that have no fallback of their own (hard_losses below:
+# a shared cause, such as the charge port feeding both DC charging and its backup, the on-board charger, or the
+# 12 V supply behind both the park lock and the electric parking brake). The tests compare every failure with an
+# exact oracle, which checks this rule is sufficient for the data.
+
+# Functions the failure of $start takes away for certain: through "lost" dependencies that no fallback covers.
+# It never consults fallbacks, so lost_steps and degraded_steps can use it inside a negation.
+fun hard_losses($start: component) -> { component, vehicle-function }:
+  match
+    $d isa dependency (provider: $p, required-function: $g, dependent: $c, affected-function: $f), has loss-effect "lost";
+    not { fallback (protected: $d); };
+    { $p is $start; } or { let $p, $g in hard_losses($start); };
+  return { $c, $f };
 
 # Lost when the required function is lost and nothing takes over, or when it is degraded and the dependency
 # says that degradation is enough to lose the function.
@@ -51,7 +61,7 @@ fun lost_steps($start: component) -> { component, vehicle-function, component, v
     {
       $d has loss-effect "lost";
       not { fallback (protected: $d, backup: $b); not { $b is $start; };
-            not { $bd isa dependency (dependent: $b, provider: $start), has loss-effect "lost"; }; };
+            not { let $b, $bf in hard_losses($start); }; };
       { $p is $start; } or { let $p0, $g0, $p, $g in lost_steps($start); };
     } or {
       $d has degradation-effect "lost";
@@ -67,7 +77,7 @@ fun degraded_steps($start: component) -> { component, vehicle-function, componen
     {
       { $d has loss-effect "degraded"; }
       or { $d has loss-effect "lost"; fallback (protected: $d, backup: $b); not { $b is $start; };
-           not { $bd isa dependency (dependent: $b, provider: $start), has loss-effect "lost"; }; };
+           not { let $b, $bf in hard_losses($start); }; };
       { $p is $start; } or { let $p0, $g0, $p, $g in lost_steps($start); };
     } or {
       $d has degradation-effect "degraded";

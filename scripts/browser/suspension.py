@@ -1,6 +1,6 @@
 """C3c renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres hidden),
 the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, the
-steering system, and the underside.
+steering system, the brake supply, and the underside.
     uv run --with websocket-client python -I scripts/browser/suspension.py <output-dir> [quality]
 Separate headless Chrome (see cdp.py), 1600x1000 at 2x.
 """
@@ -59,5 +59,10 @@ steer = ids("steering") + ["steering-wheel", "front-subframe", "front-halfshaft-
 steer += [i for c in ("fl", "fr") for i in ids(f"corner-{c}") if i.startswith(("tie-rod", "knuckle", "lower-arm"))]
 view("steering", ["steering-rack", "steering-intermediate-shaft"], 55, 32, 2.2, steer)
 view("steering-rack-close", ["steering-torque-sensor", "eps-motor"], -150, 25, 0.75, steer)
+# brake supply: pedal, booster, master cylinder and reservoir, ESC module, lines to the corners (with the steering)
+brakes = ids("brakes") + ids("steering") + ["steering-wheel", "front-subframe", "rear-subframe"]
+brakes += [i for c in ("fl", "fr", "rl", "rr") for i in ids(f"corner-{c}") if i.startswith(("caliper", "brake-hose", "brake-disc", "epb-actuator"))]
+view("brakes", ["esc-module", "master-cylinder"], 60, 30, 2.4, brakes)
+view("brakes-whole", ["brake-line-rl", "brake-line-fr"], 40, 35, 4.6, brakes)
 view("underside", ["front-subframe", "rear-subframe"], 35, -38, 6.2, hide=("underbody",))
 b.close()
