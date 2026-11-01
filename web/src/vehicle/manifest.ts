@@ -5,9 +5,10 @@
 //
 // Tests keep the ids identical to TypeDB's. Ids never change once published.
 
-import { bodyLines, type PanelId } from "./body";
+import type { PanelId } from "./body";
 import { AXLE_Y, DRIVER_Z, FRONT_AXLE_X, REAR_AXLE_X, TRACK_HALF } from "./dimensions";
 import hardPoints from "./suspension.json";
+import exteriorStandIns from "./exterior-stand-ins.json";
 import structureStandIns from "./structure-stand-ins.json";
 import type { Shape, Vec3 } from "./shapes";
 
@@ -64,24 +65,28 @@ const panel = (id: PanelId, material: MaterialId): Part => ({ id, material, shap
 
 // ---- Parts --------------------------------------------------------------------------------------------
 
+// The body structure (blender/structure.py, D1.2) and the exterior's non-panel parts (blender/exterior_panels.py, D1.3)
+// are drawn from their Blender models; these boxes (each part's bounding box, written by the builds) only stand in
+// for them when the models are switched off. The exterior's panels fall back to the browser-built shell (body.ts).
+type StandIns = Record<string, { centre: number[]; size: number[] }>;
+const box = (table: StandIns, id: string, material: MaterialId): Part => {
+  const { centre, size } = table[id];
+  return { id, material, shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
+};
+const exteriorPart = (id: string): Part => box(exteriorStandIns as StandIns, id, "satin-black");
+const standIn = (id: string): Part => {
+  const { centre, size } = (structureStandIns as StandIns)[id];
+  return { id, material: "aluminium", shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
+};
+
 const body: Part[] = [
   panel("bonnet", "paint"),
   panel("front-bumper", "paint"),
-  { id: "grille", material: "gloss-black",
-    shape: { kind: "box", size: [0.04, 0.13, 1.02], radius: 0.03 }, position: [-0.012, 0.53, 0], attach: "front" },
+  exteriorPart("grille"),
   ...SIDES.map((s): Part => panel(`fender-${s.key}` as PanelId, "paint")),
-  ...SIDES.map((s): Part => ({
-    id: `headlamp-${s.key}`, material: "lamp",
-    shape: { kind: "box", size: [0.05, 0.032, 0.42], radius: 0.014 }, position: [-0.012, 0.8, s.z * 0.46], rotation: [0, s.z * 0.3, 0], attach: "front",
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `headlamp-lens-${s.key}`, material: "glass",
-    shape: { kind: "box", size: [0.012, 0.045, 0.44], radius: 0.004 }, position: [0.006, 0.8, s.z * 0.46], rotation: [0, s.z * 0.3, 0], attach: "front",
-  })),
-  { id: "bonnet-inner", material: "aluminium",
-    shape: { kind: "panel-inner", of: "bonnet" }, position: [0, -0.03, 0] },
-  { id: "tailgate-inner", material: "aluminium",
-    shape: { kind: "panel-inner", of: "tailgate" }, position: [0.035, 0, 0] },
+  ...SIDES.flatMap((s) => [`headlamp-${s.key}`, `headlamp-lens-${s.key}`].map(exteriorPart)),
+  exteriorPart("bonnet-inner"),
+  exteriorPart("tailgate-inner"),
   panel("windscreen", "glass"),
   panel("roof", "roof-glass"),
   ...SIDES.map((s): Part => panel(`body-side-${s.key}` as PanelId, "paint")),
@@ -92,31 +97,18 @@ const body: Part[] = [
   panel("rear-diffuser", "gloss-black"),
   ...SIDES.map((s): Part => panel(`quarter-${s.key}` as PanelId, "paint")),
   ...SIDES.map((s): Part => panel(`quarter-glass-${s.key}` as PanelId, "glass")),
-  ...SIDES.map((s): Part => ({
-    id: `tail-lamp-${s.key}`, material: "tail-lamp",
-    shape: { kind: "box", size: [0.06, 0.05, 0.36], radius: 0.018 }, position: [-0.014, 1.04, s.z * 0.55], rotation: [0, -s.z * 0.32, 0], attach: "rear",
-  })),
+  ...SIDES.map((s) => exteriorPart(`tail-lamp-${s.key}`)),
   ...CORNERS.map((c): Part => panel(`door-${c.key}` as PanelId, "paint")),
   ...CORNERS.map((c): Part => panel(`glass-${c.key}` as PanelId, "glass")),
   ...SIDES.map((s): Part => ({
     id: `mirror-${s.key}`, material: "gloss-black",
-    shape: { kind: "mirror" }, position: [0.7, 1.22, s.z * 1.04], rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
+    shape: { kind: "mirror" }, position: [0.78, 1.12, s.z * 1.0], rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
   })),
 ];
 
-// The body structure (blender/structure.py, D1.2): drawn from the Blender model; these boxes (each part's
-// bounding box, written by the build) only stand in for it when the models are switched off.
-const standIn = (id: string): Part => {
-  const { centre, size } = (structureStandIns as Record<string, { centre: number[]; size: number[] }>)[id];
-  return { id, material: "aluminium", shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
-};
-
 const structure: Part[] = [
   panel("underbody", "satin-black"),
-  ...CORNERS.map((c): Part => ({
-    id: `arch-liner-${c.key}`, material: "satin-black",
-    shape: { kind: "arch-liner" }, position: [c.x, AXLE_Y, c.z * 0.79],
-  })),
+  ...CORNERS.map((c) => exteriorPart(`arch-liner-${c.key}`)),
   ...Object.keys(structureStandIns).map(standIn),
 ];
 
@@ -378,7 +370,7 @@ const sensors: Part[] = [
     shape: { kind: "cylinder", radius: 0.018, length: 0.04, axis: "x" }, position: [-0.008, 0.96, 0], attach: "rear" },
   ...SIDES.map((s): Part => ({
     id: `side-camera-${s.key}`, material: "electronics",
-    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: [0.7, 1.15, s.z * 1.08],
+    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: [0.78, 1.05, s.z * 1.04],
   })),
   { id: "front-radar", material: "electronics",
     shape: { kind: "box", size: [0.035, 0.11, 0.13], radius: 0.01 }, position: [-0.04, 0.53, 0], attach: "front" },
@@ -434,30 +426,9 @@ const interior: Part[] = [
 
 // ---- Detail layers: what makes the exploded view read as an engineering assembly -----------------
 
-const { halfWidth: W } = bodyLines;
-
-const doorLayers: Part[] = CORNERS.flatMap((c): Part[] => {
-  const cx = c.front ? 0.4 : -0.63;
-  const len = c.front ? 1.0 : 1.06;
-  const w = W(cx);
-  return [
-    { id: `door-structure-${c.key}`, material: "aluminium",
-      shape: { kind: "box", size: [len * 0.92, 0.58, 0.03], radius: 0.012 }, position: [cx, 0.78, c.z * (w - 0.1)] },
-    { id: `window-regulator-${c.key}`, material: "steel",
-      shape: { kind: "regulator", height: 0.45 }, position: [cx, 0.86, c.z * (w - 0.14)] },
-    { id: `door-speaker-${c.key}`, material: "satin-black",
-      shape: { kind: "cylinder", radius: 0.075, length: 0.05, axis: "z" }, position: [cx + 0.28, 0.6, c.z * (w - 0.17)] },
-    { id: `door-trim-${c.key}`, material: "leather",
-      shape: { kind: "box", size: [len * 0.9, 0.56, 0.04], radius: 0.015 }, position: [cx, 0.8, c.z * (w - 0.21)] },
-    { id: `door-handle-${c.key}`, material: "gloss-black",
-      shape: { kind: "box", size: [0.15, 0.025, 0.03], radius: 0.01 }, position: [cx + 0.1, 1.0, c.z * (w + 0.0)] },
-    { id: `door-latch-${c.key}`, material: "steel",
-      shape: { kind: "box", size: [0.05, 0.09, 0.04], radius: 0.008 }, position: [cx - len / 2 + 0.05, 0.86, c.z * (w - 0.12)] },
-    { id: `door-seal-${c.key}`, material: "rubber",
-      ...absTube([[cx - len / 2 + 0.03, 0.5, 0], [cx + len / 2 - 0.03, 0.5, 0], [cx + len / 2 - 0.03, 1.12, 0], [cx - len / 2 + 0.03, 1.12, 0],
-        [cx - len / 2 + 0.03, 0.5, 0]].map(([px, py]) => [px, py, c.z * (w - 0.075)] as Vec3), 0.009) },
-  ];
-});
+// The doors' inner layers follow each door's own surface (blender/exterior_panels.py, D1.3).
+const doorLayers: Part[] = CORNERS.flatMap((c) =>
+  ["door-structure", "window-regulator", "door-speaker", "door-trim", "door-handle", "door-latch", "door-seal"].map((p) => exteriorPart(`${p}-${c.key}`)));
 
 const wheelDetail: Part[] = CORNERS.flatMap((c): Part[] => {
   const caliperAngle = (c.front ? hardPoints.front : hardPoints.rear).caliperAngle;
@@ -622,7 +593,7 @@ const cabin: Part[] = [
   { id: "centre-display", material: "gloss-black",
     shape: { kind: "box", size: [0.025, 0.2, 0.32], radius: 0.008 }, position: [0.8, 1.02, 0], rotation: [0, 0, -0.25] },
   { id: "headliner", material: "fabric",
-    shape: { kind: "box", size: [2.0, 0.01, 1.22], radius: 0.004 }, position: [-0.75, 1.52, 0] },
+    shape: { kind: "box", size: [1.5, 0.01, 1.2], radius: 0.004 }, position: [-0.7, 1.5, 0] }, // under the D1.3 roof
 ];
 
 export const PARTS: Part[] = [

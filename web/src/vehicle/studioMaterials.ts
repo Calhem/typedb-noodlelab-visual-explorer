@@ -203,6 +203,13 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["steel-chrome", m({ color: c("#eef0f2"), metalness: 1, roughness: 0.07 })],
     ["steel-zinc", m({ color: c("#bdb8aa"), metalness: 1, roughness: 0.36 })],
     ["steel-dark", m({ color: c("#3d4045"), metalness: 0.6, roughness: 0.5 })],
+    // exterior (D1.3): graphite metallic paint, dark tinted glass, satin-black lower body, placeholder lamps
+    ["body-paint", m({ color: c("#4c5259"), metalness: 0.75, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.04 })],
+    ["body-glass", m({ color: c("#141a20"), metalness: 0.5, roughness: 0.04, transparent: true, opacity: 0.72, clearcoat: 1 })],
+    ["roof-glass", m({ color: c("#10151b"), metalness: 0.6, roughness: 0.04, clearcoat: 1 })],
+    ["satin-black", m({ color: c("#17181b"), metalness: 0.05, roughness: 0.75 })],
+    ["lamp", m({ color: c("#e6ebf0"), roughness: 0.15, emissive: c("#eaf2ff"), emissiveIntensity: 0.8, clearcoat: 1 })],
+    ["tail-lamp", m({ color: c("#3a0507"), roughness: 0.15, emissive: c("#c8161d"), emissiveIntensity: 0.7, clearcoat: 1 })],
     // body-in-white: pressed steel in its grey electro-coat (D1.2)
     ["body-ecoat", m({ color: c("#6c7279"), metalness: 0.2, roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.35 })],
     ["steel-machined", m({ color: c("#c7cbcf"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.7, anisotropyMap: brushing })],

@@ -240,4 +240,34 @@ connections:
   - {kind: mechanical, joint: clipped, ends: [brake-hose-r<s>, "wheelhouse-r<s>"], description: "Through a grommet in the wheelhouse"}
   - {kind: mechanical, joint: clipped, ends: [lv-harness, bulkhead], description: "Through a grommet in the bulkhead"}
   - {kind: mechanical, joint: clipped, ends: [lv-harness, rear-floor], description: "Through a grommet in the boot floor"}
-  - {kind: mechanical, joint: welded, ends: [sill-<s>, underbody]}
+  # ---- Exterior panels and closures (D1.3, blender/exterior_panels.py): how each panel is held ---------------------
+  - {kind: mechanical, joint: bolted, ends: [underbody, battery-underbody-shield], description: "Coolant channel and aero trays fixed under the pack"}
+  - {kind: mechanical, joint: bolted, ends: [underbody, "<a>-subframe"], description: "Aero tray on stand-offs under the subframe"}
+  - {kind: mechanical, joint: bonded, ends: [door-<c>, door-structure-<c>], description: "Outer skin hemmed and bonded to the inner panel"}
+  - {kind: mechanical, joint: clipped, ends: [door-trim-<c>, door-structure-<c>]}
+  - {kind: mechanical, joint: bolted, ends: ["<part>-<c>", door-structure-<c>], each: {part: [window-regulator, door-speaker]}}
+  - {kind: mechanical, joint: clipped, ends: [door-seal-<c>, door-structure-<c>]}
+  - {kind: mechanical, joint: bolted, ends: [door-handle-<c>, door-<c>], description: "Flush handle in the outer skin"}
+  - {kind: mechanical, joint: seated, ends: [door-latch-f<s>, b-pillar-<s>], description: "Latch closes on the striker in the B pillar"}
+  - {kind: mechanical, joint: seated, ends: [door-latch-r<s>, c-pillar-<s>], description: "Latch closes on the striker in the C pillar"}
+  - {kind: mechanical, joint: bonded, ends: [bonnet, bonnet-inner], description: "Outer skin hemmed and bonded to the inner frame"}
+  - {kind: mechanical, joint: seated, ends: [bonnet-inner, front-end-carrier], description: "Bonnet latch on the carrier's top bar"}
+  - {kind: mechanical, joint: bonded, ends: [tailgate, tailgate-inner], description: "Outer skin hemmed and bonded to the inner panel"}
+  - {kind: mechanical, joint: bonded, ends: [tailgate-glass, tailgate]}
+  - {kind: mechanical, joint: bolted, ends: [tail-lamp-<s>, tailgate], description: "Half of the light bar on the tailgate's ledge"}
+  - {kind: mechanical, joint: bolted, ends: [front-bumper, front-crash-beam], description: "Bumper fascia on the crash beam"}
+  - {kind: mechanical, joint: clipped, ends: [grille, front-bumper]}
+  - {kind: mechanical, joint: bolted, ends: [headlamp-<s>, front-end-carrier]}
+  - {kind: mechanical, joint: bonded, ends: [headlamp-lens-<s>, headlamp-<s>]}
+  - {kind: mechanical, joint: bolted, ends: [rear-bumper, rear-crash-beam], description: "Bumper fascia on the crash beam"}
+  - {kind: mechanical, joint: clipped, ends: [rear-diffuser, rear-bumper]}
+  - {kind: mechanical, joint: bolted, ends: [fender-<s>, a-pillar-<s>], description: "Wing bolted to the hinge pillar and the apron"}
+  - {kind: mechanical, joint: clipped, ends: [fender-<s>, front-bumper]}
+  - {kind: mechanical, joint: welded, ends: [body-side-<s>, a-pillar-<s>], description: "Body side outer over the A pillar"}
+  - {kind: mechanical, joint: welded, ends: [body-side-<s>, roof-rail-<s>]}
+  - {kind: mechanical, joint: welded, ends: [quarter-<s>, "wheelhouse-r<s>"], description: "Quarter panel round the rear wheel opening"}
+  - {kind: mechanical, joint: welded, ends: [quarter-<s>, c-pillar-<s>]}
+  - {kind: mechanical, joint: bonded, ends: [quarter-glass-<s>, c-pillar-<s>]}
+  - {kind: mechanical, joint: clipped, ends: [rocker-<s>, sill-<s>], description: "Sill trim clipped over the sill"}
+  - {kind: mechanical, joint: clipped, ends: [arch-liner-f<s>, fender-<s>]}
+  - {kind: mechanical, joint: clipped, ends: [arch-liner-r<s>, "wheelhouse-r<s>"]}

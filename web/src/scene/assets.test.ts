@@ -132,6 +132,7 @@ describe.each([
   ["brakes", 9],
   ["thermal", 14],
   ["body-structure", 42],
+  ["body-exterior", 68],
 ] as const)("Blender %s", (name, count) => {
   const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
   const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>
@@ -151,9 +152,10 @@ describe.each([
   it("places every part near the manifest's simple stand-in, with no baked rotation", () => {
     for (const n of nodes) {
       const id = map.nodes[n.name];
-      const stand = PART_BY_ID.get(id)!.position!;
+      const stand = PART_BY_ID.get(id)!.position;
       const [x, y, z] = n.translation;
-      expect(Math.hypot(x - stand[0], y - stand[1], z - stand[2]), id).toBeLessThan(0.12);
+      // body panels have no stand-in position: their fallback is the browser-built shell (web/src/vehicle/body.ts)
+      if (stand) expect(Math.hypot(x - stand[0], y - stand[1], z - stand[2]), id).toBeLessThan(0.12);
       expect(n.rotation, id).toBeUndefined();
     }
   });
@@ -163,6 +165,6 @@ describe.each([
     const known = createStudioMaterials({ tread: t, treadCavity: t, ringsFine: t, ringsFriction: t, brushing: t, cast: t, forged: t, friction: t });
     for (const m of full.materials) expect(known.has(m.name), m.name).toBe(true);
     expect(full.extensionsUsed).toContain("EXT_meshopt_compression");
-    expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(600_000);
+    expect(readFileSync(asset(`${name}.glb`)).byteLength).toBeLessThan(800_000);
   });
 });

@@ -31,3 +31,16 @@ against their neighbours); the sill-tyre overlaps are recorded here from the bou
   - **B4:** the rear doors reach the tyres.
   - **B5:** the arch liners are too tight.
   - **B7:** the placeholder doors and liners overlap the new structure.
+
+## Status after D1.3 (exterior, 1 November 2026)
+
+**Resolved:**
+- **B4:** the rear doors end ahead of the rear wheel openings.
+- **B5:**
+  - The front arch liners follow the front tyres' swept envelope plus 25 mm, with a raised inner crown over the
+    goose-neck knuckle.
+  - The rear liners sit inside the structure's wheelhouses.
+- **B7:** the doors, their inner layers and the liners are rebuilt from the new exterior's own surface
+  (`blender/exterior_panels.py`).
+
+The static packaging check and the motion check now have no known groups. Every body part is checked in full.

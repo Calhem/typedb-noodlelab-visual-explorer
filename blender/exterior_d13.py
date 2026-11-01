@@ -83,8 +83,9 @@ W_MID = 0.962  # body side half-width between the arches
 # height at the centre or None). The faces are flat across the crash beam and cooling module (|z| < 0.40) and wrap
 # back hard at the corners.
 LINES = [
-    Line("under-centre", [(-2.4, 0.29), (2.4, 0.29)], [(0, 0.0)], (2.24, 0, 0, None), (-2.28, 0, 0, None)),
-    Line("under-edge", [(-2.4, 0.29), (2.4, 0.29)], [(-2.4, 0.78), (2.4, 0.78)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
+    Line("under-centre", [(-2.4, 0.29), (2.4, 0.29)], [(0, 0.0)], (2.24, 0.30, 0.03, None), (-2.28, 0.30, 0.03, None)),
+    # under the sills and the pack's side rails
+    Line("under-edge", [(-2.4, 0.27), (2.4, 0.27)], [(-2.4, 0.84), (2.4, 0.84)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
     Line("rocker", [(-1.95, 0.39), (-1.75, 0.33), (-1.0, 0.305), (1.0, 0.305), (1.75, 0.32), (1.9, 0.35)],
          [(-1.95, 0.88), (-1.75, 0.93), (1.75, 0.93), (1.9, 0.90)], (2.315, 0.30, 0.04, None, 0.56), (-2.35, 0.30, 0.03, None, 0.58), True),
     Line("cladding-top", [(-1.95, 0.55), (-1.75, 0.48), (-1.0, 0.455), (1.0, 0.455), (1.75, 0.47), (1.9, 0.49)],
@@ -118,10 +119,16 @@ LINES = [
          (2.24, 0.15, 0.015, None), (-2.04, 0.15, 0.015, 1.415), follow=True),
     Line("roof-centre", [(-2.03, 1.418), (-1.89, 1.48), (-1.25, 1.575), (-0.35, 1.605), (0.13, 1.565), (0.83, 1.15), (1.03, 1.075),
                          (1.58, 1.04), (1.85, 0.99), (2.10, 0.92), (2.235, 0.882)],
-         [(0, 0.0)], (2.235, 0, 0, None), (-2.03, 0, 0, None)),
+         [(0, 0.0)], (2.235, 0.16, 0, None), (-2.03, 0.155, 0, None)),  # spread like the roof line beside it
 ]
 NAMES = [l.name for l in LINES]
 N_FACE, N_ARC, N_SIDE = 5, 4, 28
+# Side stations shared by every line, so panel joints follow clean edge loops: the quarter / rear door (-0.95),
+# the B pillar (-0.10), the windscreen's top (0.08) and base (0.95), the roof glass (-1.25, 0.0), the rear side
+# window's tip (-1.70). Each line adds its own two stations at each end, before its corners.
+X_FIX = [-1.70, -1.55, -1.45, -1.35, -1.25, -1.10, -0.95, -0.80, -0.62, -0.45, -0.28, -0.10, 0.0, 0.08, 0.25, 0.42,
+         0.60, 0.78, 0.95, 1.10, 1.25, 1.40, 1.58, 1.70, 1.80]
+assert len(X_FIX) == N_SIDE - 3
 FLAT = 0.40  # half-width of the faces' flat centre
 SIDE0 = N_FACE + N_ARC                     # first side station
 SIDE1 = SIDE0 + N_SIDE                     # first front-corner station
@@ -182,8 +189,7 @@ def rail(line: Line) -> list[tuple[float, float, float]]:
 
     tail = wrap(xs0, w0, rr, xr, br, fy(xs0), yr, rear=True, flat_half=fr[0] if fr else FLAT)
     pts += list(reversed(tail))[:-1]  # the corner's start is the side's first point
-    for k in range(N_SIDE):
-        x = xs0 + (xs1 - xs0) * k / N_SIDE
+    for x in [xs0, (xs0 + X_FIX[0]) / 2, *X_FIX, (X_FIX[-1] + xs1) / 2]:
         pts.append((x, fy(x), fz(x)))
     front = wrap(xs1, w1, rf, xf, bf, fy(xs1), yf, rear=False, flat_half=ff[0] if ff else FLAT)
     if line.follow:  # one smooth bonnet: the height keeps following the side-view curve round the nose
@@ -217,19 +223,26 @@ def band(lo: int, x: float, z: float, station: int) -> str:
     return "paint"
 
 
-def build_shell() -> bpy.types.Object:
+def build_shell(panel_of=None, levels: int = 3) -> bpy.types.Object:
+    """The shell's control net, mirrored and subdivided (not yet applied). panel_of(lower line, station, x, z), if
+    given, names each control face's panel; the name's index is kept in the face attribute "panel", which the
+    subdivision passes on to every face it makes, so panels separate exactly along the net's edges."""
     rails = [rail(l) for l in LINES]
     n = len(rails[0])
     assert all(len(r) == n for r in rails), [len(r) for r in rails]
     bm = bmesh.new()
     grid = [[bm.verts.new(app(*rails[c][s])) for c in range(len(LINES))] for s in range(n)]
     mats = ["paint", "glass", "glass-roof", "cladding", "gloss-black"]
+    panel_layer = bm.faces.layers.int.new("panel") if panel_of else None
+    panel_names: dict[str, int] = {}
     for s in range(n - 1):
         for c in range(len(LINES) - 1):
             f = bm.faces.new((grid[s][c], grid[s + 1][c], grid[s + 1][c + 1], grid[s][c + 1]))
             x = (rails[c][s][0] + rails[c + 1][s + 1][0]) / 2
             z = (rails[c][s][2] + rails[c + 1][s + 1][2]) / 2
             f.material_index = mats.index(band(c, x, z, s))
+            if panel_of:
+                f[panel_layer] = panel_names.setdefault(panel_of(c, s, x, z), len(panel_names))
     crease = bm.edges.layers.float.new("crease_edge")
     for name, value in CREASES.items():
         c = NAMES.index(name)
@@ -264,8 +277,9 @@ def build_shell() -> bpy.types.Object:
     mirror.use_axis = (False, True, False)
     mirror.use_clip = mirror.use_mirror_merge = True
     mirror.merge_threshold = 1e-3
+    obj["panel_names"] = {str(v): k for k, v in panel_names.items()} if panel_of else {}
     sub = obj.modifiers.new("subdivision", "SUBSURF")
-    sub.levels = sub.render_levels = 3
+    sub.levels = sub.render_levels = levels
     return obj
 
 
@@ -313,7 +327,7 @@ def check_fit() -> None:
     worst = []
     for path in sorted(glob.glob(str(d11.ROOT / "web" / "assets-src" / "*.glb"))):
         name = Path(path).stem
-        if name.startswith(("corner-", "body-structure")):  # the wheels and drive shafts pass through the openings
+        if name.startswith(("corner-", "body-")):  # the wheels and drive shafts pass through the openings
             continue
         before = set(bpy.data.objects)
         bpy.ops.import_scene.gltf(filepath=path)
