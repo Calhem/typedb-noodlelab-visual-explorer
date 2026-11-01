@@ -410,6 +410,43 @@ Written before the data.
 repeated in the holding chain. "Parking hold" needs the VCU and 12 V to engage, so the static model treats a
 dead 12 V supply as no holding. In reality a lock that is already engaged stays engaged.
 
+## Thermal circuits: expected outcomes (C3c step 5, 1 November 2026)
+
+Written before the data. Until now one `coolant-lines` part stood for the whole circuit, and nothing depended on
+the radiator.
+
+**Coolant.**
+- **Supply and flow:** the **coolant reservoir** (expansion tank) keeps the circuit filled; the pump drives the
+  flow.
+- **Temperature:** the **thermal-mode valve** routes coolant through the radiator, the battery chiller or the
+  **coolant heater**, and so provides *coolant temperature*:
+  - losing the radiator degrades it (the chiller can still take heat, with less margin);
+  - losing the chiller or the heater degrades it;
+  - an unpowered valve stays where it was, so it is degraded rather than lost.
+- **Lines:** `coolant-lines` keeps its id and becomes the battery's circuit. New `front-coolant-lines` and
+  `rear-coolant-lines` carry coolant to each drive unit's inverter and oil cooler. The rear pair runs under the
+  pack.
+- **Consumers:** each consumer needs flow (lost without it, as before) and coolant temperature (degraded without
+  it). The consumers are the battery manifold, the inverters' power modules and the oil coolers.
+
+**Refrigerant.**
+- **Condenser:** ahead of the radiator. It gives the heat pump's heat to the outside air, helped by the fans'
+  airflow (degraded without them).
+- **Refrigerant lines:** need the compressor and the condenser. The chiller and the cabin climate module need the
+  lines.
+
+| # | Failure | Lost | Degraded | Must not appear |
+|---|---|---|---|---|
+| 45 | **Radiator** | | valve: coolant temperature; and through it the battery manifold, both inverters' power modules and both oil coolers | anything lost |
+| 46 | **Thermal-mode valve** | | the same consumers (temperature) | anything lost |
+| 47 | **Condenser** | refrigerant lines: refrigerant flow; chiller: coolant chilling; climate module: cabin climate | valve: coolant temperature, and the consumers | drive torque lost |
+| 48 | **Coolant reservoir** | | pump: coolant flow, and every line's flow | anything lost |
+| 49 | **Front coolant lines** | front oil cooler: oil cooling | front power module: phase current; front stator | anything at the rear; the battery |
+| 4 (revised) | **Coolant pump** | battery, front and rear coolant lines' flow; manifold; cooling plate; both oil coolers | battery modules, stators, power modules, tyres' drive torque | |
+
+**Simplification:** one valve stands for the circuit's thermal modes. The real circuit has several valves and
+modes (cabin heating, battery pre-conditioning, waste-heat recovery).
+
 ## What the tests do and do not establish (C2, 30 October 2026)
 
 The impact tests compare TypeDB's answer with an independent Python implementation of the same rules, for
