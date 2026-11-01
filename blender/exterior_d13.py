@@ -84,8 +84,8 @@ W_MID = 0.962  # body side half-width between the arches
 # back hard at the corners.
 LINES = [
     Line("under-centre", [(-2.4, 0.29), (2.4, 0.29)], [(0, 0.0)], (2.24, 0.30, 0.03, None), (-2.28, 0.30, 0.03, None)),
-    # under the sills and the pack's side rails
-    Line("under-edge", [(-2.4, 0.27), (2.4, 0.27)], [(-2.4, 0.84), (2.4, 0.84)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
+    # under the sills and the pack's side rails: the satin-black cladding comes down over the pack's sides
+    Line("under-edge", [(-2.4, 0.20), (2.4, 0.20)], [(-2.4, 0.86), (2.4, 0.86)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
     Line("rocker", [(-1.95, 0.39), (-1.75, 0.33), (-1.0, 0.305), (1.0, 0.305), (1.75, 0.32), (1.9, 0.35)],
          [(-1.95, 0.88), (-1.75, 0.93), (1.75, 0.93), (1.9, 0.90)], (2.315, 0.30, 0.04, None, 0.56), (-2.35, 0.30, 0.03, None, 0.58), True),
     Line("cladding-top", [(-1.95, 0.55), (-1.75, 0.48), (-1.0, 0.455), (1.0, 0.455), (1.75, 0.47), (1.9, 0.49)],

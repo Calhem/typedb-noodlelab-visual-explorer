@@ -92,3 +92,153 @@ the bright studio floor and looked grey.
   - corner edges where the body sides turn into the tail.
 - **Fit:** still nothing from the structure or the mechanical assemblies outside the shell. The comparison sheet
   and the D1.3 views above are updated.
+
+---
+
+# D1.3 complete: review (1 November 2026)
+
+**Status: for review. D1.4 not started; nothing merged.**
+
+## The vehicle in the app
+
+![Front three-quarter](app-assembled-front34.jpg)
+![Side](app-assembled-side.jpg)
+![Rear three-quarter](app-assembled-rear34.jpg)
+![Front](app-assembled-front.jpg) ![Rear](app-assembled-rear.jpg)
+
+**Exploded:**
+
+![Exploded, front three-quarter](app-exploded-front34.jpg)
+![Exploded, side](app-exploded-side.jpg)
+
+**TypeDB highlighting:**
+- the "Doors and closures" system (28 parts);
+- the "Body structure" system, with the body ghosted;
+- the front-left door selected, with its connections from TypeDB:
+  - handle, bolted;
+  - inner structure, bonded;
+  - A-pillar, hinged;
+  - mirror, bolted.
+
+![Closures highlighted](app-highlight-closures.jpg)
+![Structure highlighted](app-highlight-structure.jpg)
+![A door selected](app-selected-door.jpg)
+
+The Blender review renders of the final shell, against D1.1 at identical cameras, are in `compare-d11-d13.jpg`.
+
+## What was built
+
+`blender/exterior_panels.py` builds the model `body-exterior`: 68 parts, about 94,000 triangles, 0.69 MB plus a 0.32 MB
+light copy.
+
+**Panels cut from the one shell.** Each part keeps its existing component id:
+- bonnet, front bumper, grille (lower intake), wings;
+- front and rear doors, door glass;
+- body sides (roof side rails and black A-pillars);
+- quarter panels, quarter glass, sill trims;
+- roof (body-colour skin and panoramic glass), windscreen;
+- tailgate, rear window, rear bumper, diffuser.
+
+**How the panels follow the surface:**
+- Every control face of the shell is tagged with its panel, and the subdivision passes the tag on, so panels separate
+  exactly along the shell's edge loops.
+- The side stations sit on the shut lines: the door edges, the windscreen's base and top, the roof glass, the rear
+  side window's tip.
+- Shut lines are 3 mm.
+- Painted panels have 2 mm thickness, satin-black edges and painted insides.
+- The arch lips are part of the wings and quarter panels.
+
+**Built from each panel's own surface:**
+- the bonnet and tailgate inner panels;
+- each door's:
+  - inner structure;
+  - trim;
+  - seal;
+  - flush handle;
+  - latch;
+  - speaker;
+  - window regulator.
+
+**Also:**
+- **Arch liners:**
+  - Front: a sheet following the front tyres' swept envelope plus 25 mm, with a raised inner crown over the
+    goose-neck knuckle.
+  - Rear: a crown inside the structure's wheelhouses.
+- **Underbody (R9):** aero trays under both subframes, and the U-section channel covering the rear drive unit's coolant
+  pair under the pack. Ground clearance is 0.14 m at the channel and the front tray.
+- **Placeholder lamps:** on the new surface, until D1.4.
+- **Moved to fit the new body:** the mirrors, the side cameras and the headliner.
+
+**Materials:** graphite metallic paint, dark tinted glass, satin-black lower body and lamps (new studio materials).
+
+**Fallback:** the browser-built body (`body.ts`) is kept as the fallback when the models are switched off.
+
+## Packaging and fit
+
+- **B4, B5 and B7 are resolved.** The static packaging check and the motion check now have no known groups. Every part
+  is checked in full.
+- **Static check:** no clashes. Newly registered designed contacts:
+  - bumper fascias on the crash beams;
+  - the body side's outer panel on the pillars and roof rails;
+  - the rear liners in the wheelhouses;
+  - the rear window against the D-pillars;
+  - the tailgate at its hinge header;
+  - the charge port in its flap.
+- **Motion** (±80 mm travel, full lock, 10 mm required): passes. The closest exterior pair is the front liner and the
+  upper arm, 15.7 mm at full bump and full lock.
+- **Fit checks:**
+  - nothing from the structure or the mechanical assemblies reaches outside the shell
+    (`exterior_d13.py fit`);
+  - no inner part reaches outside the skin (built into `exterior_panels.py`).
+
+## TypeDB
+
+**Unchanged:** the components (423) and every id.
+
+**Connections: 669 (was 606).** The new ones say how each panel is held and how each closure is built:
+- **Doors:**
+  - the skin hemmed and bonded to the inner panel;
+  - trim, seal, regulator, speaker and handle;
+  - latches seated on strikers in the B- and C-pillars.
+- **Bonnet and tailgate:**
+  - skins bonded to their inner panels;
+  - the bonnet latch on the front-end carrier;
+  - the rear window on the tailgate;
+  - the light bar on the tailgate.
+- **Front end:**
+  - bumper fascias on the crash beams;
+  - the grille and diffuser clipped to the bumpers;
+  - headlamps on the carrier;
+  - wings on the hinge pillars.
+- **Body side:**
+  - the body side's outer panel welded to the A-pillar and roof rail;
+  - quarters on the wheelhouses and C-pillars;
+  - sill trims and liners clipped.
+- **Underbody:** fixed to the pack and the subframes. This replaces "underbody welded to the sills".
+
+**Not added:** no new components or dependencies. The panels carry no failure functions, by design.
+
+## Performance
+
+- **Benchmark (`__perf`, high tier):**
+  - assembled: 1.43 M triangles, 887 draw calls, 2.6 ms median frame;
+  - exploded: 0.92 M triangles, 869 calls, 10 ms;
+  - 17.0 MB downloaded, loaded in 0.41 s.
+- **Compared with D1.2:** 858 calls and 16.0 MB. The new exterior replaces the browser-built body, so the triangle
+  count barely changes.
+
+## Outstanding issues (for D1.4 and later)
+
+1. **Lights, trim and sensors are D1.4:**
+   - real headlamps and the light blade, and the tail-light bar;
+   - the intake detail;
+   - sensor housings (R10).
+   The lidar and shark fin still sit where the old roof was. They now rest close to the new roof, but they're not yet
+   integrated.
+2. **Shut lines read as fine light lines** in the app's lighting rather than dark gaps. That's acceptable at normal
+   viewing distance; could be tuned in D1.5.
+3. **The exploded view** still sends every part out on its own. Clear layers (structure, closures, glazing, trim) are
+   D1.5.
+4. **The interior** is still the simple placeholder (seats, dashboard), as agreed. The headliner was moved under the new
+   roof.
+5. **Wheels:** the app's wheels are still bright machined alloy. The darker wheel finish in the Blender renders is D1.4.

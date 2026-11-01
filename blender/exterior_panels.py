@@ -39,7 +39,7 @@ import kit  # noqa: E402
 ROOT = Path(__file__).resolve().parent.parent
 app = d13.app
 F, R = d13.F, d13.R
-GAP = 0.002            # half a shut line
+GAP = 0.0015           # half a shut line
 SKIN = 0.002           # sheet thickness of painted panels
 OPENING = 0.473        # wheel-opening radius (as D1.1 / D1.3 renders)
 SKINS: set[str] = set()  # the panel ids cut from the shell
@@ -134,19 +134,27 @@ def offset(bm: bmesh.types.BMesh, by: float) -> bmesh.types.BMesh:
     return out
 
 
-def to_object(name: str, bm: bmesh.types.BMesh, materials: list[str], thickness: float = 0.0) -> bpy.types.Object:
+def to_object(name: str, bm: bmesh.types.BMesh, materials: list[str], thickness: float = 0.0, inside: str | None = None) -> bpy.types.Object:
+    """A panel object. With thickness: the sheet's edges (seen in the shut lines) are satin black, and its inside face
+    is `inside` (e-coat grey for painted panels) or, if None, the same as the outside (glass, trim)."""
     mesh = bpy.data.meshes.new(name)
     bm.to_mesh(mesh)
     bm.free()
     o = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(o)
-    for m in materials:
+    n = len(materials)
+    slots = list(materials)
+    if thickness:
+        slots += ["satin-black"] * n + ([inside] * n if inside else [])
+    for m in slots:
         o.data.materials.append(kit.material(m))
     for p in o.data.polygons:
         p.use_smooth = True
     if thickness:
         sol = o.modifiers.new("thickness", "SOLIDIFY")
         sol.thickness, sol.offset, sol.use_rim, sol.use_even_offset = thickness, -1.0, True, False
+        sol.material_offset_rim = n
+        sol.material_offset = 2 * n if inside else 0
         o = kit.to_mesh(o)
     kit.box_uv(o, 3.0)
     return o
@@ -472,7 +480,7 @@ def build():
         pull_edges(bm, GAP)
         glazing = pid in ("windscreen", "tailgate-glass") or pid.startswith(("glass-", "quarter-glass-"))
         mats = [names[i] for i in range(len(body.data.materials))]
-        parts[pid] = to_object(pid, bm, mats, 0.004 if glazing else SKIN)
+        parts[pid] = to_object(pid, bm, mats, 0.004 if glazing else SKIN, inside=None if glazing else "body-paint")
 
     # arch lips: part of the wings (front) and quarter panels (rear)
     for x, owner in ((F, "fender"), (R, "quarter")):
