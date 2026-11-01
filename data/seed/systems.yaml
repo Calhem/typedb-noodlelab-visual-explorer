@@ -133,22 +133,22 @@ systems:
     parent: thermal-management
     name: "Battery cooling and heating"
     description: "Coolant circuit through the battery's cooling plate, chilled by the heat pump."
-    members: [battery-cooling-plate, battery-coolant-manifold, battery-chiller, coolant-pump, coolant-lines]
+    members: [battery-cooling-plate, battery-coolant-manifold, battery-chiller, coolant-pump, coolant-lines, coolant-reservoir, coolant-valve, coolant-heater]
   - id: front-end-cooling
     parent: thermal-management
     name: "Front-end cooling"
     description: "Radiator and fans rejecting heat to the outside air."
-    members: [radiator, cooling-fan-*]
+    members: [radiator, condenser, cooling-fan-*]
   - id: drive-unit-cooling
     parent: thermal-management
     name: "Drive-unit oil cooling"
     description: "In each drive unit an electric pump circulates oil over the gears and motor windings, and an oil cooler passes the heat to the coolant circuit."
-    members: [front-oil-pump, front-oil-cooler, rear-oil-pump, rear-oil-cooler]
+    members: [front-oil-pump, front-oil-cooler, rear-oil-pump, rear-oil-cooler, front-coolant-lines, rear-coolant-lines]
   - id: cabin-climate
     parent: thermal-management
     name: "Cabin climate"
     description: "Heat pump and air-conditioning module for the cabin."
-    members: [hvac-module, heat-pump-compressor]
+    members: [hvac-module, heat-pump-compressor, condenser, refrigerant-lines]
 
   - id: electronic-architecture
     name: "Electronic architecture"

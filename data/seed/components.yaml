@@ -462,6 +462,13 @@ components:
   - {id: heat-pump-compressor, type: thermal-component, assembly: thermal, name: "Heat-pump compressor"}
   - {id: hvac-module, type: thermal-component, assembly: thermal, name: "Cabin climate module"}
   - {id: coolant-lines, type: thermal-component, assembly: thermal, name: "Battery coolant lines"}
+  - {id: front-coolant-lines, type: thermal-component, assembly: thermal, name: "Front drive-unit coolant lines"}
+  - {id: rear-coolant-lines, type: thermal-component, assembly: thermal, name: "Rear drive-unit coolant lines"}
+  - {id: coolant-reservoir, type: thermal-component, assembly: thermal, name: "Coolant reservoir"}
+  - {id: coolant-valve, type: thermal-component, assembly: thermal, name: "Thermal-mode valve"}
+  - {id: coolant-heater, type: thermal-component, assembly: thermal, name: "Coolant heater"}
+  - {id: condenser, type: thermal-component, assembly: thermal, name: "Condenser"}
+  - {id: refrigerant-lines, type: thermal-component, assembly: thermal, name: "Refrigerant lines"}
   # interior
   - {id: centre-console, type: interior-component, assembly: interior, name: "Centre console"}
   - {id: driver-display, type: interior-component, assembly: interior, name: "Driver display"}

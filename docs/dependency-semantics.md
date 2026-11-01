@@ -421,8 +421,12 @@ the radiator.
 - **Temperature:** the **thermal-mode valve** routes coolant through the radiator, the battery chiller or the
   **coolant heater**, and so provides *coolant temperature*:
   - losing the radiator degrades it (the chiller can still take heat, with less margin);
-  - losing the chiller or the heater degrades it;
   - an unpowered valve stays where it was, so it is degraded rather than lost.
+- **Chiller and heater:** these act on the battery circuit, and the heater also on the cabin climate.
+
+  *Revised while implementing.* The first version also let the chiller and heater degrade *coolant temperature*.
+  Scenario 27 (the auxiliary HV harness) then derated all four motors whenever the heat pump stopped, although
+  the radiator still rejects their heat. That was too strong.
 - **Lines:** `coolant-lines` keeps its id and becomes the battery's circuit. New `front-coolant-lines` and
   `rear-coolant-lines` carry coolant to each drive unit's inverter and oil cooler. The rear pair runs under the
   pack.
@@ -439,7 +443,7 @@ the radiator.
 |---|---|---|---|---|
 | 45 | **Radiator** | | valve: coolant temperature; and through it the battery manifold, both inverters' power modules and both oil coolers | anything lost |
 | 46 | **Thermal-mode valve** | | the same consumers (temperature) | anything lost |
-| 47 | **Condenser** | refrigerant lines: refrigerant flow; chiller: coolant chilling; climate module: cabin climate | valve: coolant temperature, and the consumers | drive torque lost |
+| 47 | **Condenser** | refrigerant lines: refrigerant flow; chiller: coolant chilling; climate module: cabin climate | battery cooling plate (no chilling) | drive torque lost or degraded |
 | 48 | **Coolant reservoir** | | pump: coolant flow, and every line's flow | anything lost |
 | 49 | **Front coolant lines** | front oil cooler: oil cooling | front power module: phase current; front stator | anything at the rear; the battery |
 | 4 (revised) | **Coolant pump** | battery, front and rear coolant lines' flow; manifold; cooling plate; both oil coolers | battery modules, stators, power modules, tyres' drive torque | |

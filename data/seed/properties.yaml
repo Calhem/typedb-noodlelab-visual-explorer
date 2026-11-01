@@ -285,6 +285,18 @@ properties:
   # ---- Thermal ----------------------------------------------------------------------------------------------
   - match: battery-cooling-plate
     description: "Liquid cooling plate under the modules: carries heat away from the cells."
+  - match: coolant-reservoir
+    description: "Coolant expansion tank: keeps the sealed circuit filled and takes up the coolant's expansion as it warms."
+  - match: coolant-valve
+    description: "Thermal-mode valve: routes the coolant through the radiator, the battery chiller or the heater, depending on whether the battery, drive units and cabin need cooling or warmth."
+  - match: coolant-heater
+    description: "High-voltage coolant heater: warms the coolant for the battery and cabin in cold weather."
+  - match: condenser
+    description: "Condenser: in front of the radiator, it passes the heat pump's heat to the outside air."
+  - match: refrigerant-lines
+    description: "Refrigerant lines: aluminium pipes joining the compressor, condenser, battery chiller and cabin climate module."
+  - match: [front-coolant-lines, rear-coolant-lines]
+    description: "Drive-unit coolant lines: supply and return hoses to the inverter's cold plate and the oil cooler."
   - match: coolant-pump
     description: "Electric coolant pump circulating coolant through the battery and drive-unit circuits."
   - match: battery-chiller

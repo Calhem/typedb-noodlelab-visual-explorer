@@ -178,10 +178,17 @@ connections:
 
   # ---- Thermal ------------------------------------------------------------------------------------------
   - {kind: fluid, fluid: coolant, ends: [coolant-pump, coolant-lines]}
-  - {kind: fluid, fluid: coolant, ends: [coolant-lines, "<unit>"], each: {unit: [battery-coolant-manifold, radiator, battery-chiller, front-inverter, rear-inverter, front-oil-cooler, rear-oil-cooler]}}
+  - {kind: fluid, fluid: coolant, ends: [coolant-lines, "<unit>"], each: {unit: [battery-coolant-manifold, radiator, battery-chiller, coolant-valve]}}
+  - {kind: fluid, fluid: coolant, ends: [coolant-pump, "<a>-coolant-lines"]}
+  - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-inverter"]}
+  - {kind: fluid, fluid: coolant, ends: ["<a>-coolant-lines", "<a>-oil-cooler"]}
+  - {kind: fluid, fluid: coolant, ends: [coolant-reservoir, coolant-pump], description: "Expansion tank feeding the pump's inlet"}
+  - {kind: fluid, fluid: coolant, ends: [coolant-valve, coolant-heater]}
+  - {kind: power, voltage: high-voltage, ends: [pdu, coolant-heater]}
+  - {kind: power, voltage: low-voltage, ends: [lv-harness, coolant-valve]}
   - {kind: fluid, fluid: coolant, ends: [battery-coolant-manifold, battery-cooling-plate]}
-  - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, battery-chiller]}
-  - {kind: fluid, fluid: refrigerant, ends: [heat-pump-compressor, hvac-module]}
+  - {kind: fluid, fluid: refrigerant, ends: [refrigerant-lines, "<unit>"], each: {unit: [heat-pump-compressor, condenser, battery-chiller, hvac-module]}}
+  - {kind: mechanical, joint: bolted, ends: [condenser, radiator], description: "Condenser clipped ahead of the radiator in one cooling module"}
   - {kind: mechanical, joint: ball-joint, ends: [brake-pedal, brake-booster], description: "Pedal pushrod"}
   - {kind: mechanical, joint: bolted, ends: [master-cylinder, brake-booster]}
   - {kind: fluid, fluid: brake fluid, ends: [brake-fluid-reservoir, master-cylinder], description: "Reservoir plugged into the master cylinder's inlets"}

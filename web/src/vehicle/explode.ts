@@ -177,6 +177,13 @@ const PART_RULES: Rule[] = [
   [/^brake-pedal$/, () => m([-0.25, -0.05, 0.05])],
   [/^esc-module$/, () => m([0.3, 0.12, -0.08])],
   [/^brake-line-/, (s) => m([0, 0.05, s * 0.08])],
+  [/^condenser$/, () => m([0.3, 0, 0])],
+  [/^coolant-reservoir$/, () => m([0.1, 0.3, -0.05])],
+  [/^coolant-valve$/, () => m([0, 0.22, -0.1])],
+  [/^coolant-heater$/, () => m([0.1, 0.1, -0.2])],
+  [/^refrigerant-lines$/, () => m([0.1, 0.18, 0])],
+  [/^front-coolant-lines$/, () => m([0.05, 0.15, -0.12])],
+  [/^rear-coolant-lines$/, () => m([0, -0.2, -0.1])],
   // drive units: the motor comes apart along its axis on one side (housing, stator, rotor and shaft, bearing,
   // resolver, end cover), the gear train on the other (case, differential with its gears, final-drive gear,
   // intermediate shaft and gear, input pinion, cover, then the disconnect or park lock), the inverter rises

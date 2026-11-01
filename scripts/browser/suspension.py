@@ -1,6 +1,6 @@
 """C3c renders of the suspension in the running app: each axle's suspension on its own (wheels and tyres hidden),
 the subframes with their rubber body mounts against the rails, each axle's right-hand corner from inboard, the
-steering system, the brake supply, and the underside.
+steering system, the brake supply, the thermal circuits, and the underside.
     uv run --with websocket-client python -I scripts/browser/suspension.py <output-dir> [quality]
 Separate headless Chrome (see cdp.py), 1600x1000 at 2x.
 """
@@ -64,5 +64,10 @@ brakes = ids("brakes") + ids("steering") + ["steering-wheel", "front-subframe", 
 brakes += [i for c in ("fl", "fr", "rl", "rr") for i in ids(f"corner-{c}") if i.startswith(("caliper", "brake-hose", "brake-disc", "epb-actuator"))]
 view("brakes", ["esc-module", "master-cylinder"], 60, 30, 2.4, brakes)
 view("brakes-whole", ["brake-line-rl", "brake-line-fr"], 40, 35, 4.6, brakes)
+# thermal: cooling module, pump, reservoir, valve, heater, chiller, compressor, refrigerant and coolant lines, with the
+# drive units and the battery's coolant line
+thermal = ids("thermal") + ids("front-drive-unit") + ids("rear-drive-unit") + ["coolant-lines", "hvac-module", "battery-coolant-manifold"]
+view("thermal", ["coolant-valve", "radiator"], 40, 32, 1.5, thermal)
+view("thermal-whole", ["rear-coolant-lines"], 50, 30, 4.2, thermal)
 view("underside", ["front-subframe", "rear-subframe"], 35, -38, 6.2, hide=("underbody",))
 b.close()

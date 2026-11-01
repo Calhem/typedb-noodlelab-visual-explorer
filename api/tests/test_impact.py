@@ -90,9 +90,11 @@ def test_3_twelve_volt_battery(client):
 
 def test_4_coolant_pump(client):
     lost, degraded, _ = impact(client, "coolant-pump")
-    # revised in C3a: the drive units' oil coolers reject their heat into the same coolant
-    assert lost == {("coolant-lines", "coolant flow"), ("battery-coolant-manifold", "coolant flow"),
-                    ("battery-cooling-plate", "cell cooling"), ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
+    # revised in C3a: the drive units' oil coolers reject their heat into the same coolant;
+    # revised in C3c step 5: separate coolant lines to each drive unit
+    assert lost == {("coolant-lines", "coolant flow"), ("front-coolant-lines", "coolant flow"), ("rear-coolant-lines", "coolant flow"),
+                    ("battery-coolant-manifold", "coolant flow"), ("battery-cooling-plate", "cell cooling"),
+                    ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
     assert {(f"battery-module-{n}", "cell power") for n in range(1, 17)} <= degraded
     assert {("front-stator", "magnetic field"), ("rear-stator", "magnetic field")} <= degraded
     assert all_corners("tyre", "drive torque") <= degraded
@@ -367,6 +369,45 @@ def test_35_top_mount(client):
     assert lost == {("spring-fl", "load support"), ("coilover-fl", "damping")}
     assert degraded == {("tyre-fl", "road holding")}
 
+
+
+# ---- C3c step 5: thermal circuits (docs/dependency-semantics.md, scenarios 45-49) -----------------------------------
+
+TEMPERATURE_CONSUMERS = {("battery-coolant-manifold", "coolant flow"), ("front-power-module", "phase current"),
+                         ("rear-power-module", "phase current"), ("front-oil-cooler", "oil cooling"), ("rear-oil-cooler", "oil cooling")}
+
+
+def test_45_radiator_degrades_coolant_temperature(client):
+    lost, degraded, _ = impact(client, "radiator")
+    assert not lost
+    assert {("coolant-valve", "coolant temperature")} | TEMPERATURE_CONSUMERS <= degraded
+
+
+def test_46_valve(client):
+    lost, degraded, _ = impact(client, "coolant-valve")
+    assert not lost
+    assert TEMPERATURE_CONSUMERS <= degraded
+
+
+def test_47_condenser(client):
+    lost, degraded, _ = impact(client, "condenser")
+    assert {("refrigerant-lines", "refrigerant flow"), ("battery-chiller", "coolant chilling"), ("hvac-module", "cabin climate")} <= lost
+    assert ("battery-cooling-plate", "cell cooling") in degraded
+    assert not {k for k in lost | degraded if k[1] == "drive torque"}
+
+
+def test_48_coolant_reservoir(client):
+    lost, degraded, _ = impact(client, "coolant-reservoir")
+    assert not lost
+    assert {("coolant-pump", "coolant flow"), ("coolant-lines", "coolant flow"), ("front-coolant-lines", "coolant flow"),
+            ("rear-coolant-lines", "coolant flow")} <= degraded
+
+
+def test_49_front_coolant_lines(client):
+    lost, degraded, _ = impact(client, "front-coolant-lines")
+    assert lost == {("front-oil-cooler", "oil cooling")}
+    assert {("front-power-module", "phase current"), ("front-stator", "magnetic field")} <= degraded
+    assert not {k for k in lost | degraded if k[0].startswith(("rear-", "battery-")) or k[0].endswith(("-rl", "-rr"))}
 
 
 # ---- C3c step 4: braking supply and parking (docs/dependency-semantics.md, scenarios 40-44) -------------------------

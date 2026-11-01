@@ -39,6 +39,12 @@ const CONTACTS: [RegExp, RegExp][] = [
   // C3c step 4: each rigid line screwed into its hose; the booster bolted to the bulkhead, the pedal's pushrod through it
   [/^brake-line-/, /^brake-hose-/],
   [/^(brake-booster|brake-pedal)$/, /^bulkhead$/],
+  // C3c step 5: the radiator's outlet into the battery coolant line, the refrigerant line through the bulkhead, the
+  // drive units' coolant hoses on the inverter and oil-cooler ports (the rear cooler's ports pass through the gearbox wall)
+  [/^radiator$/, /^coolant-lines$/],
+  [/^refrigerant-lines$/, /^bulkhead$/],
+  [/^front-coolant-lines$/, /^front-(inverter|oil-cooler|gearbox)$/],
+  [/^rear-coolant-lines$/, /^rear-(inverter|oil-cooler|gearbox)$/],
 ];
 // The body's underside panel, which the drive units sit through by design.
 const SKIP = new Set(["underbody"]);
@@ -57,7 +63,7 @@ const KNOWN: [string, RegExp][] = [
 ];
 const known = (pair: string) => KNOWN.find(([, re]) => re.test(pair))?.[0];
 
-const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
+const MODELS = ["corner-fr", "corner-fl", "corner-rr", "corner-rl", "chassis", "steering", "brakes", "thermal", "front-drive-unit", "rear-drive-unit", "hv-battery", "power-electronics"];
 
 describe("mechanical packaging", () => {
   it("no modelled part passes through a neighbouring part (simple shapes, or parts of another model)", async () => {
