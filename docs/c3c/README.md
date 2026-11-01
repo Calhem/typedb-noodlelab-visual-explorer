@@ -633,3 +633,128 @@ comparable; frame costs are):
 
 **Impact queries:** about 1 s, accepted as they are. No query changes were made, so the reasoning semantics are
 untouched.
+
+## Final C3c review (1 November 2026)
+
+C3c set out to make the mechanical vehicle complete, credible and explorable through TypeDB before the body is
+rebuilt. Every step is done.
+
+### Renders
+
+All renders are in [`final/`](final/):
+- the assembled vehicle from the front, rear, side and above;
+- the same four views exploded;
+- the mechanical vehicle with the body and interior hidden, assembled and exploded. Which parts count as body or
+  interior comes from TypeDB's type hierarchy.
+
+![Assembled](final/assembled-front.jpg)
+![Exploded](final/exploded-front.jpg)
+![Mechanical, assembled](final/mechanical-front.jpg)
+![Mechanical, exploded](final/mechanical-exploded-front.jpg)
+
+More: `assembled-rear`, `assembled-side`, `assembled-top`, `exploded-rear`, `exploded-side`, `exploded-top`,
+`mechanical-rear`, `mechanical-side`.
+
+### Mechanical systems and TypeDB coverage
+
+| System | Model | TypeDB |
+|---|---|---|
+| **Wheel corners** (4) | Blender: tyre, wheel, disc, calliper, pads, shield, hose, hub, bearing, knuckle, speed sensor; rear parking-brake actuators | Wheel rotation, braking, wheel location and alignment, road holding, vehicle holding |
+| **Suspension** | Front high upper arm with goose-neck knuckle; rear double wishbone with toe link; forked coilovers, anti-roll bars and drop links; subframes on 8 rubber mounts | Subframe and knuckle location, load support, damping, roll control; essential, handling and comfort losses kept apart |
+| **Steering** | Rack with belt-driven assist motor and control module, torque sensor, rack mounts, intermediate shaft with two universal joints, column | Full chain from the wheel to the tie rods; the assist loop needs its torque sensor; rack mounts degrade |
+| **Brakes and parking** | Pedal box, electric booster, master cylinder and reservoir, ESC module, four rigid lines | Reservoir → master cylinder → ESC → lines → hoses → callipers, with booster/pedal and fail-open fallbacks; park lock and parking brake back each other up for vehicle holding only |
+| **Drive units** (C3a) | Both drive units in detail | Torque path, open differential, cooling, control loops |
+| **Battery and HV** (C3b) | Pack, modules, junction box, PDU, harnesses, charging | HV supply, battery management, charging |
+| **Thermal** | Cooling module, pump, reservoir, valve, heater, chiller, compressor, refrigerant and coolant lines to the pack and both drive units | Coolant flow and temperature, refrigerant flow, battery chilling and heating, cabin climate |
+
+### Counts (at C3b → now)
+
+| | C3b | C3c |
+|---|---|---|
+| Components | 382 | **408** |
+| Connections | 497 | **534** |
+| Dependencies | 279 | **376** |
+| Vehicle functions | 66 | **89** |
+| Systems / control loops / fallbacks | 34 / 9 / 7 (seed at C3c step 2) | **35 / 10 / 11** |
+| Blender-modelled model files | 5 (front-right corner, two drive units, battery, power electronics) | **12** (24 with their light copies) |
+| Failure scenarios with written expectations | 27 (plus 22b) | **49** (plus revisions), and the oracle covers all 408 components |
+
+(The C3b figures are from `docs/c3b/README.md`.)
+
+### Tests (final run, 1 November)
+
+| Suite | Result |
+|---|---|
+| Web (types, unit, packaging, motion clearance, build) | **61 passed**, 13 skipped (live-only and on-demand analysis tools); build passes |
+| API and TypeDB | **106 passed**, including the oracle over every component |
+| Web against live TypeDB | **7 passed** |
+
+- **Motion check:** passes. The closest pair over the whole envelope is 11.3 mm (front upper arm to its top mount,
+  full bump with lock).
+- **Static packaging check:** passes. Every remaining clash is listed under B1–B6.
+
+### Performance and download
+
+| | Value |
+|---|---|
+| Model files | 12 full-detail files, 11.0 MB; with light copies, 15.7 MB |
+| Triangles / draw calls (assembled, high tier) | 1.42 M / 843 |
+| Draw calls with a system highlighted | **1,686** (3,154 before step 7) |
+| CPU per frame (assembled, high tier) | 4.0 ms (median) |
+| Failure-impact query | about 1.0 s typical, 1.4 s for the widest failure (12 V battery) |
+
+**About the timings.** The machine was under sustained load today and capped the headless browser at 30 fps.
+- **Load time:** the same files loaded in 0.44 s earlier in the day and in 0.96 s in the final run.
+- **Frame costs:** compare like with like within a session (see step 7). They are not comparable with the C3b
+  report's figures.
+
+### Outstanding visual and engineering issues
+
+**Body (the next milestone)**, in `docs/c3c/body-interfaces.md`, R1–R10:
+- the placeholder rails, sills, floor, arch liners, doors and rear seat still meet the mechanical parts (B1–B6);
+- the top mounts, upper-arm pivots and subframe mounts have no body structure to attach to.
+
+**Visible simplifications:**
+- **Wiring:** the 12 V harness is one representative cable, and the power cables between modules (PDU, OBC,
+  DC-DC, 12 V battery, heater, compressor) are not drawn.
+- **Body-hidden views:** window regulators, mirrors and roof sensors float, because they mount to body panels.
+- **Rear corners:** they reuse the front disc and calliper sizes.
+- **Steering rack:** the bar does not move in the app.
+
+**Engineering simplifications** (documented in the step sections):
+- **Steering geometry:** 50 mm scrub radius, and slight rear toe-out in bump.
+- **Thermal modes:** one valve stands for all of them.
+- **Parking hold:** the static model needs 12 V for the park lock to hold.
+
+**Performance, for the final optimisation phase:**
+- **Ghosting overdraw:** with a system highlighted, the GPU spends about 22 ms per frame on the high tier.
+- **Duplicated corner geometry:** about 8 MB.
+
+### Body reconstruction requirements
+
+See [body-interfaces.md](body-interfaces.md). It gives:
+- wheel envelopes by slice;
+- tower, subframe and pivot mounting points;
+- the pack's sill interface and underfloor runs;
+- bulkhead openings, cooling-module position and pipe routes;
+- sensor housings;
+- B1–B6 consolidated into requirements R1–R10.
+
+The mechanical assemblies and TypeDB semantics stay as they are. The body replaces its placeholders under the same
+component ids.
+
+### Commits on `feature/c3c-mechanical-completion` (from `main` at 5e404ce; not merged)
+
+| Steps | Commits |
+|---|---|
+| Audit | cdd7668 |
+| Step 1, corners | 605a7b1, 0e6bb4c, 11e1dad, 364daf2 |
+| Step 2, suspension | 8c572f8, 2d7731b, dbeb913, f65d16c, 32ad792 |
+| Step 2b, suspension geometry | 2f132a8, 61cf786, f06b929, 314f612 |
+| Step 3, steering | c0d5dfe, f2b87e8 |
+| Step 4, brakes and parking | b0bac21, 922bd2d |
+| Step 5, thermal | 279d4f2, 1e2d5e9, c887dff |
+| Step 6, connections | d350191 |
+| Step 7, performance | e64e17f |
+| Step 8, body interfaces | bbfa16c |
+| Step 9, this review | the commit that adds this section |
