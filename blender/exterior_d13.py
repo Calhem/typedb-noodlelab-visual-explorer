@@ -83,9 +83,10 @@ W_MID = 0.962  # body side half-width between the arches
 # height at the centre or None). The faces are flat across the crash beam and cooling module (|z| < 0.40) and wrap
 # back hard at the corners.
 LINES = [
-    Line("under-centre", [(-2.4, 0.29), (2.4, 0.29)], [(0, 0.0)], (2.24, 0.30, 0.03, None), (-2.28, 0.30, 0.03, None)),
-    # under the sills and the pack's side rails: the satin-black cladding comes down over the pack's sides
-    Line("under-edge", [(-2.4, 0.20), (2.4, 0.20)], [(-2.4, 0.86), (2.4, 0.86)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
+    Line("under-centre", [(-2.4, 0.24), (2.4, 0.24)], [(0, 0.0)], (2.24, 0.30, 0.03, None), (-2.28, 0.30, 0.03, None)),
+    # under the sills and the pack's side rails: the satin-black cladding comes down over the pack's sides, to about
+    # 0.18 m (D1.4: below the pack's protection plate, so its edge does not show under the sills)
+    Line("under-edge", [(-2.4, 0.13), (2.4, 0.13)], [(-2.4, 0.86), (2.4, 0.86)], (2.27, 0.30, 0.03, None), (-2.29, 0.30, 0.03, None)),
     Line("rocker", [(-1.95, 0.39), (-1.75, 0.33), (-1.0, 0.305), (1.0, 0.305), (1.75, 0.32), (1.9, 0.35)],
          [(-1.95, 0.88), (-1.75, 0.93), (1.75, 0.93), (1.9, 0.90)], (2.315, 0.30, 0.04, None, 0.56), (-2.35, 0.30, 0.03, None, 0.58), True),
     Line("cladding-top", [(-1.95, 0.55), (-1.75, 0.48), (-1.0, 0.455), (1.0, 0.455), (1.75, 0.47), (1.9, 0.49)],
@@ -204,10 +205,16 @@ def band(lo: int, x: float, z: float, station: int) -> str:
     """Material of a control face from its lower line, position and station (tail < SIDE0 <= side < SIDE1 <= front)."""
     i = NAMES.index
     tail, front = station < SIDE0, station >= SIDE1
+    if tail and station < N_FACE and lo <= i("rocker"):
+        return "gloss-black"  # the diffuser's face (D1.4)
     if lo <= i("rocker"):
         return "cladding"
+    if front and lo == i("cladding-top") and station >= SIDE1 + 5:
+        return "gloss-black"  # the lower intake (D1.4)
     if lo == i("cladding-top") and (front or tail):
         return "cladding"  # satin-black lower bumpers, continuing the arch lips and sills
+    if front and lo == i("upper-fascia") and station >= SIDE1 + 2:
+        return "gloss-black"  # the band under the bonnet's edge that carries the light blade (D1.4)
     if lo < i("glass") or (front and lo >= i("glass")) or (not tail and x > 0.95):
         return "paint"
     if lo == i("glass"):
@@ -215,7 +222,7 @@ def band(lo: int, x: float, z: float, station: int) -> str:
     if tail:
         return "gloss-black" if lo == i("roof-edge") else "paint"  # spoiler underside, roof end
     if lo == i("roof-edge"):
-        return "gloss-black" if x > 0.08 else "paint"  # A pillar / roof side rail
+        return "gloss-black" if x > -1.80 else "paint"  # A pillar and roof side rail: dark window surround (D1.4)
     if 0.10 < x <= 0.95:
         return "glass"  # windscreen
     if -1.25 < x < 0.0 and lo >= i("roof-rail"):

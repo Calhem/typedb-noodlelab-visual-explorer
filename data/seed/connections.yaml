@@ -202,6 +202,12 @@ connections:
   - {kind: mechanical, joint: hinged, ends: [door-r<s>, b-pillar-<s>]}
   - {kind: mechanical, joint: bolted, ends: [mirror-<s>, door-f<s>]}
   - {kind: mechanical, joint: bolted, ends: [side-camera-<s>, mirror-<s>], description: "Camera in the mirror housing"}
+  # sensor mountings (D1.4: each sensor now sits on a real mounting point on the new body)
+  - {kind: mechanical, joint: bolted, ends: [lidar, front-header], description: "Lidar pod on the roof's front edge, over the front header"}
+  - {kind: mechanical, joint: bolted, ends: [gnss-antenna, roof], description: "Antenna fin bolted through the roof skin"}
+  - {kind: mechanical, joint: bonded, ends: [front-camera, windscreen], description: "Camera bracket bonded to the top of the windscreen"}
+  - {kind: mechanical, joint: clipped, ends: [rear-camera, tailgate], description: "Camera in the tailgate under the light bar"}
+  - {kind: mechanical, joint: bolted, ends: [front-radar, front-crash-beam], description: "Radar bracket on the bumper beam, behind the fascia above the intake"}
   - {kind: mechanical, joint: clipped, ends: [glass-<c>, window-regulator-<c>]}
   - {kind: mechanical, joint: bolted, ends: [door-latch-<c>, door-structure-<c>]}
   - {kind: mechanical, joint: bonded, ends: [windscreen, a-pillar-<s>]}
@@ -255,6 +261,7 @@ connections:
   - {kind: mechanical, joint: bonded, ends: [tailgate, tailgate-inner], description: "Outer skin hemmed and bonded to the inner panel"}
   - {kind: mechanical, joint: bonded, ends: [tailgate-glass, tailgate]}
   - {kind: mechanical, joint: bolted, ends: [tail-lamp-<s>, tailgate], description: "Half of the light bar on the tailgate's ledge"}
+  - {kind: mechanical, joint: bolted, ends: [tail-lamp-<s>, quarter-<s>], description: "The light bar's outer end and the lamp cluster on the quarter panel"}
   - {kind: mechanical, joint: bolted, ends: [front-bumper, front-crash-beam], description: "Bumper fascia on the crash beam"}
   - {kind: mechanical, joint: clipped, ends: [grille, front-bumper]}
   - {kind: mechanical, joint: bolted, ends: [headlamp-<s>, front-end-carrier]}

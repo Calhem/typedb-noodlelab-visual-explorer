@@ -132,7 +132,7 @@ describe.each([
   ["brakes", 9],
   ["thermal", 14],
   ["body-structure", 42],
-  ["body-exterior", 68],
+  ["body-exterior", 74],
 ] as const)("Blender %s", (name, count) => {
   const map: { asset: string; nodes: Record<string, string> } = JSON.parse(readFileSync(asset(`${name}.map.json`), "utf8"));
   const roots = (json: { scenes: { nodes: number[] }[]; scene?: number; nodes: { name: string }[] }) =>

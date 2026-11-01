@@ -12,7 +12,8 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { PART_BY_ID } from "../vehicle/manifest";
-import { applyStudioMaterials, createStudioMaterials } from "../vehicle/studioMaterials";
+import { applyStudioMaterials, createStudioMaterials, setExteriorLights } from "../vehicle/studioMaterials";
+import { exteriorLights } from "./lights";
 import { quality, settings } from "./settings";
 
 export interface LoadedParts {
@@ -77,6 +78,8 @@ async function loadAll(): Promise<LoadedParts> {
   const started = performance.now();
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const library = createStudioMaterials();
+  setExteriorLights(library, exteriorLights.on);
+  exteriorLights.subscribe(() => setExteriorLights(library, exteriorLights.on));
   const parts = new Map<string, THREE.Object3D>();
   let bytes = 0;
   for (const result of await Promise.all(ASSETS.map((a) => loadAsset(a, loader, library)))) {

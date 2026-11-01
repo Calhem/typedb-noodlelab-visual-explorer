@@ -74,6 +74,8 @@ const box = (table: StandIns, id: string, material: MaterialId): Part => {
   return { id, material, shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
 };
 const exteriorPart = (id: string): Part => box(exteriorStandIns as StandIns, id, "satin-black");
+/** Where the exterior model draws a part (sensors and mirrors keep their own fallback shapes there). */
+const exteriorAt = (id: string): Vec3 => (exteriorStandIns as StandIns)[id].centre as Vec3;
 const standIn = (id: string): Part => {
   const { centre, size } = (structureStandIns as StandIns)[id];
   return { id, material: "aluminium", shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
@@ -102,7 +104,7 @@ const body: Part[] = [
   ...CORNERS.map((c): Part => panel(`glass-${c.key}` as PanelId, "glass")),
   ...SIDES.map((s): Part => ({
     id: `mirror-${s.key}`, material: "gloss-black",
-    shape: { kind: "mirror" }, position: [0.78, 1.12, s.z * 1.0], rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
+    shape: { kind: "mirror" }, position: exteriorAt(`mirror-${s.key}`), rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
   })),
 ];
 
@@ -365,24 +367,27 @@ const power: Part[] = [
 
 const sensors: Part[] = [
   { id: "front-camera", material: "electronics",
-    shape: { kind: "box", size: [0.07, 0.05, 0.16], radius: 0.012 }, position: [0.42, 1.43, 0] },
+    // behind the top of the windscreen, under the lidar pod
+    shape: { kind: "box", size: [0.07, 0.05, 0.16], radius: 0.012 }, position: [0.30, 1.435, 0] },
   { id: "rear-camera", material: "electronics",
-    shape: { kind: "cylinder", radius: 0.018, length: 0.04, axis: "x" }, position: [-0.008, 0.96, 0], attach: "rear" },
+    // in the tailgate under the light bar, its lens just proud of the skin (D1.4: placed on the new tail)
+    shape: { kind: "cylinder", radius: 0.018, length: 0.04, axis: "x" }, position: [-2.364, 0.955, 0] },
   ...SIDES.map((s): Part => ({
     id: `side-camera-${s.key}`, material: "electronics",
-    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: [0.78, 1.05, s.z * 1.04],
+    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: exteriorAt(`side-camera-${s.key}`), // in the mirror's underside
   })),
   { id: "front-radar", material: "electronics",
-    shape: { kind: "box", size: [0.035, 0.11, 0.13], radius: 0.01 }, position: [-0.04, 0.53, 0], attach: "front" },
+    // behind the fascia above the intake, on the bumper beam (D1.4: placed behind the new front, not in front of it)
+    shape: { kind: "box", size: [0.035, 0.11, 0.13], radius: 0.01 }, position: [2.31, 0.64, 0] },
   ...CORNERS.map((c): Part => ({
     id: `corner-radar-${c.key}`, material: "electronics",
     shape: { kind: "box", size: [0.03, 0.09, 0.1], radius: 0.01 },
     position: [c.front ? 2.18 : -2.22, 0.64, c.z * 0.7], rotation: [0, c.front ? -c.z * 0.75 : c.z * 0.75, 0],
   })),
   { id: "lidar", material: "electronics",
-    shape: { kind: "lidar" }, position: [0.18, 1.71, 0] },
+    shape: { kind: "lidar" }, position: exteriorAt("lidar") }, // in its pod on the roof's front edge
   { id: "gnss-antenna", material: "paint",
-    shape: { kind: "shark-fin" }, position: [-1.6, 1.68, 0] },
+    shape: { kind: "shark-fin" }, position: exteriorAt("gnss-antenna") }, // its fin on the roof
 ];
 
 const electronics: Part[] = [

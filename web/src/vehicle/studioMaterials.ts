@@ -196,20 +196,33 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["rubber-tyre", m({ color: c("#1d1e21"), roughness: 0.86, sheen: 0.35, sheenRoughness: 0.6, sheenColor: c("#5b6068"), roughnessMap: friction })],
     ["rubber-tread", m({ color: c("#1b1c1f"), roughness: 0.9, normalMap: tread, normalScale: new THREE.Vector2(1.6, 1.6), aoMap: treadCavity, aoMapIntensity: 1, sheen: 0.2, sheenColor: c("#4b4f55") })],
     ["rubber", m({ color: c("#1b1c1f"), roughness: 0.78, sheen: 0.2, sheenColor: c("#4a4e55") })],
-    // wheel: gunmetal metallic paint, lacquered, with a diamond-cut machined face
-    ["alloy-painted", m({ color: c("#33373d"), metalness: 0.7, roughness: 0.38, clearcoat: 1, clearcoatRoughness: 0.08 })],
-    ["alloy-machined", m({ color: c("#dadde0"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.8, anisotropyMap: brushing, clearcoat: 0.7, clearcoatRoughness: 0.05 })],
+    // wheel (D1.4): satin graphite paint, and a machined face under a smoked lacquer, so the spokes read as a
+    // restrained dark metallic accent rather than bright silver against the dark body
+    ["alloy-painted", m({ color: c("#25282c"), metalness: 0.65, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.2 })],
+    ["alloy-machined", m({ color: c("#6f747a"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.6, anisotropyMap: brushing, clearcoat: 0.8, clearcoatRoughness: 0.08 })],
     ["gloss-black", m({ color: c("#101114"), metalness: 0.3, roughness: 0.12, clearcoat: 1 })],
     ["steel-chrome", m({ color: c("#eef0f2"), metalness: 1, roughness: 0.07 })],
     ["steel-zinc", m({ color: c("#bdb8aa"), metalness: 1, roughness: 0.36 })],
     ["steel-dark", m({ color: c("#3d4045"), metalness: 0.6, roughness: 0.5 })],
-    // exterior (D1.3): graphite metallic paint, dark tinted glass, satin-black lower body, placeholder lamps
-    ["body-paint", m({ color: c("#4c5259"), metalness: 0.75, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.04 })],
-    ["body-glass", m({ color: c("#141a20"), metalness: 0.5, roughness: 0.04, transparent: true, opacity: 0.72, clearcoat: 1 })],
-    ["roof-glass", m({ color: c("#10151b"), metalness: 0.6, roughness: 0.04, clearcoat: 1 })],
-    ["satin-black", m({ color: c("#17181b"), metalness: 0.05, roughness: 0.75 })],
-    ["lamp", m({ color: c("#e6ebf0"), roughness: 0.15, emissive: c("#eaf2ff"), emissiveIntensity: 0.8, clearcoat: 1 })],
-    ["tail-lamp", m({ color: c("#3a0507"), roughness: 0.15, emissive: c("#c8161d"), emissiveIntensity: 0.7, clearcoat: 1 })],
+    // exterior (D1.3, refined in D1.4): graphite metallic paint whose flake roughness and slightly soft clear coat
+    // keep reflections controlled (not a mirror); dark tinted glass that still shows the cabin; satin-black lower body
+    ["body-paint", m({ color: c("#42484f"), metalness: 0.7, roughness: 0.36, clearcoat: 1, clearcoatRoughness: 0.1 })],
+    ["body-glass", m({ color: c("#0b0f13"), metalness: 0.45, roughness: 0.05, transparent: true, opacity: 0.86, clearcoat: 1, clearcoatRoughness: 0.02 })],
+    ["roof-glass", m({ color: c("#0c1015"), metalness: 0.55, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02 })],
+    ["satin-black", m({ color: c("#141518"), metalness: 0.05, roughness: 0.72 })],
+    // lamps (D1.4): the lit elements; their glow is set by setExteriorLights (off: a faint unlit sheen)
+    ["lamp", m({ color: c("#8e959d"), metalness: 0.4, roughness: 0.25, emissive: c("#f2f6ff"), emissiveIntensity: 0.04 })],
+    ["tail-lamp", m({ color: c("#6e0f14"), roughness: 0.2, emissive: c("#ff1a24"), emissiveIntensity: 0.05 })],
+    ["lamp-lens", m({ color: c("#aab4be"), metalness: 0, roughness: 0.04, transparent: true, opacity: 0.06, specularIntensity: 0.6, depthWrite: false })],
+    ["tail-lens", m({ color: c("#3a0508"), metalness: 0, roughness: 0.03, transparent: true, opacity: 0.45, clearcoat: 1, depthWrite: false })],
+    ["lamp-housing", m({ color: c("#040405"), metalness: 0, roughness: 0.6 })],
+    ["lamp-bezel", m({ color: c("#5c6168"), metalness: 1, roughness: 0.22 })],
+    ["trim-dark-metal", m({ color: c("#4a4f56"), metalness: 1, roughness: 0.32 })],
+    // the panels' cut edges, seen in the shut lines: near black, so the gaps read as dark lines
+    ["shut-black", m({ color: c("#060607"), metalness: 0, roughness: 0.9 })],
+    ["mirror-glass", m({ color: c("#9aa2ab"), metalness: 1, roughness: 0.03 })],
+    ["camera-lens", m({ color: c("#06080b"), metalness: 0.6, roughness: 0.04, clearcoat: 1 })],
+    ["sensor-window", m({ color: c("#07090c"), metalness: 0.5, roughness: 0.04, clearcoat: 1 })],
     // body-in-white: pressed steel in its grey electro-coat (D1.2)
     ["body-ecoat", m({ color: c("#6c7279"), metalness: 0.2, roughness: 0.5, clearcoat: 0.25, clearcoatRoughness: 0.35 })],
     ["steel-machined", m({ color: c("#c7cbcf"), metalness: 1, roughness: 1, roughnessMap: ringsFine, anisotropy: 0.7, anisotropyMap: brushing })],
@@ -246,6 +259,12 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
   ]);
   for (const [name, material] of library) material.name = name; // makes inspection and debugging easier
   return library;
+}
+
+/** The exterior lamps lit or unlit: the lit elements' glow, restrained so there is no bloom-like flare. */
+export function setExteriorLights(library: Map<string, THREE.MeshPhysicalMaterial>, on: boolean) {
+  library.get("lamp")!.emissiveIntensity = on ? 2.6 : 0.04;
+  library.get("tail-lamp")!.emissiveIntensity = on ? 3.0 : 0.05;
 }
 
 /** Swap the placeholder materials on a loaded object for the studio materials of the same name. */

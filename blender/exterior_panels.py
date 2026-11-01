@@ -15,6 +15,10 @@ How the panels follow the body surface:
   - the door seals along the door edge.
 - The handles sit on the door skin.
 
+D1.4 adds the details in blender/exterior_details.py (lamps, the lidar pod and antenna fin, mirrors with their cameras,
+the intake's slats), lowers the body's bottom edge over the pack, ramps the underbody trays into the bumpers and carries
+the arch liners further down the arches.
+
 Panels keep their existing component ids (the same ids as the browser-built body in web/src/vehicle/body.ts).
 Writes web/assets-src/body-exterior.glb, web/public/assets/body-exterior.map.json and
 web/src/vehicle/exterior-stand-ins.json (bounding boxes for the app's fallback shapes).
@@ -34,6 +38,7 @@ from mathutils.bvhtree import BVHTree
 
 sys.path.insert(0, str(Path(__file__).parent))
 import exterior_d13 as d13  # noqa: E402
+import exterior_details as details  # noqa: E402
 import kit  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -145,7 +150,7 @@ def to_object(name: str, bm: bmesh.types.BMesh, materials: list[str], thickness:
     n = len(materials)
     slots = list(materials)
     if thickness:
-        slots += ["satin-black"] * n + ([inside] * n if inside else [])
+        slots += ["shut-black"] * n + ([inside] * n if inside else [])
     for m in slots:
         o.data.materials.append(kit.material(m))
     for p in o.data.polygons:
@@ -156,6 +161,9 @@ def to_object(name: str, bm: bmesh.types.BMesh, materials: list[str], thickness:
         sol.material_offset_rim = n
         sol.material_offset = 2 * n if inside else 0
         o = kit.to_mesh(o)
+        for p in o.data.polygons:  # flat rims: smooth ones bend the panel's edge shading into a bright line (D1.4)
+            if n <= p.material_index < 2 * n:
+                p.use_smooth = False
     kit.box_uv(o, 3.0)
     return o
 
@@ -256,9 +264,14 @@ def liner(front: bool, side: int) -> bmesh.types.BMesh:
     if front:
         pieces = [profile_z(FRONT_ENVELOPE, 0.025, 0.66, 0.93),
                   sector_z(F, 0.405, 0.600, 0.604, 45, 135, 0.50, 0.663),
-                  sector_z(F, 0.405, 0.525, 0.604, 45, 135, 0.66, 0.663)]
+                  sector_z(F, 0.405, 0.525, 0.604, 45, 135, 0.66, 0.663),
+                  # D1.4: the liner continues down the arch's rear and front ends, 15 and 25 mm clear of the steered
+                  # tyre's sweep, closing the view into the bay behind and ahead of the wheel
+                  box_app((1.071, 0.24, 0.66), (1.075, 0.648, 0.93)),
+                  box_app((2.145, 0.24, 0.66), (2.149, 0.478, 0.84))]
     else:
-        pieces = [sector_z(R, 0.405, 0.510, 0.514, 40, 160, 0.65, 0.95)]  # behind the C pillar's gusset
+        # behind the C pillar's gusset; D1.4: carried down both ends of the arch towards the sill and the bumper
+        pieces = [sector_z(R, 0.405, 0.510, 0.514, 28, 172, 0.65, 0.95)]  # forward of 28 degrees: the sill, C pillar, harness
     bm = bmesh.new()
     for p in pieces:
         kit.merge_into(bm, p)
@@ -299,18 +312,52 @@ def box_app(lo, hi) -> bmesh.types.BMesh:
     return to_app(kit.transform(kit.box(*(hi - lo)), Matrix.Translation((lo + hi) / 2)))
 
 
+def tray(profile: list[tuple[float, float, float]], t: float = 0.004) -> bmesh.types.BMesh:
+    """A closed plate along x through (x, y underside, half-width) stations, t thick (app coordinates)."""
+    bm = bmesh.new()
+    rings = [[bm.verts.new((x, y + dy, s * w)) for dy, s in ((0, -1), (0, 1), (t, 1), (t, -1))] for x, y, w in profile]
+    for a, b in zip(rings, rings[1:]):
+        for k in range(4):
+            bm.faces.new((a[k], b[k], b[(k + 1) % 4], a[(k + 1) % 4]))
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+    return to_app(bm)
+
+
+def strake(z: float, x0: float, x1: float, ramp, depth: float = 0.022, t: float = 0.005) -> bmesh.types.BMesh:
+    """A thin fin hanging under the rear ramp at z, from x0 to x1: the diffuser's strakes."""
+    bm = bmesh.new()
+    xs = [x0 + (x1 - x0) * i / 8 for i in range(9)]
+    rings = [[bm.verts.new((x, y, z + dz)) for y, dz in ((ramp(x) - depth * (1 - 0.5 * i / 8), -t / 2), (ramp(x) - depth * (1 - 0.5 * i / 8), t / 2),
+                                                             (ramp(x) + 0.002, t / 2), (ramp(x) + 0.002, -t / 2))]
+             for i, x in enumerate(xs)]
+    for a, b in zip(rings, rings[1:]):
+        for k in range(4):
+            bm.faces.new((a[k], b[k], b[(k + 1) % 4], a[(k + 1) % 4]))
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+    return to_app(bm)
+
+
 def underbody() -> bmesh.types.BMesh:
     """Aero trays under the front and rear subframes, and the channel covering the rear drive unit's coolant pair
     under the pack (R9): a U section, y 0.138-0.185, z 0 to 0.10, x -0.95 to 1.15. Ground clearance: 0.14 m at the
-    front tray (under the coolant lines' run forward) and the channel, 0.16 m at the rear tray."""
-    pieces = [box_app((1.25, 0.140, -0.38), (2.20, 0.144, 0.38)),  # under the rear drive unit's coolant lines
-              box_app((-2.10, 0.162, -0.38), (-1.15, 0.166, 0.38)),
+    front tray (under the coolant lines' run forward) and the channel, 0.16 m at the rear tray.
+    D1.4: ahead of the front wheels the front tray rises and widens into the front bumper's lower edge (about 0.18 m),
+    and behind the rear subframe the rear tray rises into the rear bumper as a shallow diffuser with three low
+    strakes, so neither tray stands out below the bumpers in side view."""
+    rear_ramp = d13.pchip([(-2.27, 0.205), (-2.10, 0.185), (-1.92, 0.164), (-1.85, 0.162)])
+    pieces = [tray([(1.25, 0.140, 0.38), (1.98, 0.140, 0.38), (2.10, 0.152, 0.44), (2.20, 0.172, 0.50), (2.245, 0.183, 0.52)]),
+              tray([(-2.27, 0.205, 0.56), (-2.18, 0.194, 0.52), (-2.10, 0.185, 0.46), (-2.0, 0.174, 0.40), (-1.92, 0.164, 0.38),
+                    (-1.85, 0.162, 0.38), (-1.15, 0.162, 0.38)]),
+              *[strake(z, -2.265, -1.95, rear_ramp) for z in (-0.24, 0.0, 0.24)],
               box_app((-0.95, 0.138, -0.005), (1.15, 0.142, 0.105)),
               box_app((-0.95, 0.138, -0.009), (1.15, 0.184, -0.005)),
               box_app((-0.95, 0.138, 0.105), (1.15, 0.184, 0.109))]
     bm = bmesh.new()
     for p in pieces:
         kit.merge_into(bm, p)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return bm
 
 
@@ -410,35 +457,6 @@ def boundary_loop(bm: bmesh.types.BMesh) -> list[Vector]:
     return [v.co.copy() for v in best]
 
 
-# ---- lamps (placeholders until D1.4) ------------------------------------------------------------------------------
-
-def lamp_strip(body: bpy.types.Object, front: bool, side: int, glass: bool) -> bmesh.types.BMesh:
-    """One half of the light line along the body: under the bonnet edge at the front, under the tail ledge at the
-    rear. The lens is the same strip, slightly taller and 3 mm proud."""
-    bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
-    y = 0.845 if front else 1.0
-    height = (0.016 if front else 0.024) + (0.01 if glass else 0.0)
-    facing = 1 if front else -1
-    cx = 1.9 if front else -1.9
-    rows = []
-    for i in range(61):
-        a = math.radians(64 * i / 60)
-        direction = app(facing * math.cos(a), 0, side * math.sin(a)) - app(0, 0, 0)
-        hit, n, _, _ = bvh.ray_cast(app(cx, y, 0), direction, 5)
-        if hit is None:
-            continue
-        p = hit + n * (0.006 if glass else 0.003)
-        up = Vector((0, 0, height / 2))
-        rows.append((p + up, p - up))
-    bm = bmesh.new()
-    vs = [(bm.verts.new(a), bm.verts.new(b)) for a, b in rows]
-    for (a0, b0), (a1, b1) in zip(vs, vs[1:]):
-        quad = (a0, a1, b1, b0) if side * facing > 0 else (b0, b1, a1, a0)
-        bm.faces.new(quad)
-    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.004)
-    return bm
-
-
 # ---- build ----------------------------------------------------------------------------------------------------------
 
 def build():
@@ -491,11 +509,8 @@ def build():
         for side, k in ((1, "r"), (-1, "l")):
             parts[f"arch-liner-{a}{k}"] = single(f"arch-liner-{a}{k}", liner(front, side), "plastic-black")
     parts["underbody"] = single("underbody", underbody(), "plastic-black", smooth=False)
-    for front, pid in ((True, "headlamp"), (False, "tail-lamp")):
-        for side, k in ((1, "r"), (-1, "l")):
-            parts[f"{pid}-{k}"] = single(f"{pid}-{k}", lamp_strip(body, front, side, False), "lamp" if front else "tail-lamp")
-            if front:
-                parts[f"headlamp-lens-{k}"] = single(f"headlamp-lens-{k}", lamp_strip(body, True, side, True), "body-glass")
+    parts.update(details.build(body))  # lamps, roof sensor housings, mirrors and side cameras (D1.4)
+    parts["grille"] = kit.join("grille", [parts["grille"], details.grille_slats(body)])
 
     inside_check(body, parts)
     keep = set(parts.values())
@@ -524,7 +539,7 @@ def build():
     print(f"body-exterior: {len(parts)} parts, {tris:,} triangles -> {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
-OUTSIDE_BY_DESIGN = ("headlamp", "tail-lamp", "door-handle", "underbody", "arch-liner")
+OUTSIDE_BY_DESIGN = ("headlamp", "tail-lamp", "door-handle", "underbody", "arch-liner", "mirror", "side-camera", "lidar", "gnss-antenna")
 
 
 def inside_check(body: bpy.types.Object, parts: dict[str, bpy.types.Object]) -> None:

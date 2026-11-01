@@ -50,6 +50,7 @@ const CONTACTS: [RegExp, RegExp][] = [
   [/^tailgate-glass$/, /^d-pillar-[lr]$/],
   [/^tailgate(-inner)?$/, /^rear-header$/],
   [/^arch-liner-r[lr]$/, /^wheelhouse-r[lr]$/],
+  [/^arch-liner-f[lr]$/, /^a-pillar-[lr]$/], // D1.4: the front liner's rear end clipped to the A pillar's foot
   [/^quarter-l$/, /^charge-port$/],
   // C3c step 3: the rack mounts bolted to the subframe; the intermediate shaft through the bulkhead in its rubber seal
   [/^steering-rack-mount-[lr]$/, /^front-subframe$/],

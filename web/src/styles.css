@@ -62,6 +62,9 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
   background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.16);
 }
 .scrub-play:hover, .scrub-play:focus-visible { border-color: var(--accent); outline: none; }
+.scrub-lights { min-width: 0; }
+.icon-lights { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--ink-faint); }
+.icon-lights.on { background: #f2f6ff; border-color: #f2f6ff; box-shadow: 0 0 6px rgba(242, 246, 255, 0.6); }
 .icon-out, .icon-in, .icon-pause { width: 10px; height: 10px; position: relative; }
 .icon-out::before, .icon-in::before { content: ""; position: absolute; inset: 0; border: 1px solid var(--accent); border-radius: 2px; }
 .icon-out::before { transform: scale(0.55); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.25); }
