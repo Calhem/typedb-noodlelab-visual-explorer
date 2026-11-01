@@ -75,3 +75,20 @@ the bright studio floor and looked grey.
 - **Next refinements, for this phase or after your approval:**
   - The front corners' transition from the bumper to the wing.
   - A small kink where the bonnet's nose meets the fascia band in side view.
+
+## Refinement pass after your review (1 November 2026)
+
+- **Bonnet nose kink removed.**
+  - The bonnet's lines now follow one smooth, steadily curving profile from the cowl round the nose. Before, they
+    held a constant height round the corner while the centre kept falling.
+  - The creases of the beltline and the window line stop at the front corners, so there's no ridge across the
+    nose.
+  - The bonnet edge overhangs the fascia by 2.5 cm (was 5.5 cm).
+  - The bonnet still clears the front towers and the front-end carrier.
+- **Front corners:** a defined vertical edge where the wing turns into the bumper.
+- **Tailgate:**
+  - a deeper ledge;
+  - the face under it set back and wrapped further round the corners;
+  - corner edges where the body sides turn into the tail.
+- **Fit:** still nothing from the structure or the mechanical assemblies outside the shell. The comparison sheet
+  and the D1.3 views above are updated.
