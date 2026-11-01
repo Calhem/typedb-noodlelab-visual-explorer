@@ -495,6 +495,59 @@ def test_power_steering_loop_has_its_sensor(client):
     data = get(client, "/api/components/steering-torque-sensor/relationships")["data"]
     assert {(loop["name"], loop["role"]) for loop in data["control-loops"]} == {("Electric power steering", "sensor")}
 
+# ---- D1.2: body structure load paths (docs/dependency-semantics.md, scenarios 50-54) --------------------------------
+
+def tower_losses(c):
+    return {(f"top-mount-{c}", "body attachment"), (f"upper-arm-{c}", "knuckle location"), (f"spring-{c}", "load support"),
+            (f"coilover-{c}", "damping"), (f"knuckle-{c}", "wheel location"), (f"tyre-{c}", "road holding")}
+
+
+def test_50_front_tower_loses_that_corner(client):
+    lost, degraded, _ = impact(client, "front-tower-r")
+    assert lost == tower_losses("fr")
+    assert not degraded
+
+
+def test_51_front_rail_degrades_the_front_axle(client):
+    lost, degraded, _ = impact(client, "front-rail-r")
+    assert lost == {("front-subframe-mount-2", "body mounting")}
+    assert {("front-tower-r", "suspension mounting"), ("top-mount-fr", "body attachment"), ("upper-arm-fr", "knuckle location"),
+            ("front-subframe", "subframe location"), ("knuckle-fl", "wheel location"), ("knuckle-fr", "wheel location"),
+            ("tyre-fl", "road holding"), ("tyre-fr", "road holding")} <= degraded
+    assert not {k for k in degraded if k[0].endswith(("-rl", "-rr")) or k[0].startswith("rear-")}
+
+
+def test_52_rear_tower_loses_that_corner(client):
+    lost, degraded, _ = impact(client, "rear-tower-l")
+    assert lost == tower_losses("rl")
+    assert not degraded
+
+
+def test_53_rear_seat_crossmember_degrades_the_rear_axle(client):
+    lost, degraded, _ = impact(client, "floor-crossmember-3")
+    assert lost == {("rear-subframe-mount-1", "body mounting"), ("rear-subframe-mount-2", "body mounting")}
+    assert {("rear-subframe", "subframe location"), ("tyre-rl", "road holding"), ("tyre-rr", "road holding")} <= degraded
+    assert all_corners("knuckle", "wheel location") - degraded == {("knuckle-fl", "wheel location"), ("knuckle-fr", "wheel location")}
+    assert not {k for k in degraded if k[0].endswith(("-fl", "-fr")) or k[0].startswith("front-")}
+
+
+def test_54_front_floor_rail(client):
+    lost, degraded, _ = impact(client, "front-floor-rail-r")
+    assert lost == {("front-subframe-mount-4", "body mounting")}
+    assert {("front-subframe", "subframe location"), ("tyre-fl", "road holding"), ("tyre-fr", "road holding")} <= degraded
+    assert not {k for k in degraded if "tower" in k[0] or k[0].endswith(("-rl", "-rr"))}
+
+
+def test_load_path_question_reaches_the_body(client):
+    data = get(client, "/api/questions/load-path")["data"]
+    ids = set(data["highlight"])
+    assert {"tyre-fr", "knuckle-fr", "upper-arm-fr", "lower-arm-fr", "spring-fr", "top-mount-fr", "front-tower-r", "front-rail-r",
+            "front-subframe", "front-floor-rail-r", "front-rail-l", "front-floor-rail-l"} <= ids
+    assert not {i for i in ids if i.endswith(("-rl", "-rr")) or i.startswith("rear-")}
+    assert data["summary"].endswith("Left front floor rail, Left front longitudinal rail, Right front floor rail, "
+                                    "Right front longitudinal rail")
+
+
 # ---- 2. Independent oracle for every component ------------------------------------------------------------------
 
 def test_typedb_matches_the_oracle_for_every_failure(driver, database):

@@ -291,7 +291,7 @@ nothing. The new functions separate three kinds of consequence.
 **Functions.**
 - **Wheel location** (knuckle): where the wheel is, held by the lower and upper arms. Each arm provides *knuckle
   location*. The lower arms need the subframe's *subframe location*; the upper arms pivot on the body (not
-  modelled as a failure source).
+  modelled as a failure source; since D1.2, on the suspension towers, see "Body structure: load paths").
 - **Wheel alignment** (knuckle): the wheel's steer angle, held by the tie rod at the front (*steering motion*)
   and the toe link at the rear (*toe control*, which needs the subframe).
 - **Load support** (spring): carries the corner's share of the vehicle's weight, through the top mount's *body
@@ -450,6 +450,46 @@ the radiator.
 
 **Simplification:** one valve stands for the circuit's thermal modes. The real circuit has several valves and
 modes (cabin heating, battery pre-conditioning, waste-heat recovery).
+
+## Body structure: load paths (D1.2, 1 November 2026)
+
+Written before the data. Until D1.2 the suspension's body ends had no structure behind them: the upper arms
+"pivot on the body (not modelled as a failure source)", and the top mounts and subframe mounts provided their
+functions unconditionally. The body-in-white now carries them, so a structural failure reaches the wheel.
+
+**Functions.**
+- **Structural support** (front and rear rails, the front floor rails, the rear seat crossmember): the primary
+  structure. It needs nothing further in this model; the chain stops at the rails.
+- **Suspension mounting** (front and rear towers): where the top mount and the upper arm's pivots sit. Each tower
+  needs its rail's *structural support*. Losing the rail only **degrades** the tower, because the tower is also tied
+  to the bulkhead's cowl (front) or to the wheelhouse and boot floor (rear).
+- **Body attachment** (top mount) and **knuckle location** (upper arm) now need their tower's *suspension
+  mounting*: lost if the tower is lost, degraded if it is degraded.
+- **Body mounting** (each subframe mount) needs the structure it is bolted to:
+  - mounts 1/2 at the front: the front rails;
+  - mounts 3/4 at the front: the front floor rails;
+  - mounts 1/2 at the rear: the rear seat crossmember;
+  - mounts 3/4 at the rear: the rear rails.
+
+  The mount's function is lost if that structure is lost.
+
+**The chains a visitor can follow** (named question "What carries the front-right wheel's load?"):
+- tyre → knuckle → lower arm → subframe → subframe mounts → front rail / front floor rail;
+- tyre → knuckle → upper arm → tower → front rail;
+- tyre → spring and damper → top mount → tower → front rail.
+
+**Not modelled:**
+- Crash load paths: the crash boxes, beams and pillars carry no dependencies.
+- Partial structural damage and fatigue: a failure here means the part no longer carries its load.
+- Two failed mounts on one subframe still only *degrade* it, as one does (as in C3c).
+
+| # | Failure | Lost | Degraded | Must not |
+|---|---|---|---|---|
+| 50 | **Right front tower** | top-mount-fr: body attachment; upper-arm-fr: knuckle location; spring-fr: load support; coilover-fr: damping; knuckle-fr: wheel location; tyre-fr: road holding | | any other wheel |
+| 51 | **Right front rail** | front-subframe-mount-2: body mounting | front-tower-r: suspension mounting; top-mount-fr: body attachment; upper-arm-fr: knuckle location; front subframe: subframe location; knuckle-fl, -fr: wheel location; tyre-fl, -fr: road holding | anything else lost; rear wheels |
+| 52 | **Left rear tower** | top-mount-rl: body attachment; upper-arm-rl: knuckle location; spring-rl: load support; coilover-rl: damping; knuckle-rl: wheel location; tyre-rl: road holding | | any other wheel |
+| 53 | **Rear seat crossmember** | rear-subframe-mount-1, -2: body mounting | rear subframe: subframe location; rear lower arms, toe links and knuckles; tyre-rl, -rr: road holding | anything else lost; front wheels |
+| 54 | **Right front floor rail** | front-subframe-mount-4: body mounting | front subframe: subframe location; tyre-fl, -fr: road holding | anything else lost; the towers |
 
 ## What the tests do and do not establish (C2, 30 October 2026)
 

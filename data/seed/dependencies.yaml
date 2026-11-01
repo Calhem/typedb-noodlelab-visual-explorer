@@ -164,6 +164,21 @@ dependencies:
      description: "Ride comfort and grip on rough roads reduced"}
   - {dependent: tyre-<c>, function: road holding, provider: "<a>-anti-roll-bar", needs: roll control, kind: support, loss: degraded,
      description: "Body roll and balance in corners worse; ride unaffected"}
+  # ---- Body structure load paths (docs/dependency-semantics.md, D1.2) ------------------------------------------
+  - {dependent: top-mount-<c>, function: body attachment, provider: "<a>-tower-<s>", needs: suspension mounting, kind: support, loss: lost,
+     degradation: degraded}
+  - {dependent: upper-arm-<c>, function: knuckle location, provider: "<a>-tower-<s>", needs: suspension mounting, kind: support, loss: lost,
+     degradation: degraded}
+  - {dependent: "<a>-tower-<s>", function: suspension mounting, provider: "<a>-rail-<s>", needs: structural support, kind: support, loss: degraded,
+     description: "The tower is also tied to the cowl (front) or to the wheelhouse and boot floor (rear): the corner stays located, with less stiffness"}
+  - {dependent: front-subframe-mount-1, function: body mounting, provider: front-rail-l, needs: structural support, kind: support, loss: lost}
+  - {dependent: front-subframe-mount-2, function: body mounting, provider: front-rail-r, needs: structural support, kind: support, loss: lost}
+  - {dependent: front-subframe-mount-3, function: body mounting, provider: front-floor-rail-l, needs: structural support, kind: support, loss: lost}
+  - {dependent: front-subframe-mount-4, function: body mounting, provider: front-floor-rail-r, needs: structural support, kind: support, loss: lost}
+  - {dependent: "rear-subframe-mount-<n>", function: body mounting, provider: floor-crossmember-3, needs: structural support, kind: support, loss: lost,
+     each: {n: [1, 2]}}
+  - {dependent: rear-subframe-mount-3, function: body mounting, provider: rear-rail-l, needs: structural support, kind: support, loss: lost}
+  - {dependent: rear-subframe-mount-4, function: body mounting, provider: rear-rail-r, needs: structural support, kind: support, loss: lost}
   # Open differential (docs/dependency-semantics.md, C3b): it can only deliver torque while BOTH sides resist it.
   - {dependent: "<a>-halfshaft-<s>", function: reaction path, provider: "<a>-side-gear-<s>", needs: reaction path, kind: support, loss: lost}
   - {dependent: "<a>-differential", function: drive torque, provider: "<a>-halfshaft-<s>", needs: reaction path, kind: support, loss: lost,

@@ -159,6 +159,39 @@ def propulsion_single_points(tx):
             "columns": ["Part"], "rows": [[f["name"]] for f in found], "highlight": [f["id"] for f in found]}
 
 
+def load_path(tx):
+    """The physical support steps behind the front-right tyre (D1.2): through the suspension and subframe into
+    the body structure. The recursive walk returns every requirement; the support steps are kept and followed
+    from the tyre, breadth first."""
+    edges = fetch(tx, """
+        match
+          $end isa component, has component-id "tyre-fr";
+          let $c, $f, $p, $g in requirement_steps($end);
+          $d isa physical-dependency (dependent: $c, affected-function: $f, provider: $p, required-function: $g),
+            has dependency-kind "support";
+        fetch { "from": $c.component-id, "from-name": $c.name, "function": $f.function-name,
+                "to": $p.component-id, "to-name": $p.name, "needs": $g.function-name };
+    """)
+    by_from = {}
+    for e in edges:
+        by_from.setdefault(e["from"], []).append(e)
+    seen, frontier, steps = {"tyre-fr"}, ["tyre-fr"], []
+    while frontier:
+        nxt = []
+        for node in frontier:
+            for e in sorted(by_from.get(node, []), key=lambda e: (e["to-name"], e["needs"])):
+                steps.append(e)
+                if e["to"] not in seen:
+                    seen.add(e["to"])
+                    nxt.append(e["to"])
+        frontier = nxt
+    structure = {r["id"] for r in fetch(tx, 'match $x isa structural-member; fetch { "id": $x.component-id };')}
+    ends = sorted({e["to-name"] for e in steps if e["to"] in structure and e["to"] not in by_from})
+    rows = [[i + 1, f"{e['from-name']}: {e['function']}", f"{e['to-name']}: {e['needs']}"] for i, e in enumerate(steps)]
+    return {"summary": f"{len(steps)} support steps from the front-right tyre, ending in the body structure: {', '.join(ends)}",
+            "columns": ["Step", "Part: function", "rests on"], "rows": rows, "highlight": sorted(seen)}
+
+
 QUESTIONS = {
     "pack-energy": ("How much energy does the battery store?", "Aggregation",
                     "Sums an engineering property over every battery module (reduce ... sum).", pack_energy),
@@ -178,6 +211,10 @@ QUESTIONS = {
     "battery-to-wheel": ("How does battery energy reach the front-left wheel?", "Recursive traversal",
                          "Walks the function-level dependencies back from the tyre with a recursive function and shows the "
                          "shortest chain to a battery module.", battery_to_wheel),
+    "load-path": ("What carries the front-right wheel's load into the body?", "Recursive traversal, filtered",
+                  "Walks the function-level dependencies back from the tyre with a recursive function, keeps the physical "
+                  "support steps and follows them: through the knuckle, arms, spring and subframe to the towers, rails and "
+                  "floor of the body structure.", load_path),
     "propulsion-single-points": ("Which single failures stop all propulsion?", "Function-level failure reasoning",
                                  "Walks back from the four tyres to find the parts every wheel's drive needs, then runs the "
                                  "failure reasoning for each of those and keeps the parts whose loss alone takes drive torque "
