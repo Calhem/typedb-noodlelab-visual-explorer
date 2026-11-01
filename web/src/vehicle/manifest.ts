@@ -354,7 +354,7 @@ const power: Part[] = [
   { id: "hv-harness-front", material: "hv-orange",
     // inboard of the front-left subframe mount and its body bracket (D1.2), up ahead of the subframe and the
     // steering rack's mount, then over the rack to the inverter
-    ...absTube([[1.17, 0.29, -0.22], [1.185, 0.35, -0.235], [1.235, 0.42, -0.23], [1.24, 0.6, -0.21], [1.3, 0.72, -0.18], [1.36, 0.773, -0.17]], 0.014) },
+    ...absTube([[1.175, 0.29, -0.26], [1.19, 0.34, -0.25], [1.235, 0.42, -0.23], [1.24, 0.6, -0.21], [1.3, 0.72, -0.18], [1.36, 0.773, -0.17]], 0.014) },
   { id: "hv-harness-rear", material: "hv-orange",
     ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
   { id: "hv-harness-aux", material: "hv-orange",

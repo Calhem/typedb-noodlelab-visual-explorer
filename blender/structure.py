@@ -231,17 +231,18 @@ def cross_car_beam():
 # ---- floor and sills -------------------------------------------------------------------------------------
 
 def sill(s: int):
-    """Closed sill section from the A-pillar's foot (x 1.06) to the C-pillar's (x -1.00), clear of both wheels'
-    sweep (R1). Its inner face (z 0.705) takes the pack's mounting tabs; the brake lines run beside it at z 0.69."""
-    outline = [(0.27, 0.72), (0.27, 0.84), (0.30, 0.875), (0.49, 0.875), (0.52, 0.85), (0.52, 0.705), (0.30, 0.705)]
-    return part(f"sill-{'lr'[s > 0]}", [mirror(prism(outline, "x", -1.00, 1.06), s)], STEEL, 0.006)
+    """Closed sill section from the A-pillar's foot (x 1.06) to the C-pillar's (x -0.97): clear of both wheels'
+    sweep (R1), behind the provisional exterior's wheel openings and above its rocker (y 0.30). Its inner face
+    (z 0.705) takes the pack's mounting tabs; the brake lines run beside it at z 0.69."""
+    outline = [(0.30, 0.72), (0.30, 0.84), (0.325, 0.875), (0.49, 0.875), (0.52, 0.85), (0.52, 0.705), (0.32, 0.705)]
+    return part(f"sill-{'lr'[s > 0]}", [mirror(prism(outline, "x", -0.97, 1.06), s)], STEEL, 0.006)
 
 
 def cabin_floor():
     """Flat floor on the pack (y 0.38) from the toe board back to the heel kick-up, which rises over the rear
     subframe to the boot floor (R3). The kick-up is narrower, leaving the brake lines' rise (z 0.625)."""
-    flat = sheet([(0.89, 0.384), (-0.99, 0.384)], 0.004, "z", -0.705, 0.705)
-    kick = sheet([(-0.99, 0.384), (-1.03, 0.384), (-1.10, 0.50), (-1.22, 0.80), (-1.27, 0.86)], 0.004, "z", -0.60, 0.60)
+    flat = sheet([(0.89, 0.384), (-0.97, 0.384)], 0.004, "z", -0.705, 0.705)
+    kick = sheet([(-0.97, 0.384), (-1.03, 0.384), (-1.10, 0.50), (-1.22, 0.80), (-1.27, 0.86)], 0.004, "z", -0.60, 0.60)
     return part("cabin-floor", [flat, kick], STEEL)
 
 
@@ -300,8 +301,8 @@ def wheelhouse(s: int):
 def rear_floor():
     """Boot floor over the rear drive unit (y 0.86), between the wheelhouses and wider behind them, with openings for
     the damper turrets, and the back panel tying it to the rails' ends."""
-    outline = [(-1.27, -WHEELHOUSE_Z), (-1.97, -WHEELHOUSE_Z), (-1.99, -0.78), (-2.222, -0.78),
-               (-2.222, 0.78), (-1.99, 0.78), (-1.97, WHEELHOUSE_Z), (-1.27, WHEELHOUSE_Z)]
+    outline = [(-1.27, -WHEELHOUSE_Z), (-1.97, -WHEELHOUSE_Z), (-1.99, -0.78), (-2.154, -0.78),
+               (-2.154, 0.78), (-1.99, 0.78), (-1.97, WHEELHOUSE_Z), (-1.27, WHEELHOUSE_Z)]
     floor = new_object("rear-floor", prism(outline, "y", 0.856, 0.86), STEEL)
     cutters = []
     for s in (-1, 1):
@@ -311,7 +312,7 @@ def rear_floor():
     grommet = transform(kit.cylinder(0.025, 0.1, 24), Matrix.Translation((-1.85, 0.86, -0.60)) @ Matrix.Rotation(-math.pi / 2, 4, "X"))
     cutters.append(new_object("cut", grommet, STEEL))  # the 12 V harness down to the rear electrics
     floor = kit.cut(floor, *cutters)
-    back = new_object("back", prism([(0.44, -0.78), (0.86, -0.78), (0.86, 0.78), (0.44, 0.78)], "x", -2.226, -2.222), STEEL)
+    back = new_object("back", prism([(0.44, -0.78), (0.86, -0.78), (0.86, 0.78), (0.44, 0.78)], "x", -2.158, -2.154), STEEL)
     o = kit.join("rear-floor", [floor, back])
     o = kit.shade(o, 35.0)
     kit.box_uv(o, 3.0)
@@ -321,10 +322,10 @@ def rear_floor():
 # ---- pillars and roof (inside the provisional D1.1 skin) ------------------------------------------------------
 
 PILLARS = {
-    "a-pillar": ([(1.02, 0.47, 0.80), (1.02, 0.95, 0.80), (0.90, 1.03, 0.74), (0.50, 1.28, 0.66), (0.10, 1.47, 0.63)], 0.05, 0.08),
+    "a-pillar": ([(1.02, 0.47, 0.80), (1.02, 0.95, 0.80), (0.90, 1.02, 0.73), (0.50, 1.25, 0.64), (0.10, 1.47, 0.63)], 0.05, 0.08),
     "b-pillar": ([(-0.10, 0.48, 0.81), (-0.10, 1.10, 0.81), (-0.13, 1.47, 0.66)], 0.05, 0.11),
-    "c-pillar": ([(-0.975, 0.48, 0.80), (-0.98, 0.93, 0.81), (-1.08, 1.12, 0.80), (-1.27, 1.45, 0.66)], 0.05, 0.09),
-    "d-pillar": ([(-2.20, 0.86, 0.76), (-2.13, 1.15, 0.62), (-2.00, 1.355, 0.54)], 0.05, 0.08),
+    "c-pillar": ([(-0.935, 0.48, 0.80), (-0.95, 0.93, 0.81), (-1.08, 1.12, 0.80), (-1.27, 1.45, 0.66)], 0.05, 0.09),
+    "d-pillar": ([(-2.15, 0.86, 0.76), (-2.11, 1.15, 0.62), (-2.00, 1.355, 0.54)], 0.05, 0.08),
     "roof-rail": ([(0.10, 1.47, 0.63), (-0.35, 1.505, 0.655), (-1.25, 1.465, 0.655), (-1.82, 1.385, 0.61), (-2.00, 1.355, 0.54)], 0.06, 0.07),
 }
 ROOF_BOWS = {"front-header": (0.10, 1.47, 0.63, 1.51), "roof-bow-1": (-0.55, 1.50, 0.655, 1.55),
@@ -336,6 +337,8 @@ def pillar(base: str, s: int):
     pieces = [sweep([V(*p, s) for p in pts], a, b, Vector((0, 0, s)))]
     if base == "a-pillar":  # the hinge pillar: the front door's hinges and the bulkhead's side
         pieces.append(mirror(box((0.97, 0.47, 0.73), (1.07, 0.98, 0.86)), s))
+    if base == "c-pillar":  # gusset back to the wheelhouse crown's front end, 20 mm ahead of the rear tyre's sweep
+        pieces.append(mirror(box((-1.02, 0.70, 0.775), (-0.95, 0.77, 0.825)), s))
     return part(f"{base}-{'lr'[s > 0]}", pieces, STEEL, 0.005)
 
 
