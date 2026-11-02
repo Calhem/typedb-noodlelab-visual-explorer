@@ -38,7 +38,10 @@ const W = innerWidth, px0 = (x0 + 1) / 2 * W, px1 = (x1 + 1) / 2 * W;
 const left = document.querySelector('.explore')?.getBoundingClientRect().right ?? 0;
 const panel = [...document.querySelectorAll('.panel:not(.minimised):not(.pending)')][0]?.getBoundingClientRect().left ?? W;
 const clear = Math.max(0, Math.min(px1, panel) - Math.max(px0, left)) / (px1 - px0);
-return [Math.round((x1 - x0) / 2 * 100), Math.round((y1 - y0) / 2 * 100), Math.round(clear * 100)];"""
+// and the share not behind a side panel or the open TypeQL overlay
+const ov = document.querySelector('.tq-overlay:not(.collapsed)')?.getBoundingClientRect();
+const open = Math.max(0, Math.min(px1, panel) - Math.max(px0, left, ov ? ov.right : 0)) / (px1 - px0);
+return [Math.round((x1 - x0) / 2 * 100), Math.round((y1 - y0) / 2 * 100), Math.round(clear * 100), Math.round(open * 100)];"""
 
 # The selected query's TypeQL text: present, and its first lines inside the overlay's visible area without scrolling.
 TYPEQL = r"""const o = document.querySelector('.tq-overlay'), body = document.querySelector('.tq-body'), pre = document.querySelector('.tq-view:not(.pending) .tq-block.query pre');
@@ -97,7 +100,7 @@ for (w, h) in [(1280, 720), (1440, 900), (1512, 982), (1920, 1080)]:
         b = open_app(w, h, zoom)
         r = {}
         b.js("__select('quarter-r'); await new Promise(r => setTimeout(r, 3500)); return 1;")
-        r["car with a part selected (% of width, % of height, % of its width clear of the side panels)"] = b.js(CAR)
+        r["car with a part selected (% of width, % of height, % clear of the side panels, % clear of the panels and overlay)"] = b.js(CAR)
         r["TypeQL query text visible with a part selected"] = b.js(TYPEQL)
         t = trace(b, SWITCH, 7000)
         r["rapid switching (camera frames moved, glides)"] = movement(t)
@@ -117,7 +120,7 @@ for (w, h) in [(1280, 720), (1440, 900), (1512, 982), (1920, 1080)]:
         r["expand and assemble (frames moved, glides)"] = movement(trace(b, [
             [0, "[...document.querySelectorAll('.scrub-play')][0].click()"], [8000, "[...document.querySelectorAll('.scrub-play')][0].click()"]], 16000))
         b.js("[...document.querySelectorAll('.scrub-play')][0].click(); await new Promise(r => setTimeout(r, 8500)); return 1;")
-        r["exploded: car (% of width, % of height, % clear of the panels)"] = b.js(CAR)
+        r["exploded: car (% of width, % of height, % clear of the side panels, % clear of the panels and overlay)"] = b.js(CAR)
         r["exploded: rapid switching (camera frames moved)"] = movement(trace(b, SWITCH[:4], 3000))[0]
         b.js("[...document.querySelectorAll('.scrub-play')][0].click(); await new Promise(r => setTimeout(r, 8500)); return 1;")
         if zoom == 1.0 and (w, h) == (1512, 982):

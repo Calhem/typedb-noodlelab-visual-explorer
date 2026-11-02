@@ -47,6 +47,8 @@ const significant = (a: FrameTarget, b: FrameTarget) =>
  * far the lens may narrow below the base angle (a slightly closer view when the screen is roomy). */
 const OVERHANG = 1.3;
 const MIN_FIT = 0.9;
+/** How far across the open TypeQL overlay's slot the vehicle's free width starts (0: ignore it, 1: beside it). */
+const OVERLAY_SHARE = 0;
 /** How long the layout must hold still before the camera follows it (ms). */
 const SETTLE_MS = 150;
 
@@ -85,11 +87,14 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
         fit = Math.min(Math.max(need.w / W, need.h / Math.max(y1 - y0, 1), 1), 2.6);
         down = (y0 + y1) / 2 - H / 2;
       } else {
-        // Desktop: the scene is a full-width background behind the panels. The vehicle is centred between the side
-        // panels, in the band between the brand line and the controls, and may reach behind the panels and the
-        // TypeQL overlay: it is sized to be up to OVERHANG times the free width, so it stays large, and the overlay
-        // plays no part in the framing at all (its content never moves the camera).
-        const x0 = insets.left, x1 = W - insets.right, y1 = H - CONTROLS;
+        // Desktop: the scene is a full-width background behind the panels. The vehicle is centred in the band between
+        // the brand line and the controls, and may reach behind the panels and the TypeQL overlay: it is sized to be
+        // up to OVERHANG times the free width, so it stays large. While the overlay is open, the free width starts
+        // OVERLAY_SHARE of the way across the overlay's slot, so less of the vehicle sits behind it. The slot is fixed
+        // by the overlay's styles, never its content, so switching selections never moves the camera.
+        const x1 = W - insets.right, y1 = H - CONTROLS;
+        const o = insets.overlay;
+        const x0 = o ? insets.left + Math.max(o.right - insets.left, 0) * OVERLAY_SHARE : insets.left;
         const free = Math.max(x1 - x0, W * 0.4);
         fit = Math.min(Math.max(need.w / (free * OVERHANG), need.h / (y1 - BRAND), MIN_FIT), 2.6);
         dx = (x0 + x1) / 2 - W / 2;
