@@ -14,9 +14,12 @@ interface Props {
   onSelect: (id: string) => void;
   onFocus: (request: FocusRequest) => void;
   onClose: () => void;
+  /** minimised to a small tab at the right edge (the selection and its answers stay) */
+  minimised: boolean;
+  onMinimise: (minimised: boolean) => void;
 }
 
-export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props) {
+export function ComponentPanel({ id, focus, onSelect, onFocus, onClose, minimised, onMinimise }: Props) {
   const details = useAnswer(id, (s) => semantic.component(id, s));
   const placement = useAnswer(id, (s) => semantic.assemblyOf(id, s));
   const systems = useAnswer(id, (s) => semantic.systemsOf(id, s));
@@ -32,8 +35,21 @@ export function ComponentPanel({ id, focus, onSelect, onFocus, onClose }: Props)
   const sys = ok(systems.state);
   const r = ok(relations.state);
 
+  if (minimised) {
+    return (
+      <aside className="panel minimised" aria-label="Component details from TypeDB (minimised)">
+        <button type="button" className="panel-restore" onClick={() => onMinimise(false)} title="Show the part's details">
+          <span className="panel-restore-mark" aria-hidden>‹</span>
+          <span className="panel-restore-name">{d ? d.data.name : id}</span>
+        </button>
+        <button type="button" className="panel-close" onClick={onClose} aria-label="Clear selection">×</button>
+      </aside>
+    );
+  }
   return (
     <aside className="panel" aria-live="polite" aria-label="Component details from TypeDB">
+      <button type="button" className="panel-minimise" onClick={() => onMinimise(true)} aria-label="Minimise the part's details"
+        title="Minimise (keeps the selection)">–</button>
       <button type="button" className="panel-close" onClick={onClose} aria-label="Clear selection">×</button>
 
       {failed?.status === "unavailable" ? (

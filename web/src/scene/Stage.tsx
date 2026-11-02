@@ -65,15 +65,16 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
     const baseFov = aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect);
     let dx = 0, down = 0, fit = 1;
     if (exploring) {
-      // How much of the window the vehicle takes with the base lens: assembled about 45% of its width and
-      // height (from any angle, with a margin); fully exploded about 55% of the width and nearly all the height.
+      // How much room the vehicle takes with the base lens (a fixed vertical angle, so its size on screen scales with
+      // the window's height): assembled about 0.95 of the height across and 45% of the height tall, from any angle
+      // with a margin; fully exploded a little wider and nearly the whole height.
       const e = 1 - Math.pow(1 - progress.value, 2.5);
       // On phones the panels cover the whole width (as sheets), so only the overlay above counts, and the wider
       // portrait lens makes the vehicle span the width but little of the height.
       const phone = W < 640;
       const need = phone
         ? { w: W * 0.92, h: H * THREE.MathUtils.lerp(0.26, 0.8, e) }
-        : { w: W * THREE.MathUtils.lerp(0.46, 0.56, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
+        : { w: H * THREE.MathUtils.lerp(0.95, 1.05, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
       const x0 = phone ? 0 : insets.left, x1 = W - (phone ? 0 : insets.right), y1 = H - (phone ? 120 : CONTROLS);
       const o = insets.overlay;
       const areas = o

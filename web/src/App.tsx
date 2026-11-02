@@ -40,6 +40,31 @@ function useTypeDBStatus() {
   return status;
 }
 
+/** Below this width the layout is compact: narrower panels and a collapsed TypeQL overlay at first. */
+const COMPACT_BELOW = 1700;
+
+/** Where the side panels end (CSS pixels): the explorer's right edge and the part panel's distance from the window's
+ * right edge, measured from the panels themselves, so the camera always frames the space actually free. */
+function usePanelEdges() {
+  const [edges, setEdges] = useState({ left: 354, right: 384 });
+  useEffect(() => {
+    const measure = () => {
+      const explore = document.querySelector(".explore")?.getBoundingClientRect();
+      const panel = document.querySelector(".panel:not(.minimised)")?.getBoundingClientRect();
+      setEdges((e) => {
+        const next = { left: explore ? Math.round(explore.right) : e.left, right: panel ? Math.round(window.innerWidth - panel.left) : e.right };
+        return next.left === e.left && next.right === e.right ? e : next;
+      });
+    };
+    const observer = new MutationObserver(measure);
+    observer.observe(document.querySelector("main") ?? document.body, { childList: true });
+    window.addEventListener("resize", measure);
+    measure();
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+  return edges;
+}
+
 export function App() {
   const [exploring, setExploring] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -50,7 +75,10 @@ export function App() {
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
   // The TypeQL overlay describes whatever was chosen last: the focus (system, assembly, type...) or a single part.
   const [lastChoice, setLastChoice] = useState<"focus" | "component">("focus");
-  const [typeqlCollapsed, setTypeqlCollapsed] = useState(() => window.innerWidth < 900);
+  // On laptops (below 1700 px) the TypeQL overlay starts as a one-line summary, so the vehicle has the room.
+  const [typeqlCollapsed, setTypeqlCollapsed] = useState(() => window.innerWidth < COMPACT_BELOW);
+  const [panelMinimised, setPanelMinimised] = useState(false);
+  const edges = usePanelEdges();
   // Where the overlay ends, so the camera frames the vehicle beside or below it.
   const [overlayEdge, setOverlayEdge] = useState<{ right: number; bottom: number } | null>(null);
   const onOverlayEdge = useCallback((edge: { right: number; bottom: number } | null) => setOverlayEdge((e) =>
@@ -73,8 +101,9 @@ export function App() {
   }, []);
   // Stable props for the 3D stage, so the scene doesn't re-render when unrelated parts of the page change.
   const hasOverlay = exploring && !typeqlCollapsed && (selectedId !== null || focus !== null);
-  const insets = useMemo(() => ({ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0,
-    overlay: hasOverlay ? overlayEdge : null }), [exploring, exploreOpen, selectedId, hasOverlay, overlayEdge]);
+  const insets = useMemo(() => ({ left: exploring && exploreOpen ? edges.left : 0,
+    right: exploring && selectedId && !panelMinimised ? edges.right : 0,
+    overlay: hasOverlay ? overlayEdge : null }), [exploring, exploreOpen, selectedId, panelMinimised, edges, hasOverlay, overlayEdge]);
   const overlay: OverlayContext | null = lastChoice === "component" && selectedId ? { kind: "component", id: selectedId }
     : focus ? { kind: "focus", focus } : selectedId ? { kind: "component", id: selectedId } : null;
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
@@ -146,6 +175,7 @@ export function App() {
 
       {exploring && selectedId && (
         <ComponentPanel id={selectedId} focus={focus} onSelect={select} onFocus={request}
+          minimised={panelMinimised} onMinimise={setPanelMinimised}
           onClose={() => setSelectedId(null)} />
       )}
 

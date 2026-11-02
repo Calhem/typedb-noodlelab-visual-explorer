@@ -427,3 +427,56 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
   animation: tq-pulse 1s ease-in-out infinite; }
 @keyframes tq-pulse { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { .tq-view { animation: none; } .tq-updating { animation: none; } }
+
+/* ---- Desktop layout (UI milestone): compact panels on laptops, a collapsible overlay and part panel ---- */
+/* The part panel minimised to a tab at the right edge: the selection and its answers stay. */
+.panel-minimise {
+  position: absolute; top: 8px; right: 36px; border: 0; background: none; color: var(--ink-faint);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 4px;
+}
+.panel-minimise:hover, .panel-minimise:focus-visible { color: var(--ink); outline: none; }
+.panel.minimised {
+  bottom: auto; width: auto; max-width: 300px; padding: 6px 34px 6px 8px; overflow: hidden; animation: none;
+}
+.panel-restore {
+  display: flex; align-items: center; gap: 8px; max-width: 100%; font: inherit; font-size: 13px; color: var(--ink);
+  background: none; border: 0; padding: 4px 6px; cursor: pointer;
+}
+.panel-restore-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel-restore-mark { color: var(--accent); }
+.panel-restore:hover .panel-restore-name { color: var(--accent); }
+.panel.minimised .panel-close { top: 5px; }
+
+/* The overlay collapsed: one line, the kind and name of what it describes and its summary. */
+.tq-overlay.collapsed .tq-body { display: block; max-height: none; overflow: visible; padding: 0; }
+.tq-overlay.collapsed .tq-view > :not(.tq-head), .tq-overlay.collapsed .tq-view.pending, .tq-overlay.collapsed .tq-idle { display: none; }
+.tq-overlay.collapsed .tq-head {
+  display: flex; align-items: baseline; gap: 8px; margin: 0; white-space: nowrap; overflow: hidden; max-width: 100%;
+}
+.tq-overlay.collapsed .tq-head h2 { font-size: 13px; margin: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.tq-overlay.collapsed .tq-kind { flex: none; }
+.tq-overlay.collapsed .tq-summary { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.tq-overlay.collapsed .tq-summary .tq-mono { display: none; }
+.tq-overlay.collapsed { cursor: default; }
+
+/* Laptops: narrower side panels, so the vehicle keeps the middle of the screen. */
+@media (min-width: 641px) and (max-width: 1699px) {
+  .explore { width: 290px; }
+  .panel { width: 320px; padding: 16px 18px 14px; }
+  .explore-is-open .tq-overlay { left: 340px; width: min(420px, calc(100vw - 340px - 360px)); }
+  .explore-is-open.panel-is-open .tq-overlay { width: min(420px, calc(100vw - 340px - 370px)); max-height: 46vh; }
+  .tq-overlay { max-height: calc(100vh - 290px); }
+}
+@media (min-width: 641px) and (max-width: 1100px) {
+  .explore-is-open .tq-overlay { left: 340px; top: 72px; bottom: auto; }
+}
+@media (min-width: 641px) and (max-width: 1699px) {
+  .explore-tabs button { padding: 6px 7px; font-size: 11.5px; }
+  .tq-overlay.collapsed .tq-head h2 { flex: 0 0 auto; max-width: 60%; }
+}
+@media (min-width: 641px) and (max-width: 1699px) { .explore-head { padding-right: 34px; } }
+@media (min-width: 641px) and (max-width: 1699px) {
+  .explore-tabs { flex-wrap: nowrap; gap: 0; }
+  .explore-tabs button { padding: 6px 6px; font-size: 11.5px; white-space: nowrap; }
+  .explore-head { padding-left: 10px; padding-right: 30px; }
+}
