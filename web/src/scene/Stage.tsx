@@ -41,7 +41,7 @@ type Controls = React.ComponentRef<typeof CameraControls>;
 
 /** Where the camera stands during the drive: low beside the road ahead of the car, looking down the road at it; the
  * view tightens as the car approaches and settles on a front three-quarter view of the parked car. */
-const ROAD_CAMERA = { from: [11.5, 1.5, 9.0], to: [9.4, 1.15, 7.3], targetEnd: [0.1, 0.8, 0] } as const;
+const ROAD_CAMERA = { from: [11.5, 1.5, 9.0], to: [9.4, 1.15, 7.3], targetEnd: [0.1, 0.5, 0] } as const;
 const STUDIO_CAMERA = { position: [8.4, 1.75, 8.4], target: [0, 0.72, 0] } as const;
 
 /** Runs the introduction: the drive, the camera on the road, and Begin's flight into the studio. */
