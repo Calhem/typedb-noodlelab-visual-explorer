@@ -397,3 +397,23 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
 @media (hover: none) { .hover-tip { display: none; } }
 .tq-idle { max-width: 300px; color: var(--ink-faint); font-size: 12px; }
 .tq-overlay:has(.tq-idle) { background: none; }
+
+/* "Download TypeDB model", bottom right while exploring (the concept note has moved to the top). */
+.model-download { position: absolute; right: 24px; bottom: 26px; display: flex; align-items: center; gap: 10px; }
+.model-download button {
+  display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 11.5px; color: var(--ink-dim); cursor: pointer;
+  padding: 6px 12px; border-radius: 999px; background: rgba(10, 12, 15, 0.7); border: 1px solid rgba(255, 255, 255, 0.12);
+}
+.model-download button:hover, .model-download button:focus-visible { color: var(--ink); border-color: var(--accent); outline: none; }
+.model-download button:disabled { cursor: progress; opacity: 0.7; }
+.model-download-error { font-size: 11px; color: var(--degraded); }
+.icon-download { width: 9px; height: 9px; position: relative; border-bottom: 1px solid currentColor; }
+.icon-download::before {
+  content: ""; position: absolute; left: 3px; top: -1px; width: 3px; height: 5px; border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor; transform: rotate(45deg); transform-origin: center;
+}
+@media (max-width: 640px) {
+  .model-download { right: 12px; bottom: 120px; }
+  .model-download button { font-size: 11px; padding: 5px 10px; }
+  .panel-is-open .model-download, .explore-is-open .model-download { display: none; }
+}

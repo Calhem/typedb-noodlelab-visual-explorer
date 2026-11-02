@@ -18,9 +18,9 @@ import time
 from typing import Annotated
 
 from fastapi import FastAPI, Path
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
-from explorer import queries, questions
+from explorer import export, queries, questions
 from explorer.db import READ, RecordingTransaction, connect, settings
 
 log = logging.getLogger("explorer.api")
@@ -81,6 +81,20 @@ class Database:
             self.reset()
             raise Unavailable(UNAVAILABLE) from error
         return text, round((time.perf_counter() - start) * 1000, 1)
+
+    def model(self):
+        """The whole model as TypeQL files (see explorer/export.py), read from this database."""
+        driver = self.driver()
+        try:
+            return export.build(driver, self.name)[0]
+        except Exception as error:
+            log.warning("TypeDB export failed: %s", error)
+            try:
+                driver.databases.contains(self.name)
+            except Exception:
+                self.reset()
+                raise Unavailable(UNAVAILABLE) from error
+            raise QueryFailed(QUERY_FAILED) from error
 
     def reset(self):
         with self._lock:
@@ -201,6 +215,12 @@ def create_app(db=None):
         return {"data": queries.schema_definitions(text, name), "typeql": [], "timings-ms": [], "purposes": [],
                 "result-queries": [], "processing": ["Python cuts this definition from the schema text TypeDB returns."],
                 "schema-ms": ms, "source": "database.schema()"}
+
+    @app.get("/api/export/model.zip")
+    def model_zip():
+        """The downloadable TypeDB model: schema.tql, data.tql and README.md, exported from the live database."""
+        return Response(export.zip_bytes(db.model()), media_type="application/zip",
+                        headers={"Content-Disposition": 'attachment; filename="noodlelab-vehicle-typedb-model.zip"'})
 
     @app.get("/api/systems")
     def systems():

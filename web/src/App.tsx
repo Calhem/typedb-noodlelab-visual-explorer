@@ -4,6 +4,7 @@ import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
 import { useAnswer } from "./semantic/useAnswer";
 import { ComponentPanel } from "./ui/ComponentPanel";
 import { Explore, type ExploreTab } from "./ui/Explore";
+import { ModelDownload } from "./ui/ModelDownload";
 import { useFocus } from "./ui/focus";
 import { Scrubber } from "./ui/Scrubber";
 import { TypeQLOverlay, type OverlayContext } from "./ui/TypeQLOverlay";
@@ -154,6 +155,8 @@ export function App() {
       <div ref={tip} className={hoverName && hovered !== selectedId ? "hover-tip shown" : "hover-tip"} aria-hidden>
         {hoverName}{hoverName && <span> · click for its TypeDB details</span>}
       </div>
+
+      {exploring && <ModelDownload />}
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

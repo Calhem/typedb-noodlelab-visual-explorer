@@ -178,6 +178,9 @@ def _steps_from(start, edges):
     The failed component counts as having lost all its functions, so every edge leaving it is a first step.
     Returns {(component, function): (steps, edge that first reached it)}.
     """
+    # TypeDB returns answers in no particular order: sort, so that when two equally short paths reach a function the
+    # same one is reported every time, on any database holding the same data.
+    edges = sorted(edges, key=lambda e: (e["from"], e["needs"], e["to"], e["function"], e.get("kind", "")))
     out = {}
     for e in edges:
         out.setdefault((e["from"], e["needs"]), []).append(e)

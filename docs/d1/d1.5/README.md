@@ -121,7 +121,7 @@ Assembled and exploded, no selection: ![](assembled.jpg) ![](exploded.jpg)
 ## 6. Checks
 
 - **Web:** 71 tests pass, plus the build. This includes new tests that read the concepts out of real query shapes.
-- **API:** 115 pass. New tests cover:
+- **API:** 118 pass (115 at the first review, plus three for the model export). New tests cover:
   - every query having a purpose;
   - the result query matching the highlight;
   - schema definitions being read from the database.
@@ -166,6 +166,52 @@ Frame times are render time per frame (not limited by the display).
 The last two are known (docs/optimisation-backlog.md). The impact answer is where C3b left it. The propulsion question
 has grown from 2.1-2.4 s at C3b to 3.7 s as parts and dependencies were added; D1.5 changed no query or dependency.
 It is recorded, not optimised, as agreed for this phase.
+
+## 8. Downloadable TypeDB model (added after the first review)
+
+A small **Download TypeDB model** button in the bottom-right corner (while exploring; on phones it hides behind
+open panels) downloads `noodlelab-vehicle-typedb-model.zip`:
+
+| File | Content |
+|---|---|
+| `schema.tql` | the complete schema with all functions, exactly as TypeDB returns it (`database.schema()`) |
+| `data.tql` | every entity and relation with its attributes and role players, as one `insert` (entities named by their key, e.g. `$caliper-fr`, `$assembly-brake-control`) |
+| `README.md` | loading with TypeDB Console or the Python driver, and six representative queries |
+
+**How it is made:**
+- The API builds it at the moment of the click (`GET /api/export/model.zip`, `api/explorer/export.py`), reading the
+  live database in one read transaction. It never reads the seed files.
+- The exporter is generic: it reads instances, ownerships and role players by IID, without knowing the vehicle's
+  types.
+- Export takes about 0.25 s.
+- If TypeDB is unavailable, the button says so; no file is saved.
+
+**Validation** (`python -m explorer.export_check`; also an API test on a disposable database):
+- **Method:** export, load `schema.tql` then `data.tql` into a fresh TypeDB 3.14.1 database, compare, delete it.
+- **Counts:** 594 entities, 2,430 relations, 4,030 attribute values and 5,714 role players. All are equal, and so is
+  every one of the 66 types' instance counts.
+- **Instances:** every instance is identical, matched by type, attributes and role players.
+- **Schema:** identical.
+- **Representative answers:** identical in both databases:
+  - the system list;
+  - the propulsion and powertrain members;
+  - the type hierarchy;
+  - every sensor;
+  - the calliper's relationships;
+  - the 12 V battery's failure impact;
+  - the front motor's requirements;
+  - pack energy;
+  - the load path.
+- **README queries:** all six run against the loaded copy (50, 77, 29, 4, 154 and 1 answers).
+- **The real download:** the ZIP saved by a headless browser after clicking the button was validated the same way,
+  with the same result.
+
+**Not run by me:** the README's TypeDB Console commands. The TypeDB server image has no Console, and downloading it
+needs your permission. The Python-driver path in the README is the one validated.
+
+One fix came out of the validation. When two equally short dependency paths reach the same part, the failure-impact
+answer's Python step used to report whichever TypeDB returned first, and TypeDB's answer order can differ between
+databases. It now sorts first, so the answer is the same on any copy.
 
 ## Outstanding
 
