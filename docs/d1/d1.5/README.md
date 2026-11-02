@@ -215,11 +215,15 @@ databases. It now sorts first, so the answer is the same on any copy.
 
 ### Fix after review: data.tql failed to load (TQL03)
 
-- **Root cause:**
+- **Root cause: not confirmed.**
   - The generator named variables after the instances' ids (`$brake-booster`, `$door-latch-fl`, `$assembly-body`).
-  - The TypeDB 3.14 server accepts hyphens in variables, so my driver-based round trip passed. Strict client-side
-    parsers reject them, which is the TQL03 you saw.
-  - So my validation used a more lenient path than yours, and missed it.
+    That is what your TQL03 reports.
+  - I could not make it fail here. The TypeDB 3.14.1 server accepts those names through the Python driver. TypeDB
+    Console 3.14.0 (downloaded with your approval; checksum verified) also loaded the *old* `schema.tql` and
+    `data.tql` without error, using the README's commands.
+  - So the parser that reported TQL03 is a different tool or version from the two I tested. My first explanation
+    ("a strict client-side parser rejects hyphens") was a hypothesis, not a confirmed cause.
+  - The fix removes every construct a stricter parser could object to, whichever tool it was.
 - **Fix:**
   - Variables are now generated, letters and digits only: `$e1`... for entities, `$r1`... for relations. They are
     used the same way in every declaration and role-player reference. The ids stay as `component-id` values.
@@ -237,6 +241,11 @@ databases. It now sorts first, so the answer is the same on any copy.
       links 423, all equal;
     - every instance identical, the schema identical, all ten explorer answers identical, all six README queries
       answering.
+- **With TypeDB Console 3.14.0, following the README:**
+  - `database create`, `transaction schema`, `source schema.tql`, `commit`, `transaction write`,
+    `source data.tql`, `commit`.
+  - The ZIP downloaded through the button loaded, and `python -m explorer.export_check --zip <file> --loaded <db>`
+    found it identical to the source on every check above.
 - **Regression test:** `api/tests/test_export.py` does that full import from the served ZIP. It also has a syntax
   check that fails on hyphenated or underscored variables, comments, blank lines or exponents.
 

@@ -126,16 +126,20 @@ def answers(driver, database):
         }
 
 
-def check(driver, source, files=None):
+def check(driver, source, files=None, loaded=None):
     """Returns (problems, report lines, {type: (source total, loaded total)}). `files` defaults to a fresh export
-    of the source, packed and unpacked through the same ZIP the app serves."""
+    of the source, packed and unpacked through the same ZIP the app serves. `loaded` names a database already
+    loaded from those files some other way (for example with TypeDB Console); it is compared, not deleted."""
     files = files or unzip(export.zip_bytes(export.build(driver, source)[0]))
     problems = syntax_problems(files)
     report = [f"syntax: {'clean' if not problems else '; '.join(problems)}"]
-    target = f"vehicle-export-check-{uuid.uuid4().hex[:8]}"
+    target = loaded or f"vehicle-export-check-{uuid.uuid4().hex[:8]}"
     try:
-        load_with_readme(files, target)
-        report.append("loaded into a fresh database with the README's Python instructions")
+        if loaded:
+            report.append(f"comparing {loaded}, loaded beforehand")
+        else:
+            load_with_readme(files, target)
+            report.append("loaded into a fresh database with the README's Python instructions")
         ta, tb = totals(driver, source), totals(driver, target)
         named = {t: (ta[t], tb[t]) for t in TOTALS}
         for t, (a, b) in named.items():
@@ -178,14 +182,20 @@ def check(driver, source, files=None):
                     problems.append(f"README query {i} fails: {error}")
         return problems, report, named
     finally:
-        if driver.databases.contains(target):
+        if not loaded and driver.databases.contains(target):
             driver.databases.get(target).delete()
 
 
 def main():
-    source = sys.argv[1] if len(sys.argv) > 1 else settings()["database"]
+    """python -m explorer.export_check [source] [--zip FILE --loaded DATABASE]: with --loaded, compare a database
+    already loaded from that ZIP (e.g. with TypeDB Console) instead of loading one."""
+    args = sys.argv[1:]
+    opt = lambda name: args[args.index(name) + 1] if name in args else None
+    positional = [a for i, a in enumerate(args) if not a.startswith("--") and (i == 0 or not args[i - 1].startswith("--"))]
+    source = positional[0] if positional else settings()["database"]
     driver = connect()
-    problems, report, _ = check(driver, source)
+    files = unzip(Path(opt("--zip")).read_bytes()) if opt("--zip") else None
+    problems, report, _ = check(driver, source, files, opt("--loaded"))
     print("\n".join(report))
     print("OK: the export reproduces the database" if not problems else "PROBLEMS: " + "; ".join(problems))
     sys.exit(1 if problems else 0)
