@@ -108,9 +108,11 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
     ({ dx, down, fit } = committed.current);
 
     const target = exploring ? shift(dx) : W < 900 ? 0 : -3.2;
-    const next = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
+    // Glide towards the target, and settle on it exactly once within a fraction of a pixel (no endless tail).
+    const glided = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
+    const next = Math.abs(glided - target) < 2e-3 ? target : glided;
     const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));
-    const fov = Math.abs(wanted - cam.fov) < 0.01 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
+    const fov = Math.abs(wanted - cam.fov) < 0.02 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
     const view = cam.view;
     const current = view?.enabled ? -view.offsetY : 0;
     const damped = THREE.MathUtils.damp(current, down, 3, dt);
