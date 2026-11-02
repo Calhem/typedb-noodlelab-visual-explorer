@@ -161,3 +161,124 @@ looked for the cause (the overlay's preparation was ruled out) and stopped there
    open after shrinking it; it does not collapse by itself.
 3. **The part panel's own content** still shows "Asking TypeDB…" briefly while a new part loads (the camera is not
    affected). Keeping its previous content, like the overlay, would be a small follow-up.
+
+---
+
+# Refinement: larger vehicle, visible TypeQL, stable panels (2 November 2026)
+
+**Status: for review. Not merged; Phase F not started.** Commits 601ffd4 and 770b634, compared with 1161f22.
+
+## Why the query text was not visible
+
+On laptops the overlay started collapsed. Opened, it was at most 46% of the window tall, and the query was its last
+block, after the "explores" summary and the schema. So the TypeQL itself sat below the fold and needed scrolling.
+
+## The layout now
+
+- **The vehicle is a full-width background.**
+  - The three areas (explorer, TypeQL overlay, part panel) float over it.
+  - The vehicle is centred between the side panels, in the band between the title line and the controls.
+  - It may be up to 1.3 times the free width, so it reaches behind the panels and the overlay rather than shrinking
+    to fit beside them.
+  - The overlay plays no part in the framing, so its content can never move the camera.
+- **TypeQL is visible by default** on every screen wider than a phone (below 640 px it starts as its one-line
+  summary).
+  - The query text comes first, then the schema, then what it explores and what the app adds.
+  - Query switching (1–7), internal scrolling and the manual collapse (▾) are unchanged.
+  - It never collapses by itself, by width or on a selection.
+- **The overlay is narrower on laptops:** 320–360 px instead of 440 (about 18% less), as tall as the space above
+  the controls. The font size is unchanged.
+  - Code keeps its indentation; long lines scroll sideways. Explanations wrap.
+  - Its background is 84% opaque with a blur, so it reads clearly over the vehicle.
+- **Denser side panels at the same widths:** slightly smaller text, tighter spacing, smaller chips. Each scrolls
+  inside and collapses on its own.
+- **The part panel no longer flashes "Asking TypeDB…".**
+  - It keeps the previous part's details, dimmed, with a small pulsing dot, while the next part loads out of sight.
+    Then it swaps in place.
+  - A part replaced before it loaded is dropped.
+  - The 3D highlight follows the click at once, as before.
+- **The overlay's part view** now also waits for its schema definition before it is shown, so no "Reading the
+  schema…" line flashes either.
+
+## Before and after
+
+Left: 1161f22. Right: this refinement. Each pair shows a part selected (Propulsion highlighted, the right rear
+quarter panel selected) and a system highlighted.
+
+| Viewport | A part selected | A system highlighted |
+|---|---|---|
+| 1280x720 | ![](refine-1280x720-part.jpg) | ![](refine-1280x720-system.jpg) |
+| 1440x900 | ![](refine-1440x900-part.jpg) | ![](refine-1440x900-system.jpg) |
+| 1512x982 | ![](refine-1512x982-part.jpg) | ![](refine-1512x982-system.jpg) |
+| 1920x1080 | ![](refine-1920x1080-part.jpg) | ![](refine-1920x1080-system.jpg) |
+
+**Rapid switching** (1512x860, ten selections about 0.8 s apart: parts, Propulsion, Braking):
+![](refine-rapid-switching.webp). A frame from mid-switch is below: the panel already shows the new part, and the
+overlay still shows the previous one, dimmed, until the new one is ready.
+
+![](refine-mid-switch.jpg)
+
+## Measurements
+
+`scripts/browser/ui_stability.py`, which now also checks the query text and counts loading flashes.
+
+| Viewport | Car width × height, part selected (1161f22 → now) | Width clear of the side panels / of panels and overlay | Overlay (w × h) |
+|---|---|---|---|
+| 1280x720 | 43% × 36% → **53% × 44%** | 90% / 42% | 320 × 468 px |
+| 1440x900 | 49% × 36% → **59% × 44%** | 90% / 50% | 338 × 611 px |
+| 1512x982 at 90% zoom | 54% × 39% → **61% × 44%** | 94% | 360 × 577 px |
+| 1512x982 at 100% | 50% × 36% → **61% × 44%** | 90% / 52% | 355 × 577 px |
+| 1512x982 at 110% | 46% × 34% → **61% × 44%** | 86% | 323 × 611 px |
+| 1920x1080 | 33% × 28% → **53% × 44%** | 100% / 69% | 440 × 544 px |
+
+At every size and zoom:
+
+- **The query text** is in view, without scrolling, with a part selected, with a system selected, and for the
+  longest query (a failure impact).
+- **Rapid switching,** assembled and exploded:
+  - the camera moved in 0 frames;
+  - 0 frames showed a loading state in the overlay or the part panel.
+- **Collapsing and reopening the overlay** moves the camera in 0 frames.
+- **Panel and explosion changes:**
+  - minimising and restoring the part panel, and closing and reopening the explorer, each give one smooth glide per
+    change (at 1512 the explorer's two changes measured 3 glides, a glide's slow tail split in two);
+  - expanding and assembling follow the explosion.
+- **Exploded,** the vehicle is 28–37% of the width and 60–70% of the height, all of it clear of the side panels.
+- **Controls:** none outside the window.
+
+**Tests:** web 79 pass (8 new, for the overlay's default and the part panel's swap), plus the build; API 119; live
+TypeDB 7.
+
+**Performance** (same benchmark, high tier, three runs each, 1161f22 and now back to back):
+
+| | 1161f22 | Now |
+|---|---|---|
+| Frame, assembled / animating / exploded (median) | 2.4–4.1 / 9.1–9.4 / 7.9–9.5 ms | 2.5–2.9 / 8.8–9.5 / 7.8–8.5 ms |
+| Triangles, draw calls, download | 1.44 M, 936, 17.24 MB | the same |
+| JavaScript (gzip) | 503.8 KB | 504.1 KB |
+| Selecting a part (to its name shown), median | 59 ms | 56 ms |
+| Highlighting a system, median | 81 ms | 77 ms |
+
+## For your decision: the overlay covers one end of the vehicle
+
+With all three areas open on a laptop, they cover about 980 of 1280 px, or 1,000 of 1512. The vehicle reaches
+behind the overlay, and the overlay covers its rear end: a part there, such as the right rear quarter panel, is
+hidden until you collapse the overlay (▾) or orbit the vehicle.
+
+One setting, `OVERLAY_SHARE` in `web/src/scene/Stage.tsx`, moves the vehicle away from the overlay, at the cost of
+its size. Measured:
+
+| OVERLAY_SHARE | Car width (1280 / 1440 / 1512 / 1920) | Width clear of panels and overlay | A rear part clear of the overlay |
+|---|---|---|---|
+| **0 (now)** | 53 / 59 / 61 / 53% | 42 / 50 / 52 / 69% | 0% |
+| 0.6 | 46 / 47 / 48 / 53% | 48 / 63 / 66 / 71% | 0–23% |
+| 1 (vehicle beside the overlay) | 46 / 46 / 46 / 46% | 48 / 65 / 69 / 82% | 15–88% |
+
+Following the selected part with the camera would conflict with "no camera movement when switching", so I have not
+done it.
+
+## Limitations
+
+1. The overlay hides the vehicle's rear end on laptops, as above.
+2. The overlay's part view now waits for three answers (part, relationships, schema) before it swaps. So it updates
+   a few milliseconds later than the part panel.
