@@ -37,8 +37,23 @@ const BRAND = 64;
  * frame it in the free space: between the side panels and between the brand line and the controls, and beside or
  * below the TypeQL overlay (whichever leaves it larger). A lens "film offset" sideways, a view offset up or down
  * and a wider lens when the space is small, so the camera itself doesn't move. */
+/** A framing target: how far to move the picture (CSS pixels) and how much to widen the lens. */
+interface FrameTarget { dx: number; down: number; fit: number }
+
+/** Re-frame only for a real change: the vehicle's size by more than 8%, or its position by more than 24 px. */
+const significant = (a: FrameTarget, b: FrameTarget) =>
+  Math.abs(a.fit / b.fit - 1) > 0.08 || Math.abs(a.dx - b.dx) > 24 || Math.abs(a.down - b.down) > 24;
+/** How long the layout must hold still before the camera follows it (ms). */
+const SETTLE_MS = 150;
+
 function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) {
   const { camera, size } = useThree();
+  // The target the camera is gliding towards, a candidate waiting for the layout to settle, and the last progress
+  // seen: the framing follows the explosion continuously, but other changes only once settled and significant.
+  const committed = useRef<FrameTarget | null>(null);
+  const candidate = useRef<{ target: FrameTarget; since: number } | null>(null);
+  const lastProgress = useRef(progress.value);
+  const wasExploring = useRef(exploring);
   useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
     const { width: W, height: H } = size;
@@ -71,6 +86,26 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
       dx = (a.x0 + a.x1) / 2 - W / 2;
       down = (a.y0 + a.y1) / 2 - H / 2;
     }
+    // Decide whether to take this framing as the new target.
+    const now = performance.now();
+    const fresh: FrameTarget = { dx, down, fit };
+    const moving = progress.value !== lastProgress.current || progress.direction !== 0;
+    lastProgress.current = progress.value;
+    const switched = exploring !== wasExploring.current;
+    wasExploring.current = exploring;
+    if (!committed.current || moving || switched) {
+      committed.current = fresh;              // first frame, the explosion moving, or entering the explorer
+      candidate.current = null;
+    } else if (significant(fresh, committed.current)) {
+      const c = candidate.current;
+      if (!c || significant(fresh, c.target) || Math.abs(fresh.fit / c.target.fit - 1) > 0.005) candidate.current = { target: fresh, since: now };
+      else if (now - c.since >= SETTLE_MS) {
+        committed.current = fresh;
+        candidate.current = null;
+      }
+    } else candidate.current = null;
+    ({ dx, down, fit } = committed.current);
+
     const target = exploring ? shift(dx) : W < 900 ? 0 : -3.2;
     const next = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
     const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));

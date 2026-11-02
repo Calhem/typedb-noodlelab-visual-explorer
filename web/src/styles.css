@@ -417,3 +417,13 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
   .model-download button { font-size: 11px; padding: 5px 10px; }
   .panel-is-open .model-download, .explore-is-open .model-download { display: none; }
 }
+
+/* The overlay keeps its current view while the next loads out of sight, then cross-fades to it. */
+.tq-body { position: relative; animation: none; }
+.tq-view { animation: tq-in 0.28s var(--ease) both; transition: opacity 0.2s var(--ease); }
+.tq-view.stale { opacity: 0.6; }
+.tq-view.pending { position: absolute; left: 0; right: 0; top: 0; visibility: hidden; pointer-events: none; animation: none; height: 0; overflow: hidden; }
+.tq-updating { display: inline-block; width: 5px; height: 5px; margin-left: 8px; border-radius: 50%; background: var(--accent); vertical-align: middle;
+  animation: tq-pulse 1s ease-in-out infinite; }
+@keyframes tq-pulse { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .tq-view { animation: none; } .tq-updating { animation: none; } }

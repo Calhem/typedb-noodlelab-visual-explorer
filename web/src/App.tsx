@@ -150,7 +150,7 @@ export function App() {
       )}
 
       {exploring && <TypeQLOverlay context={overlay} collapsed={typeqlCollapsed} onCollapse={setTypeqlCollapsed}
-        onEdge={onOverlayEdge} />}
+        onSlot={onOverlayEdge} />}
 
       <div ref={tip} className={hoverName && hovered !== selectedId ? "hover-tip shown" : "hover-tip"} aria-hidden>
         {hoverName}{hoverName && <span> · click for its TypeDB details</span>}

@@ -27,43 +27,73 @@ const KIND_LABEL: Record<Focus["kind"], string> = {
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith("y") ? `${word.slice(0, -1)}ies` : `${word}s`}`;
 
-export function TypeQLOverlay({ context, collapsed, onCollapse, onEdge }: {
+const keyOf = (c: OverlayContext | null) => !c ? "idle" : c.kind === "focus" ? `${c.focus.kind}:${c.focus.key}` : `component:${c.id}`;
+
+/** The reserved space the overlay may take (CSS pixels), whatever its current content: the camera frames the vehicle
+ * around this slot, so content arriving, growing or shrinking never moves the camera. */
+export interface OverlaySlot { right: number; bottom: number }
+
+export function TypeQLOverlay({ context, collapsed, onCollapse, onSlot }: {
   /** null: nothing chosen yet (the overlay says what will appear) */
   context: OverlayContext | null;
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
-  /** reports where the overlay ends (CSS pixels), so the camera can frame the vehicle beside or below it */
-  onEdge: (edge: { right: number; bottom: number } | null) => void;
+  onSlot: (slot: OverlaySlot | null) => void;
 }) {
   const ref = useRef<HTMLElement>(null);
+  // The slot comes from the overlay's position, width and maximum height (its styles), not from its content.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const report = () => {
       const r = el.getBoundingClientRect();
-      onEdge(r.height > 0 ? { right: r.right, bottom: r.bottom } : null);
+      const max = parseFloat(getComputedStyle(el).maxHeight);
+      onSlot(r.width > 0 ? { right: r.right, bottom: r.top + (collapsed || !Number.isFinite(max) ? r.height : max) } : null);
     };
     report();
-    const observer = new ResizeObserver(report);
-    observer.observe(el);
     window.addEventListener("resize", report);
-    return () => { observer.disconnect(); window.removeEventListener("resize", report); onEdge(null); };
-  }, [onEdge]);
-  const view = !context
-    ? <p className="tq-note tq-idle">Choose a system, assembly or type, or click a part: the TypeQL TypeDB runs for it, and the
-        schema behind it, appear here.</p>
-    : context.kind === "focus" ? <FocusView focus={context.focus} /> : <ComponentView id={context.id} />;
-  const key = !context ? "idle" : context.kind === "focus" ? `${context.focus.kind}:${context.focus.key}` : `component:${context.id}`;
+    return () => { window.removeEventListener("resize", report); onSlot(null); };
+  }, [onSlot, collapsed]);
+
+  // The view on screen stays until its replacement has everything it needs; the replacement loads out of sight, then
+  // takes its place with a cross-fade. A newer selection replaces a pending one (whose requests are abandoned).
+  const [shown, setShown] = useState<OverlayContext | null>(context);
+  const same = keyOf(context) === keyOf(shown);
+  // The same selection again (perhaps with a fresh answer) shows the current context directly.
+  const views = [{ context: same ? context : shown, key: keyOf(shown), pending: false }];
+  if (!same) views.push({ context, key: keyOf(context), pending: true });
   return (
-    <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view">
+    <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view"
+      aria-busy={views.length > 1}>
       <button type="button" className="tq-collapse" onClick={() => onCollapse(!collapsed)} aria-expanded={!collapsed}
         title={collapsed ? "Show the TypeQL" : "Hide the TypeQL"}>
         <span className="tq-collapse-mark">{collapsed ? "▸" : "▾"}</span> TypeQL
+        {views.length > 1 && <span className="tq-updating" aria-hidden />}
       </button>
-      {/* keyed by the context, so a new selection fades in */}
-      <div className="tq-body" key={key}>{view}</div>
+      <div className="tq-body">
+        {views.map((v) => (
+          <div key={v.key} className={v.pending ? "tq-view pending" : views.length > 1 ? "tq-view stale" : "tq-view"} aria-hidden={v.pending}>
+            {renderView(v.context, v.pending ? () => setShown(v.context) : undefined)}
+          </div>
+        ))}
+      </div>
     </section>
   );
+}
+
+/** A view for a context; `onReady` is called once it has its content. */
+function renderView(context: OverlayContext | null, onReady?: () => void) {
+  if (!context) return <Ready onReady={onReady}><p className="tq-note tq-idle">Choose a system, assembly or type, or click a part:
+    the TypeQL TypeDB runs for it, and the schema behind it, appear here.</p></Ready>;
+  return context.kind === "focus"
+    ? <Ready onReady={onReady}><FocusView focus={context.focus} /></Ready>
+    : <ComponentView id={context.id} onReady={onReady} />;
+}
+
+/** For views whose content is already complete when they mount (a focus arrives with its answer). */
+function Ready({ onReady, children }: { onReady?: () => void; children: React.ReactNode }) {
+  useEffect(() => { onReady?.(); }, [onReady]);
+  return <>{children}</>;
 }
 
 // ---- A focus: system, assembly, type, question, failure impact or requirements ---------------------------
@@ -95,12 +125,15 @@ function FocusView({ focus }: { focus: Focus }) {
 
 // ---- A single selected part ----------------------------------------------------------------------------------
 
-function ComponentView({ id }: { id: string }) {
+function ComponentView({ id, onReady }: { id: string; onReady?: () => void }) {
   const details = useAnswer(id, (s) => semantic.component(id, s));
   const relations = useAnswer(id, (s) => semantic.relationships(id, s));
   const d = details.state?.status === "ok" ? details.state.answer : null;
   const r = relations.state?.status === "ok" ? relations.state.answer : null;
   const failed = [details.state, relations.state].find((s) => s && s.status !== "loading" && s.status !== "ok");
+  // Ready when both answers are in (or one failed, so the failure can be shown).
+  const ready = Boolean(failed || (d && r));
+  useEffect(() => { if (ready) onReady?.(); }, [ready, onReady]);
   const queries = useMemo(() => [...(d ? queriesOf(d, "component") : []), ...(r ? queriesOf(r, "relationships") : [])], [d, r]);
   if (failed && "message" in failed) return <p className="tq-note">{failed.message}</p>;
   if (!d) return <p className="tq-note loading">Asking TypeDB…</p>;
