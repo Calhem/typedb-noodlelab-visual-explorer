@@ -6,7 +6,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { semantic, type QueryRecord, type SchemaDefinition } from "../semantic/api";
-import { useAnswer } from "../semantic/useAnswer";
+import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus } from "./focus";
 import { words } from "./format";
 import { formatMs } from "./QueryViewer";
@@ -27,43 +27,76 @@ const KIND_LABEL: Record<Focus["kind"], string> = {
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith("y") ? `${word.slice(0, -1)}ies` : `${word}s`}`;
 
-export function TypeQLOverlay({ context, collapsed, onCollapse, onEdge }: {
+const keyOf = (c: OverlayContext | null) => !c ? "idle" : c.kind === "focus" ? `${c.focus.kind}:${c.focus.key}` : `component:${c.id}`;
+
+/** The reserved space the overlay may take (CSS pixels), whatever its current content: the camera frames the vehicle
+ * around this slot, so content arriving, growing or shrinking never moves the camera. */
+export interface OverlaySlot { right: number; bottom: number }
+
+export function TypeQLOverlay({ context, collapsed, onCollapse, onSlot }: {
   /** null: nothing chosen yet (the overlay says what will appear) */
   context: OverlayContext | null;
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
-  /** reports where the overlay ends (CSS pixels), so the camera can frame the vehicle beside or below it */
-  onEdge: (edge: { right: number; bottom: number } | null) => void;
+  onSlot: (slot: OverlaySlot | null) => void;
 }) {
   const ref = useRef<HTMLElement>(null);
+  // The slot comes from the overlay's position, width and maximum height (its styles), not from its content.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const report = () => {
       const r = el.getBoundingClientRect();
-      onEdge(r.height > 0 ? { right: r.right, bottom: r.bottom } : null);
+      const max = parseFloat(getComputedStyle(el).maxHeight);
+      onSlot(r.width > 0 ? { right: r.right, bottom: r.top + (collapsed || !Number.isFinite(max) ? r.height : max) } : null);
     };
     report();
-    const observer = new ResizeObserver(report);
-    observer.observe(el);
     window.addEventListener("resize", report);
-    return () => { observer.disconnect(); window.removeEventListener("resize", report); onEdge(null); };
-  }, [onEdge]);
-  const view = !context
-    ? <p className="tq-note tq-idle">Choose a system, assembly or type, or click a part: the TypeQL TypeDB runs for it, and the
-        schema behind it, appear here.</p>
-    : context.kind === "focus" ? <FocusView focus={context.focus} /> : <ComponentView id={context.id} />;
-  const key = !context ? "idle" : context.kind === "focus" ? `${context.focus.kind}:${context.focus.key}` : `component:${context.id}`;
+    return () => { window.removeEventListener("resize", report); onSlot(null); };
+  }, [onSlot, collapsed]);
+
+  // The view on screen stays until its replacement has everything it needs; the replacement loads out of sight, then
+  // takes its place with a cross-fade. A newer selection replaces a pending one (whose requests are abandoned).
+  const [shown, setShown] = useState<OverlayContext | null>(context);
+  const same = keyOf(context) === keyOf(shown);
+  // A focus (system, assembly, type, question, failure) arrives with its answer complete, so it goes straight on
+  // screen; only a part's view, which still has to ask TypeDB, is prepared out of sight first.
+  const complete = !context || context.kind === "focus";
+  useEffect(() => { if (complete && !same) setShown(context); }, [complete, same, context]);
+  const views = complete || same ? [{ context, key: keyOf(context), pending: false }]
+    : [{ context: shown, key: keyOf(shown), pending: false }, { context, key: keyOf(context), pending: true }];
   return (
-    <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view">
+    <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view"
+      aria-busy={views.length > 1}>
       <button type="button" className="tq-collapse" onClick={() => onCollapse(!collapsed)} aria-expanded={!collapsed}
         title={collapsed ? "Show the TypeQL" : "Hide the TypeQL"}>
         <span className="tq-collapse-mark">{collapsed ? "▸" : "▾"}</span> TypeQL
+        {views.length > 1 && <span className="tq-updating" aria-hidden />}
       </button>
-      {/* keyed by the context, so a new selection fades in */}
-      <div className="tq-body" key={key}>{view}</div>
+      <div className="tq-body">
+        {views.map((v) => (
+          <div key={v.key} className={v.pending ? "tq-view pending" : views.length > 1 ? "tq-view stale" : "tq-view"} aria-hidden={v.pending}>
+            {renderView(v.context, v.pending ? () => setShown(v.context) : undefined)}
+          </div>
+        ))}
+      </div>
     </section>
   );
+}
+
+/** A view for a context; `onReady` is called once it has its content. */
+function renderView(context: OverlayContext | null, onReady?: () => void) {
+  if (!context) return <Ready onReady={onReady}><p className="tq-note tq-idle">Choose a system, assembly or type, or click a part:
+    the TypeQL TypeDB runs for it, and the schema behind it, appear here.</p></Ready>;
+  return context.kind === "focus"
+    ? <Ready onReady={onReady}><FocusView focus={context.focus} /></Ready>
+    : <ComponentView id={context.id} onReady={onReady} />;
+}
+
+/** For views whose content is already complete when they mount (a focus arrives with its answer). */
+function Ready({ onReady, children }: { onReady?: () => void; children: React.ReactNode }) {
+  useEffect(() => { onReady?.(); }, [onReady]);
+  return <>{children}</>;
 }
 
 // ---- A focus: system, assembly, type, question, failure impact or requirements ---------------------------
@@ -85,9 +118,10 @@ function FocusView({ focus }: { focus: Focus }) {
           <b>{plural(focus.ids.size, "component")}</b> highlighted · {plural(queries.length, "query")} ·{" "}
           <b>{formatMs(total)}</b> in TypeDB
         </>} />
-      {used && <Explores used={used} />}
-      {schemaNames.length > 0 && <Schema names={schemaNames} openFirst={focus.kind === "type"} />}
+      {/* The query first, so the TypeQL itself is in view without scrolling; then the schema behind it. */}
       <Queries queries={queries} resultLabel="returns the highlighted parts" />
+      {schemaNames.length > 0 && <Schema names={schemaNames} openFirst={focus.kind === "type"} />}
+      {used && <Explores used={used} />}
       <App processing={focus.processing ?? []} highlighted={focus.ids.size} />
     </>
   );
@@ -95,12 +129,18 @@ function FocusView({ focus }: { focus: Focus }) {
 
 // ---- A single selected part ----------------------------------------------------------------------------------
 
-function ComponentView({ id }: { id: string }) {
+function ComponentView({ id, onReady }: { id: string; onReady?: () => void }) {
   const details = useAnswer(id, (s) => semantic.component(id, s));
   const relations = useAnswer(id, (s) => semantic.relationships(id, s));
   const d = details.state?.status === "ok" ? details.state.answer : null;
   const r = relations.state?.status === "ok" ? relations.state.answer : null;
+  // The part's type definition is read here, not by its schema block, so it is in before the view is shown.
+  const type = d?.data.type ?? null;
+  const schema = useAnswer(type && `schema:${type}`, (s) => semantic.schema(type!, s));
   const failed = [details.state, relations.state].find((s) => s && s.status !== "loading" && s.status !== "ok");
+  // Ready when the answers and the schema are in (or an answer failed, so the failure can be shown).
+  const ready = Boolean(failed || (d && r && schema.state && schema.state.status !== "loading"));
+  useEffect(() => { if (ready) onReady?.(); }, [ready, onReady]);
   const queries = useMemo(() => [...(d ? queriesOf(d, "component") : []), ...(r ? queriesOf(r, "relationships") : [])], [d, r]);
   if (failed && "message" in failed) return <p className="tq-note">{failed.message}</p>;
   if (!d) return <p className="tq-note loading">Asking TypeDB…</p>;
@@ -120,9 +160,9 @@ function ComponentView({ id }: { id: string }) {
         <span className="tq-label">isa</span>
         <span>{c.types.slice(0, -1).map((t, i) => <span key={t}>{i > 0 && <span className="tq-sub">sub </span>}<code>{t}</code></span>)}</span>
       </p>
-      {r && <Explores used={{ ...merge(queriesOf(r, "").map((q) => concepts(q.text))), types: [] }} />}
-      <Schema names={[c.type]} openFirst={true} />
       <Queries queries={queries} resultLabel={null} />
+      <Schema names={[c.type]} openFirst={true} first={schema.state} />
+      {r && <Explores used={{ ...merge(queriesOf(r, "").map((q) => concepts(q.text))), types: [] }} />}
       <App processing={[...(d.processing ?? []), ...(r?.processing ?? [])]} />
     </>
   );
@@ -166,15 +206,19 @@ function Explores({ used }: { used: Concepts }) {
   );
 }
 
-/** Schema definitions, as TypeDB returns them. A type's supertypes come behind a toggle. */
-function Schema({ names, openFirst }: { names: string[]; openFirst: boolean }) {
-  return <>{names.map((n, i) => <SchemaBlock key={n} name={n} open={openFirst && i === 0} />)}</>;
+type SchemaState = AnswerState<SchemaDefinition[]>;
+
+/** Schema definitions, as TypeDB returns them. A type's supertypes come behind a toggle. `first`, if given, is the
+ * first block's answer, already read by the view (so the block does not load after the view is shown). */
+function Schema({ names, openFirst, first }: { names: string[]; openFirst: boolean; first?: SchemaState | null }) {
+  return <>{names.map((n, i) => <SchemaBlock key={n} name={n} open={openFirst && i === 0} given={i === 0 ? first : undefined} />)}</>;
 }
 
-function SchemaBlock({ name, open: initiallyOpen }: { name: string; open: boolean }) {
+function SchemaBlock({ name, open: initiallyOpen, given }: { name: string; open: boolean; given?: SchemaState | null }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [inherited, setInherited] = useState(false);
-  const answer = useAnswer(open ? `schema:${name}` : null, (s) => semantic.schema(name, s));
+  const own = useAnswer(open && given === undefined ? `schema:${name}` : null, (s) => semantic.schema(name, s));
+  const answer = { state: given !== undefined && open ? given : own.state };
   const defs: SchemaDefinition[] = answer.state?.status === "ok" ? answer.state.answer.data : [];
   const ms = answer.state?.status === "ok" ? (answer.state.answer as { "schema-ms"?: number })["schema-ms"] : undefined;
   return (

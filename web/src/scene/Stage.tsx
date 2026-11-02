@@ -37,8 +37,30 @@ const BRAND = 64;
  * frame it in the free space: between the side panels and between the brand line and the controls, and beside or
  * below the TypeQL overlay (whichever leaves it larger). A lens "film offset" sideways, a view offset up or down
  * and a wider lens when the space is small, so the camera itself doesn't move. */
+/** A framing target: how far to move the picture (CSS pixels) and how much to widen the lens. */
+interface FrameTarget { dx: number; down: number; fit: number }
+
+/** Re-frame only for a real change: the vehicle's size by more than 8%, or its position by more than 24 px. */
+const significant = (a: FrameTarget, b: FrameTarget) =>
+  Math.abs(a.fit / b.fit - 1) > 0.08 || Math.abs(a.dx - b.dx) > 24 || Math.abs(a.down - b.down) > 24;
+/** How much wider than the free space between the side panels the vehicle may be (it extends behind them), and how
+ * far the lens may narrow below the base angle (a slightly closer view when the screen is roomy). */
+const OVERHANG = 1.3;
+const MIN_FIT = 0.9;
+/** While the TypeQL overlay is open, the vehicle's centre moves right by this share of the overlay's slot (from the
+ * explorer's edge to the overlay's right edge); its size does not change, so it reaches further behind the part panel. */
+const OVERLAY_SHIFT = 0.4;
+/** How long the layout must hold still before the camera follows it (ms). */
+const SETTLE_MS = 150;
+
 function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) {
   const { camera, size } = useThree();
+  // The target the camera is gliding towards, a candidate waiting for the layout to settle, and the last progress
+  // seen: the framing follows the explosion continuously, but other changes only once settled and significant.
+  const committed = useRef<FrameTarget | null>(null);
+  const candidate = useRef<{ target: FrameTarget; since: number } | null>(null);
+  const lastProgress = useRef(progress.value);
+  const wasExploring = useRef(exploring);
   useFrame((_, dt) => {
     const cam = camera as THREE.PerspectiveCamera;
     const { width: W, height: H } = size;
@@ -50,31 +72,64 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
     const baseFov = aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect);
     let dx = 0, down = 0, fit = 1;
     if (exploring) {
-      // How much of the window the vehicle takes with the base lens: assembled about 45% of its width and
-      // height (from any angle, with a margin); fully exploded about 55% of the width and nearly all the height.
+      // How much room the vehicle takes with the base lens (a fixed vertical angle, so its size on screen scales with
+      // the window's height): assembled about 0.95 of the height across and 45% of the height tall, from any angle
+      // with a margin; fully exploded a little wider and nearly the whole height.
       const e = 1 - Math.pow(1 - progress.value, 2.5);
       // On phones the panels cover the whole width (as sheets), so only the overlay above counts, and the wider
       // portrait lens makes the vehicle span the width but little of the height.
       const phone = W < 640;
       const need = phone
         ? { w: W * 0.92, h: H * THREE.MathUtils.lerp(0.26, 0.8, e) }
-        : { w: W * THREE.MathUtils.lerp(0.46, 0.56, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
-      const x0 = phone ? 0 : insets.left, x1 = W - (phone ? 0 : insets.right), y1 = H - (phone ? 120 : CONTROLS);
-      const o = insets.overlay;
-      const areas = o
-        ? [{ x0, x1, y0: Math.max(o.bottom, BRAND), y1 }, ...(phone ? [] : [{ x0: Math.max(x0, o.right), x1, y0: BRAND, y1 }])]
-        : [{ x0, x1, y0: BRAND, y1 }];
-      const fits = areas.map((a) => Math.max(need.w / Math.max(a.x1 - a.x0, 1), need.h / Math.max(a.y1 - a.y0, 1), 1));
-      const best = fits[0] <= fits[1] || fits.length === 1 ? 0 : 1;
-      const a = areas[best];
-      fit = Math.min(fits[best], 2.6);
-      dx = (a.x0 + a.x1) / 2 - W / 2;
-      down = (a.y0 + a.y1) / 2 - H / 2;
+        : { w: H * THREE.MathUtils.lerp(0.95, 1.05, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
+      if (phone) {
+        // Phones: the vehicle below the overlay, across the full width.
+        const y0 = Math.max(insets.overlay?.bottom ?? 0, BRAND), y1 = H - 120;
+        fit = Math.min(Math.max(need.w / W, need.h / Math.max(y1 - y0, 1), 1), 2.6);
+        down = (y0 + y1) / 2 - H / 2;
+      } else {
+        // Desktop: the scene is a full-width background behind the panels. The vehicle is centred in the band between
+        // the brand line and the controls, and may reach behind the panels and the TypeQL overlay: it is sized to be
+        // up to OVERHANG times the free width, so it stays large. While the overlay is open, the vehicle moves right
+        // (OVERLAY_SHIFT), behind the part panel rather than the TypeQL. The overlay's slot is fixed by its styles,
+        // never its content, so switching selections never moves the camera.
+        const x0 = insets.left, x1 = W - insets.right, y1 = H - CONTROLS;
+        const o = insets.overlay;
+        const free = Math.max(x1 - x0, W * 0.4);
+        fit = Math.min(Math.max(need.w / (free * OVERHANG), need.h / (y1 - BRAND), MIN_FIT), 2.6);
+        // The shift never takes the vehicle's far end (about need.w / fit wide on screen) past the window's edge.
+        const shift = o ? Math.max(o.right - x0, 0) * OVERLAY_SHIFT : 0;
+        const room = W - 16 - ((x0 + x1) / 2 + need.w / fit / 2);
+        dx = (x0 + x1) / 2 - W / 2 + Math.max(Math.min(shift, room), 0);
+        down = (BRAND + y1) / 2 - H / 2;
+      }
     }
+    // Decide whether to take this framing as the new target.
+    const now = performance.now();
+    const fresh: FrameTarget = { dx, down, fit };
+    const moving = progress.value !== lastProgress.current || progress.direction !== 0;
+    lastProgress.current = progress.value;
+    const switched = exploring !== wasExploring.current;
+    wasExploring.current = exploring;
+    if (!committed.current || moving || switched) {
+      committed.current = fresh;              // first frame, the explosion moving, or entering the explorer
+      candidate.current = null;
+    } else if (significant(fresh, committed.current)) {
+      const c = candidate.current;
+      if (!c || significant(fresh, c.target) || Math.abs(fresh.fit / c.target.fit - 1) > 0.005) candidate.current = { target: fresh, since: now };
+      else if (now - c.since >= SETTLE_MS) {
+        committed.current = fresh;
+        candidate.current = null;
+      }
+    } else candidate.current = null;
+    ({ dx, down, fit } = committed.current);
+
     const target = exploring ? shift(dx) : W < 900 ? 0 : -3.2;
-    const next = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
+    // Glide towards the target, and settle on it exactly once within a fraction of a pixel (no endless tail).
+    const glided = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
+    const next = Math.abs(glided - target) < 5e-4 ? target : glided;
     const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));
-    const fov = Math.abs(wanted - cam.fov) < 0.01 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
+    const fov = Math.abs(wanted - cam.fov) < 0.02 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
     const view = cam.view;
     const current = view?.enabled ? -view.offsetY : 0;
     const damped = THREE.MathUtils.damp(current, down, 3, dt);
