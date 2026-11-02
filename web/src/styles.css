@@ -482,12 +482,21 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
 }
 
 /* ---- UI refinement: the vehicle as a full-width background, TypeQL always in view, denser side panels ---- */
-/* The overlay now sits over the vehicle: a dark, softly blurred background keeps the text readable. */
-.tq-overlay {
-  background: rgba(7, 8, 11, 0.84); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px;
-  padding: 8px 12px 10px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+/* No box: the overlay sits straight on the studio's black. Where the vehicle passes behind it, a feathered darkening
+   (darkest under the text, fading to nothing well outside it on every side) keeps the TypeQL readable while the
+   vehicle stays faintly visible through it. */
+.tq-overlay { background: none; isolation: isolate; }
+.tq-overlay::before {
+  content: ""; position: absolute; inset: -36px -72px -64px -44px; z-index: -1; pointer-events: none;
+  background: rgba(0, 0, 0, 0.8);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 80px), transparent),
+    linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 72px), transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 80px), transparent),
+    linear-gradient(to bottom, transparent, #000 36px, #000 calc(100% - 72px), transparent);
+  mask-composite: intersect;
 }
-.tq-overlay.collapsed, .tq-overlay:has(.tq-idle) { background: rgba(7, 8, 11, 0.6); }
+.tq-overlay.collapsed::before, .tq-overlay:has(.tq-idle)::before { display: none; }
 /* TypeQL keeps its indentation; long lines scroll sideways rather than wrapping. Explanations wrap as text. */
 .tq-overlay pre { white-space: pre; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), 0.3) transparent; }
 .tq-head { margin: 2px 0 6px; }

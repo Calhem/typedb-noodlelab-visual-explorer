@@ -47,8 +47,9 @@ const significant = (a: FrameTarget, b: FrameTarget) =>
  * far the lens may narrow below the base angle (a slightly closer view when the screen is roomy). */
 const OVERHANG = 1.3;
 const MIN_FIT = 0.9;
-/** How far across the open TypeQL overlay's slot the vehicle's free width starts (0: ignore it, 1: beside it). */
-const OVERLAY_SHARE = 0;
+/** While the TypeQL overlay is open, the vehicle's centre moves right by this share of the overlay's slot (from the
+ * explorer's edge to the overlay's right edge); its size does not change, so it reaches further behind the part panel. */
+const OVERLAY_SHIFT = 0.4;
 /** How long the layout must hold still before the camera follows it (ms). */
 const SETTLE_MS = 150;
 
@@ -89,15 +90,17 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
       } else {
         // Desktop: the scene is a full-width background behind the panels. The vehicle is centred in the band between
         // the brand line and the controls, and may reach behind the panels and the TypeQL overlay: it is sized to be
-        // up to OVERHANG times the free width, so it stays large. While the overlay is open, the free width starts
-        // OVERLAY_SHARE of the way across the overlay's slot, so less of the vehicle sits behind it. The slot is fixed
-        // by the overlay's styles, never its content, so switching selections never moves the camera.
-        const x1 = W - insets.right, y1 = H - CONTROLS;
+        // up to OVERHANG times the free width, so it stays large. While the overlay is open, the vehicle moves right
+        // (OVERLAY_SHIFT), behind the part panel rather than the TypeQL. The overlay's slot is fixed by its styles,
+        // never its content, so switching selections never moves the camera.
+        const x0 = insets.left, x1 = W - insets.right, y1 = H - CONTROLS;
         const o = insets.overlay;
-        const x0 = o ? insets.left + Math.max(o.right - insets.left, 0) * OVERLAY_SHARE : insets.left;
         const free = Math.max(x1 - x0, W * 0.4);
         fit = Math.min(Math.max(need.w / (free * OVERHANG), need.h / (y1 - BRAND), MIN_FIT), 2.6);
-        dx = (x0 + x1) / 2 - W / 2;
+        // The shift never takes the vehicle's far end (about need.w / fit wide on screen) past the window's edge.
+        const shift = o ? Math.max(o.right - x0, 0) * OVERLAY_SHIFT : 0;
+        const room = W - 16 - ((x0 + x1) / 2 + need.w / fit / 2);
+        dx = (x0 + x1) / 2 - W / 2 + Math.max(Math.min(shift, room), 0);
         down = (BRAND + y1) / 2 - H / 2;
       }
     }
@@ -124,7 +127,7 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
     const target = exploring ? shift(dx) : W < 900 ? 0 : -3.2;
     // Glide towards the target, and settle on it exactly once within a fraction of a pixel (no endless tail).
     const glided = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
-    const next = Math.abs(glided - target) < 2e-3 ? target : glided;
+    const next = Math.abs(glided - target) < 5e-4 ? target : glided;
     const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));
     const fov = Math.abs(wanted - cam.fov) < 0.02 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
     const view = cam.view;
