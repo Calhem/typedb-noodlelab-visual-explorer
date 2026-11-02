@@ -60,43 +60,129 @@ def read_model(tx):
     return instances
 
 
+# The largest query written (bytes). Some TypeDB servers and clients accept only about 100 KB in one query (a 446 KB
+# single insert was cut off at about 106 KB), so the data is written as a series of smaller queries.
+MAX_QUERY_BYTES = 60_000
+# The most entities one match step looks up (see render_data).
+LOOKUPS_PER_STAGE = 8
+
+
 def render_data(instances, keys, supertypes):
-    """One insert query, stable from one export to the next. Variables are plain generated names ($e1, $e2... for
-    entities, $r1, $r2... for relations): letters and digits only, so every TypeQL parser accepts them, and never
-    derived from component ids (the ids stay where they belong, as component-id attribute values). Entities come
-    first, ordered by type and key; then relations, those playing roles in other relations (a fallback protects a
-    dependency) before the rest. No comments and no blank lines, so tools that split a file into queries at blank
-    lines read it as the one query it is."""
+    """The data as a series of queries, each under MAX_QUERY_BYTES, ended by `end;` and a blank line, so TypeDB
+    Console's `source` runs them one by one (without `end;` it sends the whole file as one query) and a driver can
+    split the file at blank lines. Run them in order in one write transaction.
+
+    - Entities first, in `insert` batches, ordered by type and key.
+    - Then relations. Each relation query is a pipeline of small steps: `match` up to LOOKUPS_PER_STAGE entities
+      by their keys, then `insert` the relations that use them, and so on; entities found earlier in the query are
+      reused. (One `match` finding hundreds of entities at once is slow to plan: 80 key lookups take about a
+      second, 250 took two minutes and gigabytes of memory.) A relation that plays a role in another (a fallback
+      protects a dependency) is inserted in the same query as the relations that refer to it.
+
+    Variables are plain generated names ($e1... for entities, $r1... for relations): letters and digits only, so
+    every TypeQL parser accepts them; ids stay attribute values (component-id and the other keys). No comments and
+    no blank lines inside a query. The output is stable from one export to the next."""
     def key_of(inst):
         for t in [inst["type"], *supertypes.get(inst["type"], [])]:
             if t in keys:
-                return next((v for a, v in inst["has"] if a == keys[t]), "")
-        return ""
+                value = next((v for a, v in inst["has"] if a == keys[t]), None)
+                if value is not None:
+                    return keys[t], value
+        raise ValueError(f"an instance of {inst['type']} has no key, so relations cannot find it")
 
     entities = sorted((i for i in instances if instances[i]["kind"] == "entity"),
-                      key=lambda i: (instances[i]["type"], key_of(instances[i]), sorted(instances[i]["has"])))
+                      key=lambda i: (instances[i]["type"], key_of(instances[i])[1], sorted(instances[i]["has"])))
     names = {i: f"$e{n}" for n, i in enumerate(entities, 1)}
 
     def rel_sort(i):
         inst = instances[i]
         return (inst["type"], sorted((role, names.get(p, "")) for role, p in inst["links"]), sorted(inst["has"]))
     relations = sorted((i for i in instances if instances[i]["kind"] == "relation"), key=rel_sort)
-    played = {p for i in relations for _, p in instances[i]["links"]}
-    relations.sort(key=lambda i: (0 if i in played else 1, rel_sort(i)))
     names.update({i: f"$r{n}" for n, i in enumerate(relations, 1)})
 
     def has_clause(inst):
         return "".join(f", has {a} {v}" for a, v in sorted(inst["has"]))
 
-    lines = ["insert"]
-    for i in entities:
+    def insert_line(i):
         inst = instances[i]
-        lines.append(f"  {names[i]} isa {inst['type']}{has_clause(inst)};")
-    for i in relations:
-        inst = instances[i]
+        if inst["kind"] == "entity":
+            return f"  {names[i]} isa {inst['type']}{has_clause(inst)};"
         players = ", ".join(f"{role}: {names[p]}" for role, p in sorted(inst["links"], key=lambda x: (x[0], names[x[1]])))
-        lines.append(f"  {names[i]} isa {inst['type']} ({players}){has_clause(inst)};")
-    return "\n".join(lines) + "\n"
+        return f"  {names[i]} isa {inst['type']} ({players}){has_clause(inst)};"
+
+    def match_line(i):
+        attribute, value = key_of(instances[i])
+        return f"  {names[i]} isa {instances[i]['type']}, has {attribute} {value};"
+
+    queries = []
+
+    # Entities: insert batches.
+    batch, size = [], 0
+    for i in entities:
+        line = insert_line(i)
+        if batch and size + len(line) + 1 > MAX_QUERY_BYTES - 16:
+            queries.append("insert\n" + "\n".join(batch))
+            batch, size = [], 0
+        batch.append(line)
+        size += len(line.encode()) + 1
+    if batch:
+        queries.append("insert\n" + "\n".join(batch))
+
+    # Relations: group those linked through relation role players, so each group goes into one query, in the order
+    # that defines a relation before it is used.
+    group = {i: i for i in relations}
+    def root(i):
+        while group[i] != i:
+            group[i] = group[group[i]]
+            i = group[i]
+        return i
+    for i in relations:
+        for _, p in instances[i]["links"]:
+            if instances[p]["kind"] == "relation":
+                group[root(i)] = root(p)
+    units = {}
+    for i in relations:
+        units.setdefault(root(i), []).append(i)
+    played = {p for i in relations for _, p in instances[i]["links"]}
+    ordered = sorted(units.values(), key=lambda u: rel_sort(min(u, key=rel_sort)))
+    for u in ordered:
+        u.sort(key=lambda i: (0 if i in played else 1, rel_sort(i)))
+
+    def relation_query(unit_list):
+        rels = [i for u in unit_list for i in u]
+        bound, stages, lookups, inserts = set(), [], [], []
+
+        def flush():
+            if lookups:
+                stages.append("match\n" + "\n".join(lookups))
+            if inserts:
+                stages.append("insert\n" + "\n".join(inserts))
+            lookups.clear()
+            inserts.clear()
+        for i in rels:
+            new = sorted({p for _, p in instances[i]["links"] if instances[p]["kind"] == "entity" and p not in bound},
+                         key=lambda e: int(names[e][2:]))
+            if lookups and len(lookups) + len(new) > LOOKUPS_PER_STAGE:
+                flush()
+            lookups.extend(match_line(e) for e in new)
+            bound.update(new)
+            inserts.append(insert_line(i))
+        flush()
+        return "\n".join(stages)
+
+    batch = []
+    for u in ordered:
+        if batch and len(relation_query(batch + [u]).encode()) > MAX_QUERY_BYTES:
+            queries.append(relation_query(batch))
+            batch = []
+        batch.append(u)
+    if batch:
+        queries.append(relation_query(batch))
+    queries = [q + "\nend;" for q in queries]
+    for q in queries:
+        if len(q.encode()) > MAX_QUERY_BYTES:
+            raise ValueError(f"a query of {len(q.encode())} bytes is over the limit")
+    return "\n\n".join(queries) + "\n\n"
 
 
 def render_schema(schema):
@@ -157,7 +243,7 @@ targets, not measured data.
 | File | What it holds |
 |---|---|
 | `schema.tql` | The schema: entity, relation and attribute types, and the functions the explorer uses (TypeDB 3.14). |
-| `data.tql` | The data: every entity and relation with its attributes and role players, as one `insert` query. Variables are generated (`$e1`, `$r1`...); each part's id is its `component-id` value. |
+| `data.tql` | The data: every entity and relation with its attributes and role players, as {queries} queries, each ended by `end;` and a blank line (each under 60 KB, as some servers and clients limit a query's size). Entities first; then relations, each batch finding its parts by key. Variables are generated (`$e1`, `$r1`...); each part's id is its `component-id` value. |
 
 What is in it: {entities} entities and {relations} relations ({components} components, {assemblies} assemblies,
 {systems} systems, {connections} connections, {dependencies} dependencies, {loops} control loops), {ownerships}
@@ -165,9 +251,9 @@ attribute values and {players} role players.
 
 ## Load it into your own TypeDB
 
-You need a TypeDB 3.14 server (for example `docker run -p 1729:1729 typedb/typedb:3.14.1`) and either TypeDB
-Console or a TypeDB driver. The schema must be loaded in a schema transaction, then the data in a write
-transaction.
+You need a TypeDB 3.14 server (for example `docker run -p 1729:1729 typedb/typedb:3.14.1`) and TypeDB Console, a
+TypeDB driver or TypeDB Studio. Load the schema in a schema transaction and commit; then run the data's queries
+in order in one write transaction and commit.
 
 **With TypeDB Console** (3.x), from the folder holding these files:
 
@@ -190,11 +276,18 @@ from typedb.driver import TypeDB, Credentials, DriverOptions, DriverTlsConfig, T
 
 driver = TypeDB.driver("127.0.0.1:1729", Credentials("admin", "password"), DriverOptions(DriverTlsConfig.disabled()))
 driver.databases.create("vehicle")
-for file, kind in (("schema.tql", TransactionType.SCHEMA), ("data.tql", TransactionType.WRITE)):
-    with driver.transaction("vehicle", kind) as tx:
-        tx.query(Path(file).read_text()).resolve()
-        tx.commit()
+with driver.transaction("vehicle", TransactionType.SCHEMA) as tx:
+    tx.query(Path("schema.tql").read_text()).resolve()
+    tx.commit()
+with driver.transaction("vehicle", TransactionType.WRITE) as tx:
+    for query in Path("data.tql").read_text().split("\\n\\n"):  # the queries are separated by blank lines
+        if query.strip():
+            tx.query(query).resolve()
+    tx.commit()
 ```
+
+**With TypeDB Studio:** run `schema.tql` in a schema transaction and commit. Then open a write transaction, run
+each of the {queries} queries in `data.tql` in order (each ends with `end;`), and commit.
 
 Loading takes a few seconds. This export was checked by loading it into a fresh database and comparing every
 type's instance count, the attribute values and role players, and the answers to the queries below with the
@@ -263,7 +356,7 @@ def build(driver, database):
     sup = supertypes_of(schema)
     total = lambda root: sum(n for ty, n in t.items() if ty == root or root in sup.get(ty, []))
     readme = README.format(
-        day=date.today().isoformat(), entities=c["entities"], relations=c["relations"], components=total("component"),
+        queries=sum(1 for q in data.split("\n\n") if q.strip()), day=date.today().isoformat(), entities=c["entities"], relations=c["relations"], components=total("component"),
         assemblies=total("assembly"), systems=total("system"), connections=total("connection"),
         dependencies=total("dependency"), loops=total("control-loop"), ownerships=c["ownerships"], players=c["role-players"])
     return {"schema.tql": render_schema(schema), "data.tql": data, "README.md": readme}, c

@@ -31,13 +31,22 @@ def test_the_files_hold_the_schema_with_functions_and_the_data(client):
     # ids are attribute values, never variable names
     assert data.startswith("insert") and 'isa brake-caliper, has component-id "caliper-fr"' in data
     assert "$caliper-fr" not in data
+    # a series of queries, each small enough for size-limited servers and clients
+    queries = [q for q in data.split("\n\n") if q.strip()]
+    assert len(queries) > 1 and all(len(q.encode()) <= export.MAX_QUERY_BYTES for q in queries)
 
 
 def test_the_syntax_check_catches_what_strict_parsers_reject():
-    ok = {"schema.tql": "define\nentity a;\n", "data.tql": 'insert\n  $e1 isa a, has name "x-$y # z";\n'}
+    ok = {"schema.tql": "define\nentity a;\n",
+          "data.tql": 'insert\n  $e1 isa a, has name "x-$y # z";\nend;\n\nmatch\n  $e1 isa a;\ninsert\n  $e2 isa a;\nend;\n\n'}
     assert export_check.syntax_problems(ok) == []
-    for bad in ('insert\n  $brake-booster isa a;\n', 'insert\n  $e_1 isa a;\n', 'insert\n  # note\n  $e1 isa a;\n',
-                'insert\n  $e1 isa a;\n\n  $e2 isa a;\n', 'insert\n  $e1 isa a, has size 1e-07;\n'):
+    for bad in ('insert\n  $brake-booster isa a;\nend;\n\n',          # hyphenated variable
+                'insert\n  $e_1 isa a;\nend;\n\n',                    # underscore
+                'insert\n  # note\n  $e1 isa a;\nend;\n\n',          # comment
+                'insert\n  $e1 isa a;\n\n  $e2 isa a;\nend;\n\n',    # blank line inside a query
+                'insert\n  $e1 isa a, has size 1e-07;\nend;\n\n',     # exponent
+                'insert\n  $e1 isa a;\n\n',                          # no end;
+                'insert\n' + '  $e1 isa a;\n' * 6000 + 'end;\n\n'):  # over the size limit
         assert export_check.syntax_problems({**ok, "data.tql": bad}), bad
 
 

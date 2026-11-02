@@ -175,7 +175,7 @@ open panels) downloads `noodlelab-vehicle-typedb-model.zip`:
 | File | Content |
 |---|---|
 | `schema.tql` | the complete schema with all functions, exactly as TypeDB returns it (`database.schema()`) |
-| `data.tql` | every entity and relation with its attributes and role players, as one `insert`, with generated variables (`$e1`, `$r1`...); each part's id stays its `component-id` value |
+| `data.tql` | every entity and relation with its attributes and role players, as 9 queries of under 60 KB, each ended by `end;`: entities first, then relations in pipelines that look up at most 8 parts per step; generated variables (`$e1`, `$r1`...); each part's id stays its `component-id` value |
 | `README.md` | loading with TypeDB Console or the Python driver, and six representative queries |
 
 **How it is made:**
@@ -248,6 +248,43 @@ databases. It now sorts first, so the answer is the same on any copy.
     found it identical to the source on every check above.
 - **Regression test:** `api/tests/test_export.py` does that full import from the served ZIP. It also has a syntax
   check that fails on hyphenated or underscored variables, comments, blank lines or exponents.
+
+### Second fix: TQL03 in TypeDB Studio, on another server
+
+- **Root cause (confirmed from the full error):**
+  - `data.tql` was one 446 KB `insert` query. The server Studio was connected to received only its first
+    105,736 bytes.
+  - The error excerpt stops exactly there, mid-relation after `affected-function:`, where the parser expected a
+    variable and found the end of the text.
+  - The same files load on this project's server through the driver, Console and the HTTP interface, which take
+    the whole query.
+- **Fix:** `data.tql` is now 9 queries, each under 60 KB and ended by `end;`:
+  - two `insert` batches of entities;
+  - seven relation queries.
+  - With `end;`, Console runs them one by one. Without it, it sends the whole file as one query.
+  - The README's Python steps split the file at blank lines.
+  - The README now has steps for Studio too: run the 9 queries in order in one write transaction.
+- **A second problem found on the way:**
+  - The first batched version began each relation query with one `match` that looked up about 250 parts. TypeDB
+    plans such a query slowly: 80 lookups take about 1 s, and 250 took **120 s and 3.5 GB of memory**.
+  - That load made this server restart once during testing. The app's `vehicle` database was unaffected.
+  - Relation queries are now pipelines of small steps: look up at most 8 new parts, insert the relations that use
+    them, repeat.
+  - Each query takes 1-2 s and the server stays at a few hundred MB.
+- **Validation of the ZIP downloaded through the button**, by three routes, each into a fresh database:
+  - **TypeDB Console 3.14.0** with the README's commands: 9 queries, 10 s.
+  - **The HTTP interface Studio uses**, one query at a time in one write transaction: 10 s.
+  - **The README's Python steps.**
+  - **Results, all three:**
+    - 423 components, 676 connections, 396 dependencies, 30 assemblies and 91 functions equal;
+    - every instance and the schema identical;
+    - all ten explorer answers identical;
+    - all six README queries answering.
+- **Tests:** the regression test imports the served ZIP with the README's steps and checks:
+  - every query is under 60 KB;
+  - every query ends with `end;`;
+  - plain variables only;
+  - no comments, blank lines inside queries or exponents.
 
 ## Outstanding
 

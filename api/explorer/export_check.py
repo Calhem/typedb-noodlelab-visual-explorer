@@ -37,15 +37,26 @@ def unzip(data):
 
 
 def syntax_problems(files):
-    """Generated syntax that a strict TypeQL parser could reject."""
+    """Generated syntax that a strict or size-limited TypeQL client could reject: data.tql must be queries
+    separated by blank lines, each under export.MAX_QUERY_BYTES and starting with insert or match, with plain
+    variables (letters and digits), no comments and no exponent numbers; schema.tql must have no blank lines."""
     data, problems = files["data.tql"], []
+    queries = [q for q in data.split("\n\n") if q.strip()]
+    if not queries:
+        problems.append("data.tql has no queries")
+    for n, q in enumerate(queries, 1):
+        if len(q.encode()) > export.MAX_QUERY_BYTES:
+            problems.append(f"data.tql query {n} is {len(q.encode())} bytes")
+        if not q.lstrip("\n").startswith(("insert", "match")):
+            problems.append(f"data.tql query {n} does not start with insert or match")
+        if not q.rstrip().endswith("end;"):
+            problems.append(f"data.tql query {n} does not end with end;")
     outside_strings = re.sub(r'"(?:[^"\\]|\\.)*"', '""', data)
     bad = sorted(set(v for v in re.findall(r"\$[^\s,;():]+", outside_strings) if not re.fullmatch(r"\$[a-z][a-z0-9]*", v)))
     if bad:
         problems.append(f"variables that are not plain letters and digits: {bad[:5]}")
-    for name in ("schema.tql", "data.tql"):
-        if any(not line.strip() for line in files[name].splitlines()):
-            problems.append(f"{name} has blank lines")
+    if any(not line.strip() for line in files["schema.tql"].splitlines()):
+        problems.append("schema.tql has blank lines")
     if "#" in outside_strings:
         problems.append("data.tql has comments")
     if re.search(r"(?<![\w$])\d+(\.\d+)?[eE][-+]?\d", outside_strings):
