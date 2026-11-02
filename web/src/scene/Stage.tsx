@@ -6,7 +6,7 @@ import { CameraControls, ContactShadows, Environment, Lightformer, PerformanceMo
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, N8AO, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import { memo, Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { explodedVolume } from "./framing";
 import { progress } from "./progress";
@@ -217,7 +217,7 @@ function Effects({ tier }: { tier: Tier }) {
   );
 }
 
-export function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect, onHover }: {
+export const Stage = memo(function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect, onHover }: {
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
@@ -260,4 +260,4 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, insets,
       <PerformanceMonitor flipflops={1} onDecline={() => quality.stepDown()} />
     </Canvas>
   );
-}
+});

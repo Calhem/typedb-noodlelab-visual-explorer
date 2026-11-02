@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage } from "./scene/Stage";
 import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
 import { useAnswer } from "./semantic/useAnswer";
@@ -54,10 +54,10 @@ export function App() {
   const [overlayEdge, setOverlayEdge] = useState<{ right: number; bottom: number } | null>(null);
   const onOverlayEdge = useCallback((edge: { right: number; bottom: number } | null) => setOverlayEdge((e) =>
     e && edge && Math.abs(e.right - edge.right) < 1 && Math.abs(e.bottom - edge.bottom) < 1 ? e : edge), []);
-  const select = (id: string | null) => {
+  const select = useCallback((id: string | null) => {
     setSelectedId(id);
     if (id) setLastChoice("component");
-  };
+  }, []);
   useEffect(() => { if (focus) setLastChoice("focus"); }, [focus]);
   // The part under the pointer, named from TypeDB's component list (asked once, when exploring starts).
   const [hovered, setHovered] = useState<string | null>(null);
@@ -70,6 +70,10 @@ export function App() {
     window.addEventListener("pointermove", move);
     return () => window.removeEventListener("pointermove", move);
   }, []);
+  // Stable props for the 3D stage, so the scene doesn't re-render when unrelated parts of the page change.
+  const hasOverlay = exploring && !typeqlCollapsed && (selectedId !== null || focus !== null);
+  const insets = useMemo(() => ({ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0,
+    overlay: hasOverlay ? overlayEdge : null }), [exploring, exploreOpen, selectedId, hasOverlay, overlayEdge]);
   const overlay: OverlayContext | null = lastChoice === "component" && selectedId ? { kind: "component", id: selectedId }
     : focus ? { kind: "focus", focus } : selectedId ? { kind: "component", id: selectedId } : null;
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
@@ -91,8 +95,7 @@ export function App() {
       <div className="canvas">
         <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
           highlight={focus?.ids ?? null} onSelect={select} onHover={setHovered}
-          insets={{ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0,
-            overlay: exploring && overlay && !typeqlCollapsed ? overlayEdge : null }} />
+          insets={insets} />
       </div>
 
       <header className="brand">
