@@ -417,3 +417,39 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
   .model-download button { font-size: 11px; padding: 5px 10px; }
   .panel-is-open .model-download, .explore-is-open .model-download { display: none; }
 }
+
+/* ---- Introduction (Phase E): the road scene ---- */
+/* A soft shade at the top and lower left, so the white text reads over the bright landscape; it fades with it. */
+.canvas::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.2s var(--ease);
+  background:
+    linear-gradient(180deg, rgba(4, 6, 8, 0.42) 0%, rgba(4, 6, 8, 0) 18%),
+    radial-gradient(120% 90% at 0% 100%, rgba(4, 6, 8, 0.62) 0%, rgba(4, 6, 8, 0.25) 38%, rgba(4, 6, 8, 0) 62%);
+}
+.stage-road .canvas::after { opacity: 1; }
+.stage-road .brand, .stage-road .disclaimer, .stage-road .typedb-status { color: rgba(238, 240, 242, 0.85); text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35); }
+.stage-road .intro p { color: rgba(238, 240, 242, 0.86); }
+.stage-road .intro h1 { text-shadow: 0 2px 24px rgba(0, 0, 0, 0.25); }
+.intro-actions { display: flex; align-items: center; gap: 18px; }
+.intro button.begin {
+  font-size: 15px; letter-spacing: 0.06em; padding: 13px 34px;
+  background: rgba(10, 12, 15, 0.55); border: 1px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.intro button.begin:hover, .intro button.begin:focus-visible { border-color: var(--accent); background: rgba(10, 12, 15, 0.7); }
+.intro button.skip {
+  padding: 6px 2px; border: 0; background: none; font-size: 13px; color: rgba(238, 240, 242, 0.78);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(238, 240, 242, 0.35);
+}
+.intro button.skip:hover, .intro button.skip:focus-visible { color: #fff; background: none; text-decoration-color: var(--accent); }
+.stage-begin .intro { opacity: 0; transform: translateY(12px); pointer-events: none; }
+/* Reduced motion: Begin cuts to the studio behind a short fade. */
+.cut { position: fixed; inset: 0; background: var(--bg); z-index: 10; pointer-events: none; animation: cut 0.7s ease both; }
+@keyframes cut { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 640px) {
+  .intro button.begin { padding: 12px 28px; }
+  .stage-road .canvas::after {
+    background: linear-gradient(180deg, rgba(4, 6, 8, 0.4) 0%, rgba(4, 6, 8, 0) 16%),
+      linear-gradient(0deg, rgba(4, 6, 8, 0.7) 0%, rgba(4, 6, 8, 0.2) 34%, rgba(4, 6, 8, 0) 50%);
+  }
+}

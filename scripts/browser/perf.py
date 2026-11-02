@@ -46,7 +46,7 @@ for tier in os.environ.get("PERF_TIERS", "high,medium").split(","):
     b = Browser(SP + "/profile")
     b.call("Page.navigate", url=f"http://127.0.0.1:5180/?quality={tier}&{os.environ.get('PERF_QUERY', '')}")
     b.js("for (let i=0;i<60 && !(window.__vx && window.__select);i++) await new Promise(r=>setTimeout(r,500)); " + MEASURE + " await __wait(1500); return 1;")
-    b.js("await __click('button', 'Explore the vehicle', 3000); document.querySelector('.explore .panel-close')?.click(); await __wait(1500); return 1;")
+    b.js("await __click('button', 'Skip intro', 3000); document.querySelector('.explore .panel-close')?.click(); await __wait(1500); return 1;")
     r = {}
     r["assembled, explorer closed"] = b.js("return await __frames();")
     b.js("await __click('button', 'Explore TypeDB', 1500); await __click('.tree-row', 'Braking', 2500); return 1;")

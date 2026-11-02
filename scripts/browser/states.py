@@ -20,7 +20,7 @@ window.__click = async (sel, text, wait = 1500) => {
   let el; for (let i = 0; i < 50 && !el; i++) { el = [...document.querySelectorAll(sel)].find(e => e.textContent.includes(text)); if (!el) await __wait(200); }
   if (!el) throw new Error('not found: ' + sel + ' / ' + text);
   el.scrollIntoView({block:'center'}); el.click(); await __wait(wait); };
-await __wait(1500); await __click('button', 'Explore the vehicle', 3000); return 1;""")
+await __wait(1500); await __click('button', 'Skip intro', 3000); return 1;""")
 states = [
     ("selection", "__select('caliper-fr'); await __wait(3000);"),
     ("system", "document.querySelector('aside.panel .panel-close')?.click(); await __click('.explore-tabs button', 'Systems'); await __click('.tree-row', 'Braking', 2500);"),

@@ -22,7 +22,7 @@ window.__until = async (fn, ms = 15000) => { const t = performance.now(); while 
 """
 print(b.js("for (let i=0;i<60 && !(window.__vx && window.__select);i++) await new Promise(r=>setTimeout(r,500)); " + HELP + " await __wait(1500); return 'ready';"))
 steps = [
-    ("explorer-battery-management", "await __click('button', 'Explore the vehicle', 2500); await __click('.explore-tabs button', 'Systems', 800); await __click('.tree-row', 'Battery management', 2500);"),
+    ("explorer-battery-management", "await __click('button', 'Skip intro', 2500); await __click('.explore-tabs button', 'Systems', 800); await __click('.tree-row', 'Battery management', 2500);"),
     ("explorer-junction-box", "await __click('.explore-tabs button', 'Assemblies', 1200); await __click('.tree-row', 'Electric powertrain', 1500); await __click('.detail .chip', 'High-voltage battery', 1500); await __click('.detail .chip', 'Battery junction box', 2500);"),
     ("explorer-cell-monitor", "await __click('.explore-tabs button', 'Types', 1200); await __click('.tree-row', 'Cell monitor', 2500);"),
     ("explorer-single-failures", "await __click('.explore-tabs button', 'Questions', 1200); await __click('.question', 'single failures', 600); await __until(() => document.querySelector('.questions li.open')?.textContent.includes('drive torque at all four'), 30000); await __wait(1500);"),

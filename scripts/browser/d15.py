@@ -20,7 +20,7 @@ window.__click = async (sel, text, wait = 1500, exact = false) => {
   const el = [...document.querySelectorAll(sel)].find(e => exact ? e.firstElementChild?.textContent === text : e.textContent.includes(text));
   if (!el) throw new Error('no ' + text); el.click(); await __wait(wait); };
 window.__clear = async () => { document.querySelector('.focus-bar .link')?.click(); __select(null); await __wait(800); };
-await __click('button', 'Explore the vehicle', 3000); return 1;""")
+await __click('button', 'Skip intro', 3000); return 1;""")
 
 
 def shot(name, p=0, turn=-0.5, polar=1.40):

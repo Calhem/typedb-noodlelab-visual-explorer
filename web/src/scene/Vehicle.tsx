@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { buildExplosionPlan, explodedBounds, partTransform } from "../vehicle/explode";
 import type { Vec3 } from "../vehicle/shapes";
 import { externalParts } from "./assets";
+import { DRIVE_DISTANCE, intro, wheelAngle } from "./intro";
 import { buildVehicle } from "./buildVehicle";
 import { setExplodedVolume } from "./framing";
 import { progress } from "./progress";
@@ -37,6 +38,20 @@ export function Vehicle({ selectedId, highlight, onSelect, onHover }: {
     return plan;
   }, [built, loaded]);
   const applied = useRef(-1);
+
+  // The parts that turn with each wheel while the car drives in (tyre, rim, nuts, disc, hub): each turns about its
+  // corner's axle, which runs through the tyre's centre along the vehicle's sideways (z) axis.
+  const rolling = useMemo(() => {
+    const ROLLS = /^(tyre|wheel|wheel-nut|brake-disc|hub|hub-nut)-((f|r)(l|r))(-\d+)?$/;
+    const centres = new Map(built.filter((b) => b.id.startsWith("tyre-")).map((b) => [b.id.slice(5), b.position.clone()]));
+    return built.flatMap((b) => {
+      const m = ROLLS.exec(b.id);
+      const pivot = m && centres.get(m[2]);
+      return pivot ? [{ b, pivot, base: new THREE.Quaternion().setFromEuler(b.rotation) }] : [];
+    });
+  }, [built]);
+  const rolled = useRef(0);
+  const turn = useMemo(() => ({ q: new THREE.Quaternion(), axis: new THREE.Vector3(0, 0, 1), v: new THREE.Vector3() }), []);
 
   useEffect(
     () => () => {
@@ -92,6 +107,16 @@ export function Vehicle({ selectedId, highlight, onSelect, onHover }: {
 
   useFrame((_, dt) => {
     progress.tick(Math.min(dt, 0.1));
+    // Rolling wheels during the introduction (the explosion is at rest then).
+    const angle = intro.stage === "studio" ? 0 : wheelAngle(DRIVE_DISTANCE - intro.distance);
+    if (angle !== rolled.current && progress.value === 0) {
+      rolled.current = angle;
+      turn.q.setFromAxisAngle(turn.axis, angle);
+      for (const { b, pivot, base } of rolling) {
+        b.object.position.copy(turn.v.copy(b.position).sub(pivot).applyQuaternion(turn.q).add(pivot));
+        b.object.quaternion.copy(turn.q).multiply(base);
+      }
+    }
     const p = progress.value;
     if (p === applied.current) return;
     applied.current = p;

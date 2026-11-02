@@ -9,20 +9,74 @@ import { ToneMappingMode } from "postprocessing";
 import { memo, Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { explodedVolume } from "./framing";
+import { BEGIN_SECONDS, DRIVE_SECONDS, easeInOut, intro, STUDIO_TURN, useIntroStage } from "./intro";
+import { Landscape } from "./Landscape";
 import { progress } from "./progress";
 import { HALF_RES_AO_ABOVE, quality, settings, useQualityTier, type Tier } from "./settings";
 import { Vehicle } from "./Vehicle";
 
-function Turntable({ spinning, children }: { spinning: boolean; children: React.ReactNode }) {
+/** The car's turntable: pointing along the road during the introduction, turned to the studio angle by Begin's
+ * transition, and left alone in the studio (the review tools turn it). */
+function Turntable({ children }: { children: React.ReactNode }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => {
-    if (spinning && ref.current) ref.current.rotation.y += dt * 0.09;
+  const settled = useRef(false);
+  useFrame(() => {
+    if (!ref.current) return;
+    if (intro.stage !== "studio") {
+      ref.current.rotation.y = STUDIO_TURN * intro.studio;
+      settled.current = false;
+    } else if (!settled.current) {
+      ref.current.rotation.y = STUDIO_TURN;
+      settled.current = true;
+    }
   });
   return (
-    <group ref={ref} name="turntable" rotation={[0, -0.5, 0]}>
+    <group ref={ref} name="turntable" rotation={[0, intro.stage === "studio" ? STUDIO_TURN : 0, 0]}>
       {children}
     </group>
   );
+}
+
+type Controls = React.ComponentRef<typeof CameraControls>;
+
+/** Where the camera stands during the drive: low beside the road ahead of the car, looking down the road at it; the
+ * view tightens as the car approaches and settles on a front three-quarter view of the parked car. */
+const ROAD_CAMERA = { from: [11.5, 1.5, 9.0], to: [9.4, 1.15, 7.3], targetEnd: [0.1, 0.8, 0] } as const;
+const STUDIO_CAMERA = { position: [8.4, 1.75, 8.4], target: [0, 0.72, 0] } as const;
+
+/** Runs the introduction: the drive, the camera on the road, and Begin's flight into the studio. */
+function IntroDirector({ onArrive }: { onArrive: () => void }) {
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
+  const controls = useThree((s) => s.controls) as Controls | null;
+  const flying = useRef(false);
+  const arrived = useRef(intro.stage === "studio");
+  useFrame((_, dt) => {
+    intro.tick(Math.min(dt, 0.1));
+    const s = intro.studio;
+    // The far plane reaches the horizon on the road and closes in to the studio's.
+    const far = THREE.MathUtils.lerp(2200, 100, s);
+    if (Math.abs(camera.far - far) > 0.5) {
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
+    if (!controls || arrived.current) return;
+    if (intro.stage === "road") {
+      const k = easeInOut(Math.min(intro.driveTime / DRIVE_SECONDS, 1));
+      const p = ROAD_CAMERA.from.map((v, i) => THREE.MathUtils.lerp(v, ROAD_CAMERA.to[i], k));
+      // Look partway towards the approaching car, ending on the parked car.
+      const tx = THREE.MathUtils.lerp(-intro.distance * 0.55, ROAD_CAMERA.targetEnd[0], k * k);
+      controls.setLookAt(p[0], p[1], p[2], tx, ROAD_CAMERA.targetEnd[1], ROAD_CAMERA.targetEnd[2], false);
+    } else if (intro.stage === "begin" && !flying.current) {
+      flying.current = true;
+      controls.smoothTime = BEGIN_SECONDS * 0.32;
+      controls.setLookAt(...STUDIO_CAMERA.position, ...STUDIO_CAMERA.target, true);
+    } else if (intro.stage === "studio") {
+      arrived.current = true;
+      controls.smoothTime = 0.35;
+      onArrive();
+    }
+  });
+  return null;
 }
 
 /** Screen space taken by the side panels (CSS pixels), and where the TypeQL overlay ends (right and bottom edges;
@@ -217,16 +271,27 @@ function Effects({ tier }: { tier: Tier }) {
   );
 }
 
-export const Stage = memo(function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect, onHover }: {
+/** The car's place along the road: it drives in during the introduction and stops where the studio shows it. */
+function Drive({ children }: { children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(() => {
+    if (ref.current) ref.current.position.x = -intro.distance;
+  });
+  return <group ref={ref} name="drive">{children}</group>;
+}
+
+export const Stage = memo(function Stage({ exploring, selectedId, highlight, insets, onSelect, onHover, onArrive }: {
   exploring: boolean;
-  reducedMotion: boolean;
   selectedId: string | null;
   highlight: Map<string, "primary" | "secondary" | "degraded"> | null;
   insets: Insets;
   onSelect: (id: string | null) => void;
   onHover: (id: string | null) => void;
+  /** Begin's transition has reached the studio */
+  onArrive: () => void;
 }) {
   const tier = useQualityTier();
+  const stage = useIntroStage();
   return (
     <Canvas
       dpr={tier === "high" || tier === "medium" ? [1, 1.5] : 1}
@@ -244,14 +309,19 @@ export const Stage = memo(function Stage({ exploring, reducedMotion, selectedId,
       <directionalLight position={[3, 8, 2]} intensity={0.6} />
       <hemisphereLight args={["#cfd8e2", "#0b0c0f", 0.45]} />
       <CameraLights />
-      <Turntable spinning={!exploring && !reducedMotion}>
+      {stage !== "studio" && <Landscape />}
+      <IntroDirector onArrive={onArrive} />
+      <Turntable>
         <Suspense fallback={null}>
-          <group position={[0.04, 0, 0]}>
-            <Vehicle selectedId={selectedId} highlight={highlight} onSelect={exploring ? onSelect : () => {}}
-              onHover={exploring ? onHover : () => {}} />
-          </group>
-          {/* Soft shadow under the car. Captured once (after the car has loaded) and turned with it. */}
-          <ContactShadows position={[0, 0.001, 0]} opacity={0.8} scale={[6.5, 3.2]} blur={2.4} far={1.2} resolution={512} frames={1} color="#000000" />
+          <Drive>
+            <group position={[0.04, 0, 0]}>
+              <Vehicle selectedId={selectedId} highlight={highlight} onSelect={exploring ? onSelect : () => {}}
+                onHover={exploring ? onHover : () => {}} />
+            </group>
+            {/* Soft shadow under the car. Captured once (after the car has loaded); it travels and turns with the car.
+                Just above the road surface, so the road itself is not captured as a shadow. */}
+            <ContactShadows position={[0, 0.006, 0]} opacity={0.8} scale={[6.5, 3.2]} blur={2.4} far={1.2} resolution={512} frames={1} color="#000000" />
+          </Drive>
         </Suspense>
       </Turntable>
       <Controls exploring={exploring} />

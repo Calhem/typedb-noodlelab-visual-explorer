@@ -15,7 +15,7 @@ b = Browser(tempfile.mkdtemp() + "/profile")
 b.call("Page.navigate", url=f"http://127.0.0.1:5180/?quality={quality}")
 b.js(r"""for (let i=0;i<60 && !(window.__vx && window.__select);i++) await new Promise(r=>setTimeout(r,500));
 await new Promise(r=>setTimeout(r,1500));
-[...document.querySelectorAll('button')].find(e => e.textContent.includes('Explore the vehicle')).click();
+[...document.querySelectorAll('button')].find(e => e.textContent.includes('Skip intro')).click();
 await new Promise(r=>setTimeout(r,2500));
 document.querySelector('.explore .panel-close')?.click(); await new Promise(r=>setTimeout(r,1500));
 window.__corner = {};

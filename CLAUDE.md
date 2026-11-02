@@ -93,7 +93,7 @@ Also:
 The pane throttles animation when it is in the background, and screenshots can lag one frame.
 In development the app installs helpers (`web/src/scene/devtools.ts`): `window.__vx` (React Three Fiber
 state), `window.__vxProgress`, and `await __shot(progress, turntableAngle?, cameraPolarAngle?)`, which
-renders a settled frame. Call `__shot` twice before a screenshot. Click "Explore the vehicle" first.
+renders a settled frame. Call `__shot` twice before a screenshot. Click "Skip intro" first (or open the app with `?intro=off`).
 Emulated large viewports can freeze the pane; instead keep the pane's own size and call
 `__size(1440, 900, 1.5)` to render at a fixed resolution, `__focus(p, ids, azimuth, elevation, distance, only?)`
 for repeatable close-ups, and `await __save(name)` to write web/shots/<name>.jpg (git-ignored, includes the tier's effects), and

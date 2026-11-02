@@ -16,7 +16,7 @@ b.js(r"""for (let i=0;i<60 && !(window.__vx && window.__select);i++) await new P
 await new Promise(r=>setTimeout(r,1500));
 window.__wait = (ms) => new Promise(r => setTimeout(r, ms));
 window.__click = async (sel, text, wait = 1500) => { const el = [...document.querySelectorAll(sel)].find(e => e.textContent.includes(text)); if (!el) throw new Error('no ' + text); el.click(); await __wait(wait); };
-await __click('button', 'Explore the vehicle', 2500);
+await __click('button', 'Skip intro', 2500);
 document.querySelector('.explore .panel-close')?.click(); await __wait(1500); return 1;""")
 if lights:
     b.js("window.__lights?.(true); await __wait(500); return 1;")

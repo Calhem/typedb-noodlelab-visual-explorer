@@ -15,7 +15,7 @@ export function Scrubber({ reducedMotion }: { reducedMotion: boolean }) {
     if (reducedMotion) progress.set(dir > 0 ? 1 : 0);
     else progress.play(dir);
   };
-  const label = direction !== 0 ? "Pause" : towardsExploded ? "Explode" : "Assemble";
+  const label = direction !== 0 ? "Pause" : towardsExploded ? "Expand" : "Assemble";
   return (
     <div className="scrubber">
       <button type="button" className="scrub-play" onClick={onPlay} aria-label={label}>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { intro, useIntroStage } from "./scene/intro";
 import { Stage } from "./scene/Stage";
 import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
 import { useAnswer } from "./semantic/useAnswer";
@@ -40,10 +41,33 @@ function useTypeDBStatus() {
   return status;
 }
 
+// Returning users can skip the introduction from the address: ?intro=off opens straight in the studio.
+if (new URLSearchParams(window.location.search).get("intro") === "off") intro.skip();
+
+const noop = () => {};
+
 export function App() {
-  const [exploring, setExploring] = useState(false);
+  // The introduction (road, then Begin's transition) and the studio, where the explorer lives.
+  const stage = useIntroStage();
+  const exploring = stage === "studio";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  // With reduced motion the car is already parked, and Begin cuts to the studio (a short fade, no camera flight).
+  const [cut, setCut] = useState(false);
+  useEffect(() => { if (reducedMotion) intro.park(); }, [reducedMotion]);
+  const begin = useCallback(() => {
+    if (!reducedMotion) return intro.begin();
+    setCut(true);
+    setTimeout(() => intro.skip(), 250);
+    setTimeout(() => setCut(false), 700);
+  }, [reducedMotion]);
+  // Esc skips the introduction.
+  useEffect(() => {
+    if (stage === "studio") return;
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") intro.skip(); };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [stage]);
   const typedb = useTypeDBStatus();
   const { focus, error: focusError, pending, request, cancel, clear } = useFocus();
   const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
@@ -88,13 +112,13 @@ export function App() {
   }, [focus]);
   // Development only: select a part from the console, for repeatable checks (see CLAUDE.md).
   useEffect(() => {
-    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); if (id) setLastChoice("component"); } });
+    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { intro.skip(); setSelectedId(id); if (id) setLastChoice("component"); } });
   }, []);
 
   return (
-    <main className={`app${exploring ? " exploring" : ""}${exploring && exploreOpen ? " explore-is-open" : ""}${exploring && selectedId ? " panel-is-open" : ""}`}>
+    <main className={`app stage-${stage}${exploring ? " exploring" : ""}${exploring && exploreOpen ? " explore-is-open" : ""}${exploring && selectedId ? " panel-is-open" : ""}`}>
       <div className="canvas">
-        <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
+        <Stage exploring={exploring} onArrive={noop} selectedId={selectedId}
           highlight={focus?.ids ?? null} onSelect={select} onHover={setHovered}
           insets={insets} />
       </div>
@@ -108,13 +132,16 @@ export function App() {
         </span>
       </header>
 
-      <section className="intro" aria-hidden={exploring}>
+      <section className="intro" aria-hidden={stage !== "road"}>
         <h1>A vehicle is more than the sum of its parts.</h1>
         <p>Explore the structure of a complex system, powered by TypeDB.</p>
-        <button type="button" onClick={() => setExploring(true)} tabIndex={exploring ? -1 : 0}>
-          Explore the vehicle
-        </button>
+        <div className="intro-actions">
+          <button type="button" className="begin" onClick={begin} tabIndex={stage === "road" ? 0 : -1}>Begin</button>
+          <button type="button" className="skip" onClick={() => intro.skip()} tabIndex={stage === "road" ? 0 : -1}
+            title="Go straight to the explorer (or open the address with ?intro=off)">Skip intro</button>
+        </div>
       </section>
+      {cut && <div className="cut" aria-hidden />}
 
       {exploring && (focus || focusError) && (
         <div className={focusError ? "focus-bar error" : "focus-bar"} role="status">
