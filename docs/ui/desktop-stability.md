@@ -282,3 +282,82 @@ done it.
 1. The overlay hides the vehicle's rear end on laptops, as above.
 2. The overlay's part view now waits for three answers (part, relationships, schema) before it swaps. So it updates
    a few milliseconds later than the part panel.
+
+---
+
+# Final refinement: TypeQL presentation and vehicle framing (2 November 2026)
+
+**Status: for review. Not merged; Phase F not started.** Code commit 718cbea, compared with afa5e60.
+
+## What changed
+
+- **TypeQL is back on the studio's black,** with no box, border, rounded corners or panel background.
+  - Its position, narrower width, content order and behaviour are unchanged:
+    - open by default;
+    - the selected query and its timing first;
+    - schema with inheritance, query selectors and the app-side notes;
+    - longer content scrolls inside.
+  - Where the vehicle passes behind it, a feathered darkening keeps the text readable. It is 80% at the text and
+    fades to nothing 36–80 px outside it on every side, so there is no edge. The vehicle stays faintly visible
+    through it, and purple accents and syntax colours are untouched.
+  - The darkening only exists where the overlay is, so highlighted parts elsewhere are not dimmed.
+- **The vehicle moves right while the TypeQL is open,** by 0.4 of the overlay's slot (`OVERLAY_SHIFT` in
+  `web/src/scene/Stage.tsx`).
+  - Its size is unchanged: 53% of the width at 1280, 59% at 1440, 61% at 1512, 53% at 1920.
+  - Its front now reaches behind the part panel rather than the TypeQL.
+  - With no part panel open, the shift is capped so the vehicle never runs off the window.
+  - The slot comes from the overlay's styles, never its content or the selection, so clicking parts never moves
+    the camera.
+- **A camera glide now finishes on a step too small to see,** so each panel change is one movement. Before, a last
+  tiny snap about 2 s in counted as a second one.
+
+## Screenshots
+
+| | 1280x720 | 1512x982 |
+|---|---|---|
+| A part selected (Propulsion highlighted) | ![](final-1280x720-part.jpg) | ![](final-1512x982-part.jpg) |
+| A system selected | ![](final-1280x720-system.jpg) | ![](final-1512x982-system.jpg) |
+| A long query (12-volt battery failure impact) | ![](final-1280x720-long-query.jpg) | ![](final-1512x982-long-query.jpg) |
+| Exploded, a part selected | ![](final-1280x720-exploded.jpg) | ![](final-1512x982-exploded.jpg) |
+
+## Validation
+
+`scripts/browser/ui_stability.py` was run at 1280x720, 1440x900, 1512x982 (90%, 100% and 110% zoom) and 1920x1080.
+At every one:
+
+- **The query text is in view without scrolling:** for a part, a system and the longest query.
+- **Rapid switching** (ten selections, parts and systems, 0.3–0.8 s apart), assembled and exploded:
+  - the camera moved in **0 frames**;
+  - **0 frames** showed a loading state in the TypeQL or the part panel.
+- **One smooth glide per change:**
+  - collapsing or reopening the TypeQL (it now moves the vehicle, by design);
+  - minimising or restoring the part panel;
+  - closing or reopening the explorer.
+- **Expanding and assembling** follow the explosion as before.
+- **No control is outside the window.**
+
+| Viewport | Car (width × height) | Car width clear of the TypeQL and both panels | Exploded: clear of the TypeQL and panels |
+|---|---|---|---|
+| 1280x720 | 53% × 44% | 42% | 80% |
+| 1440x900 | 59% × 44% | 50% | 88% |
+| 1512x982 | 61% × 44% | 52% | 88% |
+| 1920x1080 | 53% × 44% | 70% | 100% |
+
+The share of the car covered has not changed. What moved is which part is covered: the front, behind the details
+panel, instead of the rear, behind the TypeQL.
+
+**Tests:** web 79 pass, plus the build; API 119; live TypeDB 7.
+
+**Performance** (high tier, 1440x900, three runs each, run twice in alternating order):
+
+| | afa5e60 | 718cbea |
+|---|---|---|
+| Frame, assembled / animating / exploded (medians, second pair) | 3.2–7.7 / 10.8–11.2 / 9.6–11.0 ms | 3.1–4.7 / 10.3–11.0 / 9.7–9.9 ms |
+| Triangles, draw calls, download | 1.44 M, 936, 17.24 MB | the same |
+| JavaScript (gzip) | 504.1 KB | 504.1 KB |
+| Selecting a part / highlighting a system (medians) | 58–64 / 81–87 ms | 61–64 / 80–105 ms |
+
+- **The first pair** measured the new version about 1–2 ms slower while animating. In the reverse order the
+  difference disappeared, so it was the machine's state, not the change.
+- **TypeQL execution** is unaffected; no query or API code changed.
+- **The model download** (`/api/export/model.zip`) returns its 3-file ZIP as before.
