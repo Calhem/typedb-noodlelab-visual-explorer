@@ -59,9 +59,12 @@ export function TypeQLOverlay({ context, collapsed, onCollapse, onSlot }: {
   // takes its place with a cross-fade. A newer selection replaces a pending one (whose requests are abandoned).
   const [shown, setShown] = useState<OverlayContext | null>(context);
   const same = keyOf(context) === keyOf(shown);
-  // The same selection again (perhaps with a fresh answer) shows the current context directly.
-  const views = [{ context: same ? context : shown, key: keyOf(shown), pending: false }];
-  if (!same) views.push({ context, key: keyOf(context), pending: true });
+  // A focus (system, assembly, type, question, failure) arrives with its answer complete, so it goes straight on
+  // screen; only a part's view, which still has to ask TypeDB, is prepared out of sight first.
+  const complete = !context || context.kind === "focus";
+  useEffect(() => { if (complete && !same) setShown(context); }, [complete, same, context]);
+  const views = complete || same ? [{ context, key: keyOf(context), pending: false }]
+    : [{ context: shown, key: keyOf(shown), pending: false }, { context, key: keyOf(context), pending: true }];
   return (
     <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view"
       aria-busy={views.length > 1}>
