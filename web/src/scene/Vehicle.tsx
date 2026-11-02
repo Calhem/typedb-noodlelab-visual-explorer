@@ -18,11 +18,13 @@ const COLOURS = { primary: new THREE.Color(theme.accent), secondary: new THREE.C
 const GLOW = { selected: theme.highlight.selectedGlow, primary: theme.highlight.primaryGlow, secondary: theme.highlight.secondaryGlow,
   degraded: theme.highlight.degradedGlow };
 
-export function Vehicle({ selectedId, highlight, onSelect }: {
+export function Vehicle({ selectedId, highlight, onSelect, onHover }: {
   selectedId: string | null;
   /** component ids to bring forward (a semantic focus), with their level; the rest is ghosted. null = no focus */
   highlight: Map<string, "primary" | "secondary" | "degraded"> | null;
   onSelect: (id: string | null) => void;
+  /** the part under the pointer (null when none) */
+  onHover: (id: string | null) => void;
 }) {
   const loaded = use(externalParts);
   const built = useMemo(() => buildVehicle(loaded.parts), [loaded]);
@@ -107,6 +109,7 @@ export function Vehicle({ selectedId, highlight, onSelect }: {
   const hover = (on: boolean) => (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     document.body.style.cursor = on ? "pointer" : "";
+    onHover(on ? ((e.object.userData.partId as string) ?? null) : null);
   };
 
   return (

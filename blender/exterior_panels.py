@@ -513,6 +513,7 @@ def build():
     parts["underbody"] = single("underbody", underbody(), "plastic-black", smooth=False)
     parts.update(details.build(body))  # lamps, roof sensor housings, mirrors and side cameras (D1.4)
     parts["grille"] = kit.join("grille", [parts["grille"], details.grille_slats(body)])
+    parts["rear-bumper"] = kit.join("rear-bumper", [parts["rear-bumper"], details.rear_bumper_trim(body)])  # D1.5
 
     inside_check(body, parts)
     keep = set(parts.values())

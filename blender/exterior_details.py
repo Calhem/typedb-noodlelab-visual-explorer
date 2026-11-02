@@ -242,6 +242,49 @@ def shark_fin(bvh: BVHTree) -> bpy.types.Object:
 
 # ---- mirrors and side cameras ---------------------------------------------------------------------------------------
 
+MIRROR_BACK = 0.026   # the head's flat back, behind its centre (app x)
+
+
+def mirror_head(head: Vector, side: int, width: float) -> bmesh.types.BMesh:
+    """A sculpted mirror head: a loft of rounded sections across its width, a full rounded front and a flat back
+    (where the glass sits), growing from a slimmer inboard end (by the arm) to a fuller outboard end that sweeps
+    slightly forward, with rounded end caps. Blender axes: x = app x (forward), y = -app z, z = app y (up)."""
+    bm = bmesh.new()
+    nu, nt = 28, 36
+    out = -side                                     # Blender y direction of the outboard end
+    rings = []
+    for i in range(nu + 1):
+        t = 0.5 - 0.5 * math.cos(math.pi * i / nu)  # denser towards the ends
+        cap = max(1.0 - abs(2 * t - 1) ** 5, 0.0) ** (1 / 5)
+        s = max(cap, 0.06)
+        h = (0.072 + 0.024 * d13.smooth(t)) * s     # height
+        front = (0.044 + 0.012 * d13.smooth(t)) * s
+        back = MIRROR_BACK * s
+        cx = head.x + 0.012 * t - 0.006 + (1 - s) * 0.004
+        cy = head.y + out * (t - 0.5) * width
+        cz = head.z + 0.004 * t
+        ring = []
+        for j in range(nt):
+            a = 2 * math.pi * j / nt
+            c, sn = math.cos(a), math.sin(a)
+            e = 2 / 3.0 if c >= 0 else 2 / 9.0     # front rounded, back nearly flat
+            x = (front if c >= 0 else back) * math.copysign(abs(c) ** e, c)
+            z = h / 2 * math.copysign(abs(sn) ** (2 / 3.2), sn)
+            ring.append(bm.verts.new((cx + x, cy, cz + z)))
+        rings.append(ring)
+    for i in range(nu):
+        for j in range(nt):
+            a, b = rings[i][j], rings[i][(j + 1) % nt]
+            c, d = rings[i + 1][(j + 1) % nt], rings[i + 1][j]
+            bm.faces.new((a, b, c, d))
+    for ring in (rings[0], rings[-1]):
+        centre = bm.verts.new(sum((v.co for v in ring), Vector()) / nt)
+        for j in range(nt):
+            bm.faces.new((ring[j], ring[(j + 1) % nt], centre))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return bm
+
+
 def mirror(bvh: BVHTree, side: int) -> dict[str, bpy.types.Object]:
     """The head (gloss black, mirror glass facing back) on a slim arm from the door's front upper corner. side: +1
     is the right (app +z)."""
@@ -250,15 +293,10 @@ def mirror(bvh: BVHTree, side: int) -> dict[str, bpy.types.Object]:
     base, n = got
     head = Vector(app(0.80, 1.115, side * 1.055))
     sx, sy, sz = 0.072, 0.092, 0.19  # app x (depth), y (height), z (width)
-    shell = kit.box(sx, sz, sy)  # Blender: x, y (= -app z), z (= app y)
-    o = kit.new_object("mirror-head", shell, "gloss-black")
-    o.location = head
-    o = kit.bevel(o, 0.024, 4, 30.0)
-    head_bm = bmesh.new()
-    head_bm.from_mesh(o.data)
-    kit.transform(head_bm, Matrix.Translation(head))
-    bpy.data.objects.remove(o)
-    glass = kit.transform(kit.box(0.004, sz - 0.03, sy - 0.026), Matrix.Translation(head - Vector((sx / 2 + 0.0005, 0, 0))))
+    head_bm = mirror_head(head, side, sz)
+    # the glass: a plate in the head's flat back, smaller than the back so a rim of the shell shows round it
+    back = head.x - MIRROR_BACK - 0.0005
+    glass = kit.transform(kit.box(0.003, sz * 0.74, 0.064), Matrix.Translation(Vector((back, head.y + side * 0.006, head.z + 0.002))))
     inner = head + Vector((0.004, side * (sz / 2 - 0.03), -0.012))  # Blender y is -app z: the head's inboard end
     arm = kit.rod(base + n * 0.004, inner, 0.0125, 20, 0.010)
     foot = kit.transform(kit.box(0.07, 0.05, 0.012), Matrix.Translation(base + n * 0.004) @ kit.align_z(n))
@@ -271,6 +309,18 @@ def mirror(bvh: BVHTree, side: int) -> dict[str, bpy.types.Object]:
     lens = kit.transform(kit.cylinder(0.0065, 0.002, 24), Matrix.Translation(spot + look * 0.0065) @ kit.align_z(look))
     cam = _obj(f"side-camera-{k}", [(bezel, "plastic-black"), (lens, "camera-lens")])
     return {f"mirror-{k}": m, f"side-camera-{k}": cam}
+
+
+def rear_bumper_trim(body: bpy.types.Object) -> bpy.types.Object:
+    """Breaks up the rear bumper's satin-black face: a slim red reflector at each corner and a fine gloss-black
+    accent line across the bumper above the diffuser. Part of the rear bumper (reflectors are moulded into it)."""
+    bvh = BVHTree.FromObject(body, bpy.context.evaluated_depsgraph_get())
+    pieces = []
+    for side in (1, -1):
+        f = Face(bvh, False, side)
+        pieces.append((f.pillow(36.0, 58.0, 0.505, 0.517, 0.0004, 0.0035, na=16, ny=1), "reflector"))
+        pieces.append((f.pillow(0.0, 30.0, 0.426, 0.433, 0.0004, 0.0025, na=24, ny=1), "gloss-black"))
+    return _obj("rear-bumper-trim", pieces)
 
 
 def grille_slats(body: bpy.types.Object) -> bpy.types.Object:

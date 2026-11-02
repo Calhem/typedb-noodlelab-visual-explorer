@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Stage } from "./scene/Stage";
 import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
+import { useAnswer } from "./semantic/useAnswer";
 import { ComponentPanel } from "./ui/ComponentPanel";
 import { Explore, type ExploreTab } from "./ui/Explore";
 import { useFocus } from "./ui/focus";
@@ -58,6 +59,17 @@ export function App() {
     if (id) setLastChoice("component");
   };
   useEffect(() => { if (focus) setLastChoice("focus"); }, [focus]);
+  // The part under the pointer, named from TypeDB's component list (asked once, when exploring starts).
+  const [hovered, setHovered] = useState<string | null>(null);
+  const listing = useAnswer(exploring ? "components" : null, (s) => semantic.components(s));
+  const names = listing.state?.status === "ok" ? listing.state.answer.data : null;
+  const hoverName = hovered && names ? names.find((c) => c.id === hovered)?.name ?? null : null;
+  const tip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const move = (e: PointerEvent) => { if (tip.current) tip.current.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 16}px)`; };
+    window.addEventListener("pointermove", move);
+    return () => window.removeEventListener("pointermove", move);
+  }, []);
   const overlay: OverlayContext | null = lastChoice === "component" && selectedId ? { kind: "component", id: selectedId }
     : focus ? { kind: "focus", focus } : selectedId ? { kind: "component", id: selectedId } : null;
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
@@ -75,10 +87,10 @@ export function App() {
   }, []);
 
   return (
-    <main className={`app${exploring ? " exploring" : ""}${exploring && exploreOpen ? " explore-is-open" : ""}`}>
+    <main className={`app${exploring ? " exploring" : ""}${exploring && exploreOpen ? " explore-is-open" : ""}${exploring && selectedId ? " panel-is-open" : ""}`}>
       <div className="canvas">
         <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
-          highlight={focus?.ids ?? null} onSelect={select}
+          highlight={focus?.ids ?? null} onSelect={select} onHover={setHovered}
           insets={{ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0,
             overlay: exploring && overlay && !typeqlCollapsed ? overlayEdge : null }} />
       </div>
@@ -133,8 +145,12 @@ export function App() {
           onClose={() => setSelectedId(null)} />
       )}
 
-      {exploring && overlay && <TypeQLOverlay context={overlay} collapsed={typeqlCollapsed} onCollapse={setTypeqlCollapsed}
+      {exploring && <TypeQLOverlay context={overlay} collapsed={typeqlCollapsed} onCollapse={setTypeqlCollapsed}
         onEdge={onOverlayEdge} />}
+
+      <div ref={tip} className={hoverName && hovered !== selectedId ? "hover-tip shown" : "hover-tip"} aria-hidden>
+        {hoverName}{hoverName && <span> · click for its TypeDB details</span>}
+      </div>
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

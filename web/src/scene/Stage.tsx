@@ -49,15 +49,20 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
     // On narrow (portrait) screens, widen the lens so the whole car still fits across.
     const baseFov = aspect >= 1.4 ? 24 : Math.min(55, (24 * 1.4) / aspect);
     let dx = 0, down = 0, fit = 1;
-    if (exploring && W >= 640) {
+    if (exploring) {
       // How much of the window the vehicle takes with the base lens: assembled about 45% of its width and
       // height (from any angle, with a margin); fully exploded about 55% of the width and nearly all the height.
       const e = 1 - Math.pow(1 - progress.value, 2.5);
-      const need = { w: W * THREE.MathUtils.lerp(0.46, 0.56, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
-      const x0 = insets.left, x1 = W - insets.right, y1 = H - CONTROLS;
+      // On phones the panels cover the whole width (as sheets), so only the overlay above counts, and the wider
+      // portrait lens makes the vehicle span the width but little of the height.
+      const phone = W < 640;
+      const need = phone
+        ? { w: W * 0.92, h: H * THREE.MathUtils.lerp(0.26, 0.8, e) }
+        : { w: W * THREE.MathUtils.lerp(0.46, 0.56, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
+      const x0 = phone ? 0 : insets.left, x1 = W - (phone ? 0 : insets.right), y1 = H - (phone ? 120 : CONTROLS);
       const o = insets.overlay;
       const areas = o
-        ? [{ x0, x1, y0: Math.max(o.bottom, BRAND), y1 }, { x0: Math.max(x0, o.right), x1, y0: BRAND, y1 }]
+        ? [{ x0, x1, y0: Math.max(o.bottom, BRAND), y1 }, ...(phone ? [] : [{ x0: Math.max(x0, o.right), x1, y0: BRAND, y1 }])]
         : [{ x0, x1, y0: BRAND, y1 }];
       const fits = areas.map((a) => Math.max(need.w / Math.max(a.x1 - a.x0, 1), need.h / Math.max(a.y1 - a.y0, 1), 1));
       const best = fits[0] <= fits[1] || fits.length === 1 ? 0 : 1;
@@ -66,7 +71,7 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
       dx = (a.x0 + a.x1) / 2 - W / 2;
       down = (a.y0 + a.y1) / 2 - H / 2;
     }
-    const target = exploring ? (W < 640 ? 0 : shift(dx)) : W < 900 ? 0 : -3.2;
+    const target = exploring ? shift(dx) : W < 900 ? 0 : -3.2;
     const next = THREE.MathUtils.damp(cam.filmOffset, target, 3, dt);
     const wanted = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov / 2)) * fit));
     const fov = Math.abs(wanted - cam.fov) < 0.01 ? wanted : THREE.MathUtils.damp(cam.fov, wanted, 3, dt);
@@ -212,13 +217,14 @@ function Effects({ tier }: { tier: Tier }) {
   );
 }
 
-export function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect }: {
+export function Stage({ exploring, reducedMotion, selectedId, highlight, insets, onSelect, onHover }: {
   exploring: boolean;
   reducedMotion: boolean;
   selectedId: string | null;
   highlight: Map<string, "primary" | "secondary" | "degraded"> | null;
   insets: Insets;
   onSelect: (id: string | null) => void;
+  onHover: (id: string | null) => void;
 }) {
   const tier = useQualityTier();
   return (
@@ -241,7 +247,8 @@ export function Stage({ exploring, reducedMotion, selectedId, highlight, insets,
       <Turntable spinning={!exploring && !reducedMotion}>
         <Suspense fallback={null}>
           <group position={[0.04, 0, 0]}>
-            <Vehicle selectedId={selectedId} highlight={highlight} onSelect={exploring ? onSelect : () => {}} />
+            <Vehicle selectedId={selectedId} highlight={highlight} onSelect={exploring ? onSelect : () => {}}
+              onHover={exploring ? onHover : () => {}} />
           </group>
           {/* Soft shadow under the car. Captured once (after the car has loaded) and turned with it. */}
           <ContactShadows position={[0, 0.001, 0]} opacity={0.8} scale={[6.5, 3.2]} blur={2.4} far={1.2} resolution={512} frames={1} color="#000000" />

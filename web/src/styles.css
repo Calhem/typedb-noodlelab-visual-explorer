@@ -283,7 +283,10 @@ html, body, #root { margin: 0; height: 100%; overflow: hidden; background: var(-
   .panel { top: auto; bottom: 84px; left: 12px; right: 12px; width: auto; max-height: 52vh; }
   .explore { left: 12px; right: 12px; width: auto; bottom: 84px; top: 84px; }
   .explore-open { top: 48px; left: 16px; }
-  .focus-bar { bottom: auto; top: 48px; white-space: normal; }
+  .focus-bar { bottom: 74px; padding: 5px 12px; font-size: 12px; max-width: calc(100% - 24px); }
+  .focus-bar > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  .focus-key { display: none; }
+  .explore-is-open .focus-bar { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -369,11 +372,28 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
 .tq-block.app ul { margin: 3px 0 0; padding-left: 14px; color: var(--ink-dim); font-size: 11.5px; }
 .tq-block.app li { margin: 1px 0; }
 .tq-note { margin: 4px 0; color: var(--ink-dim); }
+/* Both side panels open on a narrower screen: a smaller overlay, so the vehicle keeps room below it. */
+@media (max-width: 1500px) {
+  .explore-is-open.panel-is-open .tq-overlay { width: min(440px, calc(100vw - 380px - 410px)); max-height: 42vh; }
+}
 @media (max-width: 1100px) {
   .explore-is-open .tq-overlay { left: 32px; top: auto; bottom: 150px; width: min(420px, calc(100vw - 64px)); max-height: 34vh; }
 }
 @media (max-width: 640px) {
-  .tq-overlay, .explore-is-open .tq-overlay { left: 16px; right: 16px; width: auto; top: 76px; bottom: auto; max-height: 40vh; }
+  .tq-overlay, .explore-is-open .tq-overlay { left: 16px; right: 16px; width: auto; top: 92px; bottom: auto; max-height: 38vh; }
   .explore-is-open .tq-overlay { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .tq-body { animation: none; } }
+
+/* The part under the pointer: its name from TypeDB, next to the cursor. */
+.hover-tip {
+  position: fixed; left: 0; top: 0; pointer-events: none; z-index: 5; white-space: nowrap;
+  padding: 4px 9px; border-radius: 6px; font-size: 11.5px; color: var(--ink);
+  background: rgba(10, 12, 15, 0.82); border: 1px solid rgba(var(--accent-rgb), 0.35);
+  opacity: 0; transition: opacity 0.15s;
+}
+.hover-tip span { color: var(--ink-faint); }
+.hover-tip.shown { opacity: 1; }
+@media (hover: none) { .hover-tip { display: none; } }
+.tq-idle { max-width: 300px; color: var(--ink-faint); font-size: 12px; }
+.tq-overlay:has(.tq-idle) { background: none; }

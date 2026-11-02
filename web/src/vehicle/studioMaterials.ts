@@ -215,6 +215,8 @@ export function createStudioMaterials(textures: StudioTextures = createStudioTex
     ["tail-lamp", m({ color: c("#6e0f14"), roughness: 0.2, emissive: c("#ff1a24"), emissiveIntensity: 0.05 })],
     ["lamp-lens", m({ color: c("#aab4be"), metalness: 0, roughness: 0.04, transparent: true, opacity: 0.06, specularIntensity: 0.6, depthWrite: false })],
     ["tail-lens", m({ color: c("#3a0508"), metalness: 0, roughness: 0.03, transparent: true, opacity: 0.45, clearcoat: 1, depthWrite: false })],
+    // retro-reflectors in the rear bumper: deep red, never lit
+    ["reflector", m({ color: c("#5a0a10"), metalness: 0, roughness: 0.25, clearcoat: 1 })],
     ["lamp-housing", m({ color: c("#040405"), metalness: 0, roughness: 0.6 })],
     ["lamp-bezel", m({ color: c("#5c6168"), metalness: 1, roughness: 0.22 })],
     ["trim-dark-metal", m({ color: c("#2b2f34"), metalness: 0.9, roughness: 0.5 })],

@@ -28,7 +28,8 @@ const KIND_LABEL: Record<Focus["kind"], string> = {
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith("y") ? `${word.slice(0, -1)}ies` : `${word}s`}`;
 
 export function TypeQLOverlay({ context, collapsed, onCollapse, onEdge }: {
-  context: OverlayContext;
+  /** null: nothing chosen yet (the overlay says what will appear) */
+  context: OverlayContext | null;
   collapsed: boolean;
   onCollapse: (collapsed: boolean) => void;
   /** reports where the overlay ends (CSS pixels), so the camera can frame the vehicle beside or below it */
@@ -48,8 +49,11 @@ export function TypeQLOverlay({ context, collapsed, onCollapse, onEdge }: {
     window.addEventListener("resize", report);
     return () => { observer.disconnect(); window.removeEventListener("resize", report); onEdge(null); };
   }, [onEdge]);
-  const view = context.kind === "focus" ? <FocusView focus={context.focus} /> : <ComponentView id={context.id} />;
-  const key = context.kind === "focus" ? `${context.focus.kind}:${context.focus.key}` : `component:${context.id}`;
+  const view = !context
+    ? <p className="tq-note tq-idle">Choose a system, assembly or type, or click a part: the TypeQL TypeDB runs for it, and the
+        schema behind it, appear here.</p>
+    : context.kind === "focus" ? <FocusView focus={context.focus} /> : <ComponentView id={context.id} />;
+  const key = !context ? "idle" : context.kind === "focus" ? `${context.focus.kind}:${context.focus.key}` : `component:${context.id}`;
   return (
     <section ref={ref} className={collapsed ? "tq-overlay collapsed" : "tq-overlay"} aria-label="The TypeQL behind the current view">
       <button type="button" className="tq-collapse" onClick={() => onCollapse(!collapsed)} aria-expanded={!collapsed}
