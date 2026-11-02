@@ -8,6 +8,7 @@ import { ModelDownload } from "./ui/ModelDownload";
 import { useFocus } from "./ui/focus";
 import { Scrubber } from "./ui/Scrubber";
 import { TypeQLOverlay, type OverlayContext } from "./ui/TypeQLOverlay";
+import { panelParts, typeqlStartsCollapsed } from "./ui/transition";
 
 function usePrefersReducedMotion() {
   const query = "(prefers-reduced-motion: reduce)";
@@ -39,9 +40,6 @@ function useTypeDBStatus() {
   }, []);
   return status;
 }
-
-/** Below this width the layout is compact: narrower panels and a collapsed TypeQL overlay at first. */
-const COMPACT_BELOW = 1700;
 
 /** Where the side panels end (CSS pixels): the explorer's right edge and the part panel's distance from the window's
  * right edge, measured from the panels themselves, so the camera always frames the space actually free. */
@@ -75,9 +73,16 @@ export function App() {
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
   // The TypeQL overlay describes whatever was chosen last: the focus (system, assembly, type...) or a single part.
   const [lastChoice, setLastChoice] = useState<"focus" | "component">("focus");
-  // On laptops (below 1700 px) the TypeQL overlay starts as a one-line summary, so the vehicle has the room.
-  const [typeqlCollapsed, setTypeqlCollapsed] = useState(() => window.innerWidth < COMPACT_BELOW);
+  // The TypeQL overlay is open by default on every desktop screen (TypeQL is central to the demonstrator); only the
+  // user collapses it. (Phones, out of scope for the desktop layout, keep it collapsed at first.)
+  const [typeqlCollapsed, setTypeqlCollapsed] = useState(() => typeqlStartsCollapsed(window.innerWidth));
   const [panelMinimised, setPanelMinimised] = useState(false);
+  // The part panel on screen keeps its content while a newly selected part loads out of sight, then swaps (the 3D
+  // highlight follows the new selection at once). A newer selection replaces a pending one.
+  const [shownPart, setShownPart] = useState<string | null>(null);
+  useEffect(() => { if (selectedId === null) setShownPart(null); }, [selectedId]);
+  const parts = panelParts(selectedId, shownPart);
+  const partReady = useCallback(() => setShownPart(selectedId), [selectedId]);
   const edges = usePanelEdges();
   // Where the overlay ends, so the camera frames the vehicle beside or below it.
   const [overlayEdge, setOverlayEdge] = useState<{ right: number; bottom: number } | null>(null);
@@ -173,11 +178,13 @@ export function App() {
         <button type="button" className="explore-open" onClick={() => setExploreOpen(true)}>Explore TypeDB ›</button>
       )}
 
-      {exploring && selectedId && (
-        <ComponentPanel id={selectedId} focus={focus} onSelect={select} onFocus={request}
+      {exploring && parts.map(({ id: part, state }) => (
+        <ComponentPanel key={part} id={part} focus={focus} onSelect={select} onFocus={request}
           minimised={panelMinimised} onMinimise={setPanelMinimised}
+          state={state}
+          onReady={part === selectedId ? partReady : undefined}
           onClose={() => setSelectedId(null)} />
-      )}
+      ))}
 
       {exploring && <TypeQLOverlay context={overlay} collapsed={typeqlCollapsed} onCollapse={setTypeqlCollapsed}
         onSlot={onOverlayEdge} />}

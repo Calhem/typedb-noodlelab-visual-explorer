@@ -43,6 +43,10 @@ interface FrameTarget { dx: number; down: number; fit: number }
 /** Re-frame only for a real change: the vehicle's size by more than 8%, or its position by more than 24 px. */
 const significant = (a: FrameTarget, b: FrameTarget) =>
   Math.abs(a.fit / b.fit - 1) > 0.08 || Math.abs(a.dx - b.dx) > 24 || Math.abs(a.down - b.down) > 24;
+/** How much wider than the free space between the side panels the vehicle may be (it extends behind them), and how
+ * far the lens may narrow below the base angle (a slightly closer view when the screen is roomy). */
+const OVERHANG = 1.3;
+const MIN_FIT = 0.9;
 /** How long the layout must hold still before the camera follows it (ms). */
 const SETTLE_MS = 150;
 
@@ -75,17 +79,22 @@ function Framing({ exploring, insets }: { exploring: boolean; insets: Insets }) 
       const need = phone
         ? { w: W * 0.92, h: H * THREE.MathUtils.lerp(0.26, 0.8, e) }
         : { w: H * THREE.MathUtils.lerp(0.95, 1.05, e), h: H * THREE.MathUtils.lerp(0.46, 0.95, e) };
-      const x0 = phone ? 0 : insets.left, x1 = W - (phone ? 0 : insets.right), y1 = H - (phone ? 120 : CONTROLS);
-      const o = insets.overlay;
-      const areas = o
-        ? [{ x0, x1, y0: Math.max(o.bottom, BRAND), y1 }, ...(phone ? [] : [{ x0: Math.max(x0, o.right), x1, y0: BRAND, y1 }])]
-        : [{ x0, x1, y0: BRAND, y1 }];
-      const fits = areas.map((a) => Math.max(need.w / Math.max(a.x1 - a.x0, 1), need.h / Math.max(a.y1 - a.y0, 1), 1));
-      const best = fits[0] <= fits[1] || fits.length === 1 ? 0 : 1;
-      const a = areas[best];
-      fit = Math.min(fits[best], 2.6);
-      dx = (a.x0 + a.x1) / 2 - W / 2;
-      down = (a.y0 + a.y1) / 2 - H / 2;
+      if (phone) {
+        // Phones: the vehicle below the overlay, across the full width.
+        const y0 = Math.max(insets.overlay?.bottom ?? 0, BRAND), y1 = H - 120;
+        fit = Math.min(Math.max(need.w / W, need.h / Math.max(y1 - y0, 1), 1), 2.6);
+        down = (y0 + y1) / 2 - H / 2;
+      } else {
+        // Desktop: the scene is a full-width background behind the panels. The vehicle is centred between the side
+        // panels, in the band between the brand line and the controls, and may reach behind the panels and the
+        // TypeQL overlay: it is sized to be up to OVERHANG times the free width, so it stays large, and the overlay
+        // plays no part in the framing at all (its content never moves the camera).
+        const x0 = insets.left, x1 = W - insets.right, y1 = H - CONTROLS;
+        const free = Math.max(x1 - x0, W * 0.4);
+        fit = Math.min(Math.max(need.w / (free * OVERHANG), need.h / (y1 - BRAND), MIN_FIT), 2.6);
+        dx = (x0 + x1) / 2 - W / 2;
+        down = (BRAND + y1) / 2 - H / 2;
+      }
     }
     // Decide whether to take this framing as the new target.
     const now = performance.now();

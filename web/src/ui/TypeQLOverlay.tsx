@@ -6,7 +6,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { semantic, type QueryRecord, type SchemaDefinition } from "../semantic/api";
-import { useAnswer } from "../semantic/useAnswer";
+import { useAnswer, type AnswerState } from "../semantic/useAnswer";
 import type { Focus } from "./focus";
 import { words } from "./format";
 import { formatMs } from "./QueryViewer";
@@ -118,9 +118,10 @@ function FocusView({ focus }: { focus: Focus }) {
           <b>{plural(focus.ids.size, "component")}</b> highlighted · {plural(queries.length, "query")} ·{" "}
           <b>{formatMs(total)}</b> in TypeDB
         </>} />
-      {used && <Explores used={used} />}
-      {schemaNames.length > 0 && <Schema names={schemaNames} openFirst={focus.kind === "type"} />}
+      {/* The query first, so the TypeQL itself is in view without scrolling; then the schema behind it. */}
       <Queries queries={queries} resultLabel="returns the highlighted parts" />
+      {schemaNames.length > 0 && <Schema names={schemaNames} openFirst={focus.kind === "type"} />}
+      {used && <Explores used={used} />}
       <App processing={focus.processing ?? []} highlighted={focus.ids.size} />
     </>
   );
@@ -133,9 +134,12 @@ function ComponentView({ id, onReady }: { id: string; onReady?: () => void }) {
   const relations = useAnswer(id, (s) => semantic.relationships(id, s));
   const d = details.state?.status === "ok" ? details.state.answer : null;
   const r = relations.state?.status === "ok" ? relations.state.answer : null;
+  // The part's type definition is read here, not by its schema block, so it is in before the view is shown.
+  const type = d?.data.type ?? null;
+  const schema = useAnswer(type && `schema:${type}`, (s) => semantic.schema(type!, s));
   const failed = [details.state, relations.state].find((s) => s && s.status !== "loading" && s.status !== "ok");
-  // Ready when both answers are in (or one failed, so the failure can be shown).
-  const ready = Boolean(failed || (d && r));
+  // Ready when the answers and the schema are in (or an answer failed, so the failure can be shown).
+  const ready = Boolean(failed || (d && r && schema.state && schema.state.status !== "loading"));
   useEffect(() => { if (ready) onReady?.(); }, [ready, onReady]);
   const queries = useMemo(() => [...(d ? queriesOf(d, "component") : []), ...(r ? queriesOf(r, "relationships") : [])], [d, r]);
   if (failed && "message" in failed) return <p className="tq-note">{failed.message}</p>;
@@ -156,9 +160,9 @@ function ComponentView({ id, onReady }: { id: string; onReady?: () => void }) {
         <span className="tq-label">isa</span>
         <span>{c.types.slice(0, -1).map((t, i) => <span key={t}>{i > 0 && <span className="tq-sub">sub </span>}<code>{t}</code></span>)}</span>
       </p>
-      {r && <Explores used={{ ...merge(queriesOf(r, "").map((q) => concepts(q.text))), types: [] }} />}
-      <Schema names={[c.type]} openFirst={true} />
       <Queries queries={queries} resultLabel={null} />
+      <Schema names={[c.type]} openFirst={true} first={schema.state} />
+      {r && <Explores used={{ ...merge(queriesOf(r, "").map((q) => concepts(q.text))), types: [] }} />}
       <App processing={[...(d.processing ?? []), ...(r?.processing ?? [])]} />
     </>
   );
@@ -202,15 +206,19 @@ function Explores({ used }: { used: Concepts }) {
   );
 }
 
-/** Schema definitions, as TypeDB returns them. A type's supertypes come behind a toggle. */
-function Schema({ names, openFirst }: { names: string[]; openFirst: boolean }) {
-  return <>{names.map((n, i) => <SchemaBlock key={n} name={n} open={openFirst && i === 0} />)}</>;
+type SchemaState = AnswerState<SchemaDefinition[]>;
+
+/** Schema definitions, as TypeDB returns them. A type's supertypes come behind a toggle. `first`, if given, is the
+ * first block's answer, already read by the view (so the block does not load after the view is shown). */
+function Schema({ names, openFirst, first }: { names: string[]; openFirst: boolean; first?: SchemaState | null }) {
+  return <>{names.map((n, i) => <SchemaBlock key={n} name={n} open={openFirst && i === 0} given={i === 0 ? first : undefined} />)}</>;
 }
 
-function SchemaBlock({ name, open: initiallyOpen }: { name: string; open: boolean }) {
+function SchemaBlock({ name, open: initiallyOpen, given }: { name: string; open: boolean; given?: SchemaState | null }) {
   const [open, setOpen] = useState(initiallyOpen);
   const [inherited, setInherited] = useState(false);
-  const answer = useAnswer(open ? `schema:${name}` : null, (s) => semantic.schema(name, s));
+  const own = useAnswer(open && given === undefined ? `schema:${name}` : null, (s) => semantic.schema(name, s));
+  const answer = { state: given !== undefined && open ? given : own.state };
   const defs: SchemaDefinition[] = answer.state?.status === "ok" ? answer.state.answer.data : [];
   const ms = answer.state?.status === "ok" ? (answer.state.answer as { "schema-ms"?: number })["schema-ms"] : undefined;
   return (

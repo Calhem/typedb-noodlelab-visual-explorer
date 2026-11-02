@@ -480,3 +480,45 @@ button.tq-block-head:hover .tq-block-title { color: var(--ink); }
   .explore-tabs button { padding: 6px 6px; font-size: 11.5px; white-space: nowrap; }
   .explore-head { padding-left: 10px; padding-right: 30px; }
 }
+
+/* ---- UI refinement: the vehicle as a full-width background, TypeQL always in view, denser side panels ---- */
+/* The overlay now sits over the vehicle: a dark, softly blurred background keeps the text readable. */
+.tq-overlay {
+  background: rgba(7, 8, 11, 0.84); border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px;
+  padding: 8px 12px 10px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.tq-overlay.collapsed, .tq-overlay:has(.tq-idle) { background: rgba(7, 8, 11, 0.6); }
+/* TypeQL keeps its indentation; long lines scroll sideways rather than wrapping. Explanations wrap as text. */
+.tq-overlay pre { white-space: pre; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), 0.3) transparent; }
+.tq-head { margin: 2px 0 6px; }
+.tq-block { margin-top: 6px; }
+.tq-explores { margin-bottom: 4px; }
+
+/* Laptops: a narrower overlay (about 15-20% less than before), as tall as the space above the controls allows. */
+@media (min-width: 641px) and (max-width: 1699px) {
+  .explore-is-open .tq-overlay, .explore-is-open.panel-is-open .tq-overlay {
+    left: 332px; width: clamp(320px, 23.5vw, 360px); max-height: calc(100vh - 72px - 180px);
+  }
+  .tq-overlay { width: clamp(320px, 23.5vw, 360px); max-height: calc(100vh - 112px - 180px); }
+
+  /* Denser side panels at the same widths: slightly smaller text, tighter spacing. */
+  .explore, .panel { font-size: 12.5px; line-height: 1.4; }
+  .explore-body { padding: 6px 14px 12px; }
+  .explore-intro { margin: 4px 0 8px; font-size: 11.5px; }
+  .tree-row { padding-top: 3px; padding-bottom: 3px; }
+  .detail h2, .panel h2 { font-size: 16px; }
+  .detail h3, .panel h3 { margin: 12px 0 6px; }
+  .chips { gap: 5px; }
+  .chip { padding: 4px 10px; font-size: 12px; }
+  .relations { gap: 3px; }
+  .part-list { font-size: 11.5px; }
+  .panel-description { margin-top: 8px; }
+  .props div { padding: 2px 0; }
+}
+/* The part panel keeps its content while the next part loads out of sight, then swaps in place (no flash). */
+.panel.pending { visibility: hidden; pointer-events: none; animation: none; }
+.panel.stale > :not(.panel-updating):not(.panel-close):not(.panel-minimise) { opacity: 0.6; transition: opacity 0.2s var(--ease); }
+.panel-updating { position: absolute; top: 15px; right: 62px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  animation: tq-pulse 1s ease-in-out infinite; }
+.panel { animation: none; }
+.panel:not(.stale):not(.pending) > * { transition: opacity 0.2s var(--ease); }
