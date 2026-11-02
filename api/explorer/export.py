@@ -13,6 +13,7 @@ import io
 import re
 import zipfile
 from datetime import date
+from decimal import Decimal
 
 from explorer.db import READ, string
 
@@ -31,8 +32,9 @@ def _literal(attribute):
     if kind == "boolean":
         return "true" if v else "false"
     if kind == "double":
-        text = repr(float(v))
-        return text if re.search(r"[.eE]", text) else text + ".0"
+        # plain decimal notation, never an exponent (1e-07): the shortest exact form, written out
+        text = format(Decimal(repr(float(v))), "f")
+        return text if "." in text else text + ".0"
     if kind == "integer":
         return str(int(v))
     raise ValueError(f"value type {kind} is not exported")
@@ -59,59 +61,47 @@ def read_model(tx):
 
 
 def render_data(instances, keys, supertypes):
-    """One insert query. Entities are named by their key (e.g. $caliper-fr) and grouped by type; relations follow,
-    ordered by type and their role players, so the file is stable from one export to the next."""
+    """One insert query, stable from one export to the next. Variables are plain generated names ($e1, $e2... for
+    entities, $r1, $r2... for relations): letters and digits only, so every TypeQL parser accepts them, and never
+    derived from component ids (the ids stay where they belong, as component-id attribute values). Entities come
+    first, ordered by type and key; then relations, those playing roles in other relations (a fallback protects a
+    dependency) before the rest. No comments and no blank lines, so tools that split a file into queries at blank
+    lines read it as the one query it is."""
     def key_of(inst):
-        """The instance's key, prefixed with the type that declares it unless that is component (whose ids are
-        the most used): $caliper-fr, $assembly-brake-control, $system-brake-control."""
         for t in [inst["type"], *supertypes.get(inst["type"], [])]:
             if t in keys:
-                value = next((v for a, v in inst["has"] if a == keys[t]), None)
-                return value if value is None or t == "component" else f"{t} {value}"
-        return None
+                return next((v for a, v in inst["has"] if a == keys[t]), "")
+        return ""
 
-    names, used = {}, set()
     entities = sorted((i for i in instances if instances[i]["kind"] == "entity"),
-                      key=lambda i: (instances[i]["type"], key_of(instances[i]) or "", i))
-    for i in entities:
-        key = key_of(instances[i])
-        base = re.sub(r"[^a-z0-9]+", "-", key.strip('"').lower()).strip("-") if key else instances[i]["type"]
-        name, n = f"${base}", 2
-        while name in used:
-            name, n = f"${base}-{n}", n + 1
-        used.add(name)
-        names[i] = name
+                      key=lambda i: (instances[i]["type"], key_of(instances[i]), sorted(instances[i]["has"])))
+    names = {i: f"$e{n}" for n, i in enumerate(entities, 1)}
 
     def rel_sort(i):
         inst = instances[i]
-        return (inst["type"], sorted((role, names.get(p, p)) for role, p in inst["links"]), sorted(inst["has"]))
-    # Relations that play roles in other relations (a fallback protects a dependency) must be named before use.
+        return (inst["type"], sorted((role, names.get(p, "")) for role, p in inst["links"]), sorted(inst["has"]))
     relations = sorted((i for i in instances if instances[i]["kind"] == "relation"), key=rel_sort)
-    for n, i in enumerate(relations, 1):
-        names[i] = f"$r{n}"
     played = {p for i in relations for _, p in instances[i]["links"]}
     relations.sort(key=lambda i: (0 if i in played else 1, rel_sort(i)))
+    names.update({i: f"$r{n}" for n, i in enumerate(relations, 1)})
 
     def has_clause(inst):
         return "".join(f", has {a} {v}" for a, v in sorted(inst["has"]))
 
     lines = ["insert"]
-    current = None
     for i in entities:
         inst = instances[i]
-        if inst["type"] != current:
-            current = inst["type"]
-            lines.append(f"  # {current}")
         lines.append(f"  {names[i]} isa {inst['type']}{has_clause(inst)};")
-    current = None
     for i in relations:
         inst = instances[i]
-        if inst["type"] != current:
-            current = inst["type"]
-            lines.append(f"  # {current}")
         players = ", ".join(f"{role}: {names[p]}" for role, p in sorted(inst["links"], key=lambda x: (x[0], names[x[1]])))
         lines.append(f"  {names[i]} isa {inst['type']} ({players}){has_clause(inst)};")
     return "\n".join(lines) + "\n"
+
+
+def render_schema(schema):
+    """The schema as TypeDB returns it, without blank lines (for the same reason as the data)."""
+    return "\n".join(line for line in schema.splitlines() if line.strip()) + "\n"
 
 
 def keys_of(schema):
@@ -167,7 +157,7 @@ targets, not measured data.
 | File | What it holds |
 |---|---|
 | `schema.tql` | The schema: entity, relation and attribute types, and the functions the explorer uses (TypeDB 3.14). |
-| `data.tql` | The data: every entity and relation with its attributes and role players, as one `insert` query. |
+| `data.tql` | The data: every entity and relation with its attributes and role players, as one `insert` query. Variables are generated (`$e1`, `$r1`...); each part's id is its `component-id` value. |
 
 What is in it: {entities} entities and {relations} relations ({components} components, {assemblies} assemblies,
 {systems} systems, {connections} connections, {dependencies} dependencies, {loops} control loops), {ownerships}
@@ -276,7 +266,7 @@ def build(driver, database):
         day=date.today().isoformat(), entities=c["entities"], relations=c["relations"], components=total("component"),
         assemblies=total("assembly"), systems=total("system"), connections=total("connection"),
         dependencies=total("dependency"), loops=total("control-loop"), ownerships=c["ownerships"], players=c["role-players"])
-    return {"schema.tql": schema.rstrip() + "\n", "data.tql": data, "README.md": readme}, c
+    return {"schema.tql": render_schema(schema), "data.tql": data, "README.md": readme}, c
 
 
 def zip_bytes(files):

@@ -175,7 +175,7 @@ open panels) downloads `noodlelab-vehicle-typedb-model.zip`:
 | File | Content |
 |---|---|
 | `schema.tql` | the complete schema with all functions, exactly as TypeDB returns it (`database.schema()`) |
-| `data.tql` | every entity and relation with its attributes and role players, as one `insert` (entities named by their key, e.g. `$caliper-fr`, `$assembly-brake-control`) |
+| `data.tql` | every entity and relation with its attributes and role players, as one `insert`, with generated variables (`$e1`, `$r1`...); each part's id stays its `component-id` value |
 | `README.md` | loading with TypeDB Console or the Python driver, and six representative queries |
 
 **How it is made:**
@@ -212,6 +212,33 @@ needs your permission. The Python-driver path in the README is the one validated
 One fix came out of the validation. When two equally short dependency paths reach the same part, the failure-impact
 answer's Python step used to report whichever TypeDB returned first, and TypeDB's answer order can differ between
 databases. It now sorts first, so the answer is the same on any copy.
+
+### Fix after review: data.tql failed to load (TQL03)
+
+- **Root cause:**
+  - The generator named variables after the instances' ids (`$brake-booster`, `$door-latch-fl`, `$assembly-body`).
+  - The TypeDB 3.14 server accepts hyphens in variables, so my driver-based round trip passed. Strict client-side
+    parsers reject them, which is the TQL03 you saw.
+  - So my validation used a more lenient path than yours, and missed it.
+- **Fix:**
+  - Variables are now generated, letters and digits only: `$e1`... for entities, `$r1`... for relations. They are
+    used the same way in every declaration and role-player reference. The ids stay as `component-id` values.
+  - Also removed: comments, blank lines (in both files) and exponent notation for decimals. All are valid TypeQL, but
+    unnecessary risk for strict loaders.
+  - The fix is limited to the generator (`api/explorer/export.py`).
+- **Validation, on the ZIP as served:**
+  - It is downloaded through the button in a headless browser, and also fetched from the endpoint in the test.
+  - It is loaded into a fresh database by running the README's Python instructions unchanged, in a separate
+    interpreter.
+  - **Results:**
+    - syntax: clean;
+    - components 423 = 423, connections 676 = 676, dependencies 396 = 396;
+    - assemblies 30, systems 35, functions 91, fallbacks 11, control loops 10, memberships 452 and 462, visual
+      links 423, all equal;
+    - every instance identical, the schema identical, all ten explorer answers identical, all six README queries
+      answering.
+- **Regression test:** `api/tests/test_export.py` does that full import from the served ZIP. It also has a syntax
+  check that fails on hyphenated or underscored variables, comments, blank lines or exponents.
 
 ## Outstanding
 

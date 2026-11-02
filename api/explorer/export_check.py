@@ -1,20 +1,82 @@
-"""Check the downloadable model: export the database, load the export into a fresh database, and compare the two.
+"""Check the downloadable model: take the ZIP the app serves, load it into a fresh database exactly as its README
+says (running the README's own Python instructions in a separate interpreter), and compare with the source.
 
     python -m explorer.export_check [source-database]
 
-Compares every instance (type, attribute values and role players, matched without IIDs), the instance count of
-every type, and the answers to representative explorer queries. Prints a report; exits non-zero on any difference.
-The fresh database ("vehicle-export-check-<random>") is deleted afterwards.
+Checks the files' syntax (generated variables are letters and digits only; no comments, blank lines or exponent
+numbers), then compares the named totals (components, connections, dependencies, assemblies, systems, functions...),
+every instance (type, attribute values and role players, matched without IIDs), every type's instance count, the
+schema, representative explorer answers and the README's example queries. Prints a report; exits non-zero on any
+difference. The fresh database ("vehicle-export-check-<random>") is deleted afterwards.
 """
 
+import io
 import json
+import re
+import subprocess
 import sys
+import tempfile
 import uuid
+import zipfile
 from collections import Counter
+from pathlib import Path
 from pathlib import Path
 
 from explorer import export, queries, questions
-from explorer.db import READ, SCHEMA, WRITE, connect, settings
+from explorer.db import READ, connect, settings
+
+# The totals compared by name (each counts instances of the type and its subtypes).
+TOTALS = ["component", "connection", "dependency", "assembly", "system", "vehicle-function", "fallback", "control-loop",
+          "assembly-membership", "system-membership", "visual-representation"]
+
+
+def unzip(data):
+    """{file name: text} from the model ZIP."""
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        return {n.split("/", 1)[1]: z.read(n).decode() for n in z.namelist()}
+
+
+def syntax_problems(files):
+    """Generated syntax that a strict TypeQL parser could reject."""
+    data, problems = files["data.tql"], []
+    outside_strings = re.sub(r'"(?:[^"\\]|\\.)*"', '""', data)
+    bad = sorted(set(v for v in re.findall(r"\$[^\s,;():]+", outside_strings) if not re.fullmatch(r"\$[a-z][a-z0-9]*", v)))
+    if bad:
+        problems.append(f"variables that are not plain letters and digits: {bad[:5]}")
+    for name in ("schema.tql", "data.tql"):
+        if any(not line.strip() for line in files[name].splitlines()):
+            problems.append(f"{name} has blank lines")
+    if "#" in outside_strings:
+        problems.append("data.tql has comments")
+    if re.search(r"(?<![\w$])\d+(\.\d+)?[eE][-+]?\d", outside_strings):
+        problems.append("data.tql has numbers in exponent notation")
+    return problems
+
+
+def load_with_readme(files, database):
+    """Load the files into a new database by running the README's Python instructions unchanged, apart from this
+    server's address, credentials and the database name, in a fresh interpreter in a folder holding the files."""
+    s = settings()
+    code = files["README.md"].split("```python", 1)[1].split("```", 1)[0]
+    code = (code.replace('"127.0.0.1:1729"', repr(s["address"]))
+                .replace('Credentials("admin", "password")', f'Credentials({s["username"]!r}, {s["password"]!r})')
+                .replace('"vehicle"', repr(database)))
+    with tempfile.TemporaryDirectory() as folder:
+        for name, text in files.items():
+            Path(folder, name).write_text(text)
+        Path(folder, "load.py").write_text(code)
+        run = subprocess.run([sys.executable, "-I", "load.py"], cwd=folder, capture_output=True, text=True, timeout=600)
+    if run.returncode != 0:
+        raise RuntimeError("loading with the README's instructions failed:\n" + run.stderr[-2000:])
+
+
+def totals(driver, database):
+    out = {}
+    with driver.transaction(database, READ) as tx:
+        for t in TOTALS:
+            rows = list(tx.query(f"match $x isa {t}; reduce $n = count;").resolve().as_concept_rows())
+            out[t] = rows[0].get("n").get_integer() if rows else 0
+    return out
 
 
 def canonical(instances):
@@ -65,16 +127,21 @@ def answers(driver, database):
 
 
 def check(driver, source, files=None):
-    """Returns (problems, report lines)."""
-    files = files or export.build(driver, source)[0]
+    """Returns (problems, report lines, {type: (source total, loaded total)}). `files` defaults to a fresh export
+    of the source, packed and unpacked through the same ZIP the app serves."""
+    files = files or unzip(export.zip_bytes(export.build(driver, source)[0]))
+    problems = syntax_problems(files)
+    report = [f"syntax: {'clean' if not problems else '; '.join(problems)}"]
     target = f"vehicle-export-check-{uuid.uuid4().hex[:8]}"
-    driver.databases.create(target)
     try:
-        for name, kind in (("schema.tql", SCHEMA), ("data.tql", WRITE)):
-            with driver.transaction(target, kind) as tx:
-                tx.query(files[name]).resolve()
-                tx.commit()
-        report, problems = [], []
+        load_with_readme(files, target)
+        report.append("loaded into a fresh database with the README's Python instructions")
+        ta, tb = totals(driver, source), totals(driver, target)
+        named = {t: (ta[t], tb[t]) for t in TOTALS}
+        for t, (a, b) in named.items():
+            report.append(f"{t}: {a} source, {b} loaded")
+            if a != b:
+                problems.append(f"{t} totals differ")
         with driver.transaction(source, READ) as a, driver.transaction(target, READ) as b:
             ia, ib = export.read_model(a), export.read_model(b)
         ca, cb = export.counts(ia), export.counts(ib)
@@ -109,15 +176,16 @@ def check(driver, source, files=None):
                         problems.append(f"README query {i} has no answers")
                 except Exception as error:
                     problems.append(f"README query {i} fails: {error}")
-        return problems, report
+        return problems, report, named
     finally:
-        driver.databases.get(target).delete()
+        if driver.databases.contains(target):
+            driver.databases.get(target).delete()
 
 
 def main():
     source = sys.argv[1] if len(sys.argv) > 1 else settings()["database"]
     driver = connect()
-    problems, report = check(driver, source)
+    problems, report, _ = check(driver, source)
     print("\n".join(report))
     print("OK: the export reproduces the database" if not problems else "PROBLEMS: " + "; ".join(problems))
     sys.exit(1 if problems else 0)
