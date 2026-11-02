@@ -20,7 +20,7 @@ def ask(client, qid):
 
 def test_question_list(client):
     ids = [q["id"] for q in get(client, "/api/questions")["data"]]
-    assert len(ids) == 8 and len(set(ids)) == 8
+    assert len(ids) == 9 and len(set(ids)) == 9
 
 
 def test_pack_energy(client):

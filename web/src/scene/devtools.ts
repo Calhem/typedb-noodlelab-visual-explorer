@@ -3,6 +3,7 @@
 
 import type { RootState } from "@react-three/fiber";
 import * as THREE from "three";
+import { exteriorLights } from "./lights";
 import { progress } from "./progress";
 import { vehicleState } from "./vehicleState";
 
@@ -22,6 +23,8 @@ export function installDevtools(state: RootState) {
     state.setSize(width, height);
   };
   w.__vx = state;
+  /** Exterior lamps on or off, for lit and unlit comparisons. */
+  w.__lights = (on: boolean) => exteriorLights.set(on);
   w.__vxProgress = progress;
   /** Render the scene at explosion progress `p`, turntable turned to `turn` radians, camera tilted to `polar`. */
   w.__shot = async (p: number, turn?: number, polar?: number) => {

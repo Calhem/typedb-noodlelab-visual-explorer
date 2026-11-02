@@ -5,12 +5,27 @@
 // There is no fallback data. If TypeDB (or the API) can't be reached, callers get an "unavailable" error
 // and show it; the 3D model, which is a static asset, keeps working.
 
-export interface Answer<T> {
+export interface Answer<T> extends QueryRecord {
   data: T;
+}
+
+/** What an answer says about the queries behind it. */
+export interface QueryRecord {
   typeql: string[];
   /** how long each query took in TypeDB (ms), in the same order as `typeql` */
   "timings-ms": number[];
+  /** what each query was for, in the same order */
+  purposes?: (string | null)[];
+  /** indexes of the queries whose answers are the components the answer is about (the highlighted ones) */
+  "result-queries"?: number[];
+  /** steps the API did itself, in Python, after TypeDB answered */
+  processing?: string[];
 }
+
+/** Just the query record of an answer (or a focus built from one). */
+export const queryRecord = (a: QueryRecord): QueryRecord => ({
+  typeql: a.typeql, "timings-ms": a["timings-ms"], purposes: a.purposes, "result-queries": a["result-queries"], processing: a.processing,
+});
 
 export type Failure = "unavailable" | "not-found" | "failed";
 
@@ -26,12 +41,31 @@ export const UNAVAILABLE = "TypeDB is not reachable, so semantic information can
 export const TYPEDB_STATUS_EVENT = "typedb-status";
 const report = (available: boolean) => window.dispatchEvent(new CustomEvent(TYPEDB_STATUS_EVENT, { detail: available }));
 
-export async function ask<T>(path: string, signal?: AbortSignal): Promise<Answer<T>> {
+/** Requests on their way, by path: two views asking the same question at the same moment (the component panel
+ * and the TypeQL overlay) share one request. Nothing is kept once it has answered. */
+const inFlight = new Map<string, Promise<Answer<unknown>>>();
+
+export function ask<T>(path: string, signal?: AbortSignal): Promise<Answer<T>> {
+  let shared = inFlight.get(path);
+  if (!shared) {
+    shared = request(path).finally(() => inFlight.delete(path));
+    inFlight.set(path, shared);
+  }
+  if (!signal) return shared as Promise<Answer<T>>;
+  // Each caller can stop waiting without cancelling the request for the others.
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new DOMException("Aborted", "AbortError"));
+    if (signal.aborted) return abort();
+    signal.addEventListener("abort", abort, { once: true });
+    shared.then((a) => resolve(a as Answer<T>), reject).finally(() => signal.removeEventListener("abort", abort));
+  });
+}
+
+async function request(path: string): Promise<Answer<unknown>> {
   let response: Response;
   try {
-    response = await fetch(`/api/${path}`, { signal, headers: { Accept: "application/json" } });
-  } catch (error) {
-    if ((error as Error).name === "AbortError") throw error;
+    response = await fetch(`/api/${path}`, { headers: { Accept: "application/json" } });
+  } catch {
     report(false);
     throw new SemanticError("unavailable", UNAVAILABLE);
   }
@@ -42,7 +76,7 @@ export async function ask<T>(path: string, signal?: AbortSignal): Promise<Answer
   const body = await response.json().catch(() => null);
   if (response.status === 404) throw new SemanticError("not-found", body?.message ?? "Not found in TypeDB.");
   if (!response.ok || !body || !("data" in body)) throw new SemanticError("failed", body?.message ?? "TypeDB could not answer.");
-  return body as Answer<T>;
+  return body as Answer<unknown>;
 }
 
 const id = (value: string) => encodeURIComponent(value);
@@ -152,6 +186,10 @@ export interface QuestionResult extends QuestionMeta {
 
 export interface TypeNode { type: string; parent: string | null; total: number; direct: number }
 
+/** A type's or function's definition as the database's schema states it (not a query result). */
+export interface SchemaDefinition { name: string; kind: "entity" | "relation" | "attribute" | "function"; definition: string }
+export interface SchemaAnswer extends Answer<SchemaDefinition[]> { "schema-ms": number; source: string }
+
 export interface TypeDetail {
   type: string;
   supertypes: string[];
@@ -180,4 +218,6 @@ export const semantic = {
   question: (q: string, s?: AbortSignal) => ask<QuestionResult>(`questions/${id(q)}`, s),
   type: (label: string, s?: AbortSignal) => ask<TypeDetail>(`types/${id(label)}`, s),
   system: (sys: string, s?: AbortSignal) => ask<SystemDetails>(`systems/${id(sys)}`, s),
+  /** a type (with its supertypes) or function, from the schema TypeDB returns */
+  schema: (name: string, s?: AbortSignal) => ask<SchemaDefinition[]>(`schema/${id(name)}`, s) as Promise<SchemaAnswer>,
 };

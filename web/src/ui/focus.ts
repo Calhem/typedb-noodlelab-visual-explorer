@@ -4,8 +4,8 @@
 // essential to the part), "secondary" (backed up or merely supporting) and "degraded" (functions only degraded).
 
 import { useCallback, useRef, useState } from "react";
-import { SemanticError, semantic, type AssemblyDetails, type Impact, type QuestionResult, type Requirement, type SystemDetails,
-  type TypeDetail } from "../semantic/api";
+import { queryRecord, SemanticError, semantic, type AssemblyDetails, type Impact, type QueryRecord, type QuestionResult, type Requirement,
+  type SystemDetails, type TypeDetail } from "../semantic/api";
 
 export type FocusKind = "assembly" | "system" | "impact" | "requirements" | "type" | "question";
 export type Level = "primary" | "secondary" | "degraded";
@@ -18,12 +18,10 @@ export interface FocusRequest {
   anchor: string;
 }
 
-export interface Focus extends FocusRequest {
+export interface Focus extends FocusRequest, QueryRecord {
   title: string;
   /** component id -> highlight level; components not listed are ghosted */
   ids: Map<string, Level>;
-  typeql: string[];
-  "timings-ms": number[];
   impact?: Impact;
   requirements?: Requirement[];
   /** the answer behind an assembly or system focus, so views can show it without asking again */
@@ -67,37 +65,43 @@ export function useFocus() {
     const setFocus = (f: Focus) => { if (!signal.aborted) setFocusState(f); };
     try {
       if (req.kind === "assembly") {
-        const { data, typeql, "timings-ms": timings } = await semantic.assembly(req.key, signal);
+        const answer = await semantic.assembly(req.key, signal);
+        const data = answer.data;
         const ids = levels(data["all-component-ids"].map((id) => [id, "primary"]));
-        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, assembly: data });
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, ...queryRecord(answer), assembly: data });
       } else if (req.kind === "system") {
-        const { data, typeql, "timings-ms": timings } = await semantic.system(req.key, signal);
+        const answer = await semantic.system(req.key, signal);
+        const data = answer.data;
         const ids = levels(data.components.map((c) => [c.id, "primary"]));
-        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, typeql, "timings-ms": timings, system: data });
+        setFocus({ ...req, title: `${data.name}: ${plural(ids.size, "component")}`, ids, ...queryRecord(answer), system: data });
       } else if (req.kind === "type") {
-        const { data, typeql, "timings-ms": timings } = await semantic.type(req.key, signal);
+        const answer = await semantic.type(req.key, signal);
+        const data = answer.data;
         const ids = levels(data.instances.map((i) => [i.id, "primary"]));
-        setFocus({ ...req, title: `Every ${data.type.replace(/-/g, " ")}: ${plural(ids.size, "component")}`, ids, typeql,
-          "timings-ms": timings, typeDetail: data });
+        setFocus({ ...req, title: `Every ${data.type.replace(/-/g, " ")}: ${plural(ids.size, "component")}`, ids, ...queryRecord(answer),
+          typeDetail: data });
       } else if (req.kind === "question") {
-        const { data, typeql, "timings-ms": timings } = await semantic.question(req.key, signal);
+        const answer = await semantic.question(req.key, signal);
+        const data = answer.data;
         const ids = levels(data.highlight.map((id) => [id, "primary"]));
-        setFocus({ ...req, title: data.summary, ids, typeql, "timings-ms": timings, question: data });
+        setFocus({ ...req, title: data.summary, ids, ...queryRecord(answer), question: data });
       } else if (req.kind === "impact") {
-        const { data, typeql, "timings-ms": timings } = await semantic.impact(req.key, signal);
+        const answer = await semantic.impact(req.key, signal);
+        const data = answer.data;
         // Primary: the part loses at least one function. Degraded: its functions are only degraded.
         const ids = levels([[req.key, "primary"], ...data.components.map((c): [string, Level] => [c.id, c.lost.length ? "primary" : "degraded"])]);
         const losing = data.components.filter((c) => c.lost.length).length;
         const title = data.components.length === 0
           ? "If it fails: no other part is affected"
           : `If it fails: ${plural(losing, "part")} lose a function, ${data.components.length - losing} only degraded`;
-        setFocus({ ...req, title, ids, typeql, "timings-ms": timings, impact: data });
+        setFocus({ ...req, title, ids, ...queryRecord(answer), impact: data });
       } else {
-        const { data, typeql, "timings-ms": timings } = await semantic.requirements(req.key, signal);
+        const answer = await semantic.requirements(req.key, signal);
+        const data = answer.data;
         const ids = levels([[req.key, "primary"], ...data.required.map((x): [string, Level] =>
           [x.id, x.role === "essential" ? "primary" : "secondary"])]);
         const essential = data.required.filter((r) => r.role === "essential").length;
-        setFocus({ ...req, title: `To work it needs ${plural(data.required.length, "function")} (${essential} essential)`, ids, typeql, "timings-ms": timings,
+        setFocus({ ...req, title: `To work it needs ${plural(data.required.length, "function")} (${essential} essential)`, ids, ...queryRecord(answer),
           requirements: data.required });
       }
     } catch (e) {

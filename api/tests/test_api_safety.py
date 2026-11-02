@@ -57,3 +57,46 @@ def test_answers_report_a_timing_for_each_query(client):
     body = get(client, "/api/components/hub-fr/relationships")
     assert len(body["timings-ms"]) == len(body["typeql"]) == 5
     assert all(isinstance(t, (int, float)) and t >= 0 for t in body["timings-ms"])
+
+
+# Every endpoint that runs queries, with a real id: the contextual TypeQL view relies on what each answer says
+# about its queries.
+ANSWERING = ["/api/components", "/api/components/hub-fr", "/api/components/hub-fr/assembly", "/api/components/hub-fr/systems",
+             "/api/components/hub-fr/relationships", "/api/components/hub-fr/impact", "/api/components/hub-fr/requirements",
+             "/api/assemblies", "/api/assemblies/corner-fr", "/api/systems", "/api/systems/propulsion", "/api/types",
+             "/api/types/sensor", "/api/questions/sensors-by-type", "/api/questions/battery-to-wheel"]
+
+
+def test_answers_say_what_each_query_is_for(client):
+    for path in ANSWERING:
+        body = get(client, path)
+        assert len(body["purposes"]) == len(body["typeql"]), path
+        assert all(isinstance(p, str) and p for p in body["purposes"]), f"{path}: a query has no purpose"
+        assert all(0 <= i < len(body["typeql"]) for i in body["result-queries"]), path
+        assert all(isinstance(p, str) for p in body["processing"]), path
+
+
+def test_answers_mark_the_query_behind_the_highlighted_components(client):
+    system = get(client, "/api/systems/propulsion")
+    [i] = system["result-queries"]
+    assert "system_components($s)" in system["typeql"][i]
+    assembly = get(client, "/api/assemblies/corner-fr")
+    [i] = assembly["result-queries"]
+    assert "assembly_components($a)" in assembly["typeql"][i]
+    kind = get(client, "/api/types/sensor")
+    [i] = kind["result-queries"]
+    assert kind["typeql"][i].startswith("match $x isa sensor;")
+
+
+def test_schema_definitions_come_from_the_database(client):
+    body = get(client, "/api/schema/brake-caliper")
+    assert body["typeql"] == [] and body["source"] == "database.schema()" and body["schema-ms"] >= 0
+    names = [d["name"] for d in body["data"]]
+    assert names == ["brake-caliper", "brake-component", "chassis-component", "component"]
+    assert body["data"][0]["definition"].startswith("entity brake-caliper,") and "owns piston-count" in body["data"][0]["definition"]
+    [fun] = get(client, "/api/schema/system_components")["data"]
+    assert fun["kind"] == "function" and fun["definition"].startswith("fun system_components($s: system)")
+    [rel] = get(client, "/api/schema/system-membership")["data"]
+    assert rel["kind"] == "relation" and "relates member" in rel["definition"]
+    assert get(client, "/api/schema/no-such-type", status=404)["error"] == "not-found"
+    assert client.get('/api/schema/x"; delete').status_code in (404, 422)

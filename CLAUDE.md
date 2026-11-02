@@ -42,7 +42,8 @@ the provisional dimensions in docs/design-targets.md. No commissioning or vendor
   `docker compose run --rm --no-deps api python -m explorer.animation > web/src/vehicle/explosion-groups.json`.
 - Code: `schema/schema.tql` + `schema/functions.tql`; `data/seed/*.yaml` (placeholders `<c>`, `<a>`, `<s>`);
   `api/explorer/seed.py` (validate, one insert, count check), `queries.py` (the only queries the API runs),
-  `api.py` (GET-only endpoints; 503 typedb-unavailable, 500 query-failed, 404, 422), `animation.py`.
+  `api.py` (GET-only endpoints; 503 typedb-unavailable, 500 query-failed, 404, 422), `animation.py`,
+  `export.py` (the downloadable model ZIP, built from the live database; `python -m explorer.export_check` validates it).
 - Web side: `web/src/semantic/api.ts` (client), `web/src/ui/ComponentPanel.tsx`, `web/src/ui/focus.ts`
   (perspectives: highlighted ids come from TypeDB answers).
 - Explorer (web/src/ui/Explore.tsx): Systems, Assemblies, Types, Questions; named questions live in

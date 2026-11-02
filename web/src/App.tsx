@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Stage } from "./scene/Stage";
 import { semantic, TYPEDB_STATUS_EVENT } from "./semantic/api";
+import { useAnswer } from "./semantic/useAnswer";
 import { ComponentPanel } from "./ui/ComponentPanel";
 import { Explore, type ExploreTab } from "./ui/Explore";
+import { ModelDownload } from "./ui/ModelDownload";
 import { useFocus } from "./ui/focus";
 import { Scrubber } from "./ui/Scrubber";
+import { TypeQLOverlay, type OverlayContext } from "./ui/TypeQLOverlay";
 
 function usePrefersReducedMotion() {
   const query = "(prefers-reduced-motion: reduce)";
@@ -45,6 +48,35 @@ export function App() {
   const { focus, error: focusError, pending, request, cancel, clear } = useFocus();
   const [exploreOpen, setExploreOpen] = useState(() => window.innerWidth > 1100);
   const [exploreTab, setExploreTab] = useState<ExploreTab>("systems");
+  // The TypeQL overlay describes whatever was chosen last: the focus (system, assembly, type...) or a single part.
+  const [lastChoice, setLastChoice] = useState<"focus" | "component">("focus");
+  const [typeqlCollapsed, setTypeqlCollapsed] = useState(() => window.innerWidth < 900);
+  // Where the overlay ends, so the camera frames the vehicle beside or below it.
+  const [overlayEdge, setOverlayEdge] = useState<{ right: number; bottom: number } | null>(null);
+  const onOverlayEdge = useCallback((edge: { right: number; bottom: number } | null) => setOverlayEdge((e) =>
+    e && edge && Math.abs(e.right - edge.right) < 1 && Math.abs(e.bottom - edge.bottom) < 1 ? e : edge), []);
+  const select = useCallback((id: string | null) => {
+    setSelectedId(id);
+    if (id) setLastChoice("component");
+  }, []);
+  useEffect(() => { if (focus) setLastChoice("focus"); }, [focus]);
+  // The part under the pointer, named from TypeDB's component list (asked once, when exploring starts).
+  const [hovered, setHovered] = useState<string | null>(null);
+  const listing = useAnswer(exploring ? "components" : null, (s) => semantic.components(s));
+  const names = listing.state?.status === "ok" ? listing.state.answer.data : null;
+  const hoverName = hovered && names ? names.find((c) => c.id === hovered)?.name ?? null : null;
+  const tip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const move = (e: PointerEvent) => { if (tip.current) tip.current.style.transform = `translate(${e.clientX + 14}px, ${e.clientY + 16}px)`; };
+    window.addEventListener("pointermove", move);
+    return () => window.removeEventListener("pointermove", move);
+  }, []);
+  // Stable props for the 3D stage, so the scene doesn't re-render when unrelated parts of the page change.
+  const hasOverlay = exploring && !typeqlCollapsed && (selectedId !== null || focus !== null);
+  const insets = useMemo(() => ({ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0,
+    overlay: hasOverlay ? overlayEdge : null }), [exploring, exploreOpen, selectedId, hasOverlay, overlayEdge]);
+  const overlay: OverlayContext | null = lastChoice === "component" && selectedId ? { kind: "component", id: selectedId }
+    : focus ? { kind: "focus", focus } : selectedId ? { kind: "component", id: selectedId } : null;
   // A system or assembly chosen anywhere (also from the component panel) opens its view in the explorer.
   useEffect(() => {
     const tabs: Partial<Record<string, ExploreTab>> = { system: "systems", assembly: "assemblies", type: "types", question: "questions" };
@@ -56,15 +88,15 @@ export function App() {
   }, [focus]);
   // Development only: select a part from the console, for repeatable checks (see CLAUDE.md).
   useEffect(() => {
-    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); } });
+    if (import.meta.env.DEV) Object.assign(window, { __select: (id: string | null) => { setExploring(true); setSelectedId(id); if (id) setLastChoice("component"); } });
   }, []);
 
   return (
-    <main className={exploring ? "app exploring" : "app"}>
+    <main className={`app${exploring ? " exploring" : ""}${exploring && exploreOpen ? " explore-is-open" : ""}${exploring && selectedId ? " panel-is-open" : ""}`}>
       <div className="canvas">
         <Stage exploring={exploring} reducedMotion={reducedMotion} selectedId={selectedId}
-          highlight={focus?.ids ?? null} onSelect={setSelectedId}
-          insets={{ left: exploring && exploreOpen ? 354 : 0, right: exploring && selectedId ? 384 : 0 }} />
+          highlight={focus?.ids ?? null} onSelect={select} onHover={setHovered}
+          insets={insets} />
       </div>
 
       <header className="brand">
@@ -105,7 +137,7 @@ export function App() {
       )}
 
       {exploring && exploreOpen && (
-        <Explore pending={pending} onCancel={cancel} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={setSelectedId}
+        <Explore pending={pending} onCancel={cancel} tab={exploreTab} onTab={setExploreTab} focus={focus} onFocus={request} onSelect={select}
           onClose={() => setExploreOpen(false)} />
       )}
       {exploring && !exploreOpen && (
@@ -113,9 +145,18 @@ export function App() {
       )}
 
       {exploring && selectedId && (
-        <ComponentPanel id={selectedId} focus={focus} onSelect={setSelectedId} onFocus={request}
+        <ComponentPanel id={selectedId} focus={focus} onSelect={select} onFocus={request}
           onClose={() => setSelectedId(null)} />
       )}
+
+      {exploring && <TypeQLOverlay context={overlay} collapsed={typeqlCollapsed} onCollapse={setTypeqlCollapsed}
+        onEdge={onOverlayEdge} />}
+
+      <div ref={tip} className={hoverName && hovered !== selectedId ? "hover-tip shown" : "hover-tip"} aria-hidden>
+        {hoverName}{hoverName && <span> · click for its TypeDB details</span>}
+      </div>
+
+      {exploring && <ModelDownload />}
 
       <p className="disclaimer">Original concept vehicle for demonstration. Not a production model.</p>
     </main>

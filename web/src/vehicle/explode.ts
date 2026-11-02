@@ -1,19 +1,24 @@
 // The exploded view: where every part is at any point between assembled (0) and exploded (1).
 //
-// Three things combine:
-//  1. An expansion field. Every part's position is scaled away from the vehicle's centre (about 2x
-//     lengthwise, 2.6x sideways, 1.75x upwards) while the parts keep their real size. Neighbours open
-//     up gaps between them, yet front parts stay at the front and left parts on the left, so the
-//     vehicle stays recognisable however far it opens.
-//  2. The assembly hierarchy. Each assembly moves relative to its parent (the body lifts, doors swing
-//     out, the battery drops) and each part moves within its assembly (a wheel end fans out into tyre,
-//     rim, nuts, disc, pads, calliper, hub; a motor slides apart along its axis). The tree comes from
-//     explosion-groups.json, an animation asset generated from TypeDB's assembly relations.
-//  3. A fine-detail phase. Over the last third, parts take a final smaller step (pads part from each
-//     other, nuts spread from the hub, bearings leave their housings) and the field opens further,
-//     so the assembly visibly resolves into finer detail.
+// Four things combine:
+//  1. Layers. The vehicle separates vertically into engineering layers, each kept in its own plan
+//     position so it still reads as part of the vehicle: the exterior panels and closures (with the
+//     driving sensors stepping out from where they mount) on top, then the body structure with the
+//     cabin, then cooling and brake control, the chassis (suspension, steering, wheel ends), the
+//     drivetrain with its power electronics, the low-voltage and charging electrics, and the battery
+//     at the bottom.
+//  2. A mild expansion field. Within a layer, positions spread a little away from the vehicle's centre
+//     (lengthwise and sideways only) so neighbours open small gaps while the vehicle stays recognisable.
+//  3. The assembly hierarchy. Each sub-assembly moves within its layer (doors swing out, wheel ends move
+//     outboard, drive units slide fore and aft) and each part moves within its assembly (a wheel end
+//     fans out into tyre, rim, nuts, disc, pads, calliper, hub; a motor slides apart along its axis).
+//     The tree comes from explosion-groups.json, an animation asset generated from TypeDB's assembly
+//     relations; which layer an assembly belongs to is choreography, set below.
+//  4. A fine-detail phase. Over the last third, parts take a final smaller step (pads part from each
+//     other, nuts spread from the hub, bearings leave their housings), so the assembly visibly resolves
+//     into finer detail.
 //
-// Timing runs in tiers: major assemblies first, then sub-assemblies, then parts, then detail.
+// Timing runs in tiers: layers first, then sub-assemblies, then parts, then detail.
 // Everything is a pure function of the progress value, so it can be scrubbed, paused and reversed exactly.
 
 import groups from "./explosion-groups.json";
@@ -40,12 +45,58 @@ export interface Motion {
 
 /** Centre the field expands from (vehicle coordinates). */
 export const FIELD_CENTRE: Vec3 = [0, 0.75, 0];
-/** How much distances from the centre are multiplied by at full explosion, per axis (x, y, z). */
-export const FIELD_SCALE: Vec3 = [2.05, 1.75, 2.6];
+/** How much distances from the centre are multiplied by at full explosion, per axis (x, y, z). Heights are left
+ * alone: the layers separate vertically. */
+export const FIELD_SCALE: Vec3 = [1.16, 1, 1.3];
 /** How high the whole assembly floats when fully exploded (keeps the dropped battery off the floor). */
-export const EXPLODED_LIFT = 1.7;
+export const EXPLODED_LIFT = 1.85;
 
-// ---- Assembly movements (relative to the parent assembly) ------------------------------------------
+// ---- Layers ------------------------------------------------------------------------------------------
+
+export type Layer = "exterior" | "sensors" | "structure" | "cooling-braking" | "chassis" | "drivetrain" | "electrical" | "battery";
+
+/** Each layer's move (metres) and how strongly its parts' own movements apply (1 = as written below). The
+ * exterior keeps its shape as a shell; inner layers open less so they don't run into each other. */
+export const LAYERS: Record<Layer, { offset: Vec3; parts: number }> = {
+  exterior: { offset: [0, 3.4, 0], parts: 0.62 },
+  sensors: { offset: [0, 3.4, 0], parts: 1 },
+  structure: { offset: [0, 1.85, 0], parts: 0.55 },
+  "cooling-braking": { offset: [0.3, 0.98, 0], parts: 0.7 },
+  chassis: { offset: [0, 0.3, 0], parts: 0.62 },
+  drivetrain: { offset: [0, -1.0, 0], parts: 0.55 },
+  electrical: { offset: [0, -0.95, 0], parts: 0.7 },
+  battery: { offset: [0, -1.35, 0], parts: 0.7 },
+};
+
+/** Which layer each assembly belongs to (an assembly not listed takes its parent's). The interior travels with
+ * the body structure it is fitted to; the driving sensors (and the side cameras in the mirrors) are a layer of
+ * their own that moves with the exterior. */
+const LAYER_OF_ASSEMBLY: Record<string, Layer> = {
+  body: "exterior",
+  "body-frame": "structure",
+  structure: "structure",
+  interior: "structure",
+  chassis: "chassis",
+  "brake-control": "cooling-braking",
+  thermal: "cooling-braking",
+  "front-drive-unit": "drivetrain",
+  "rear-drive-unit": "drivetrain",
+  "hv-battery": "battery",
+  "power-distribution": "electrical",
+  electronics: "electrical",
+  "sensor-suite": "sensors",
+};
+
+export function layerOf(partId: string): Layer {
+  if (/^side-camera-/.test(partId)) return "sensors";
+  for (let a: string | null = assemblyOf(partId); a; a = PARENT.get(a) ?? null) {
+    const layer = LAYER_OF_ASSEMBLY[a];
+    if (layer) return layer;
+  }
+  throw new Error(`no exploded-view layer for ${partId}`);
+}
+
+// ---- Sub-assembly movements (within their layer) ---------------------------------------------------
 
 /** Which side an id belongs to: -l / -fl / -rl (optionally followed by -n) → left, -r / -fr / -rr → right. */
 export const sideOf = (id: string): -1 | 0 | 1 =>
@@ -54,24 +105,20 @@ const frontOf = (id: string) => (/-f[lr](-\d+)?$/.test(id) ? 1 : -1);
 
 function assemblyMotion(id: string): Motion | null {
   const s = sideOf(id);
-  if (id.startsWith("door-")) return { offset: [frontOf(id) * 0.25, 0, s * 0.9] };
-  if (id.startsWith("corner-")) return { offset: [frontOf(id) * 0.3, 0, s * 0.7] };
+  if (id.startsWith("door-")) return { offset: [frontOf(id) * 0.12, 0, s * 0.55] };
+  if (id.startsWith("corner-")) return { offset: [frontOf(id) * 0.15, 0, s * 0.45] };
   const table: Record<string, Vec3> = {
-    body: [0, 0.85, 0],
-    greenhouse: [0, 0.55, 0],
-    "front-end": [0.6, 0, 0],
-    "rear-end": [-0.6, 0, 0],
-    "body-frame": [0, 0.25, 0],
-    "front-suspension": [0.3, -0.1, 0],
-    "rear-suspension": [-0.3, -0.1, 0],
-    steering: [0.3, 0.45, 0],
-    "brake-control": [0.45, 0.9, 0],
-    "front-drive-unit": [0.55, -0.05, 0],
-    "rear-drive-unit": [-0.55, -0.05, 0],
-    "hv-battery": [0, -0.95, 0],
-    "battery-junction-box": [0.5, 0.4, -0.15],
-    thermal: [0.35, 0.2, 0],
-    interior: [0, 0.35, 0],
+    greenhouse: [0, 0.32, 0],
+    "front-end": [0.35, 0, 0],
+    "rear-end": [-0.35, 0, 0],
+    "body-frame": [0, 0.18, 0],
+    "front-suspension": [0.15, 0, 0],
+    "rear-suspension": [-0.15, 0, 0],
+    steering: [0.1, 0.28, 0],
+    "brake-control": [0, 0.15, 0],
+    "front-drive-unit": [0.6, 0, 0],
+    "rear-drive-unit": [-0.6, 0, 0],
+    "battery-junction-box": [0.45, 0.25, -0.1],
   };
   return table[id] ? { offset: table[id] } : null;
 }
@@ -104,7 +151,7 @@ const PART_RULES: Rule[] = [
   [/^quarter-/, (s) => m([0, 0.05, s * 0.55])],
   [/^tail-lamp-/, (s) => m([-0.75, 0.05, s * 0.2])],
   // doors fan out into layers, outermost furthest
-  [/^side-camera-/, (s) => m([0.1, 0, s * 1.25])],
+  [/^side-camera-/, (s) => m([0.1, -0.12, s * 0.95])],
   [/^mirror-/, (s) => m([0.06, 0.15, s * 1.0])],
   [/^door-handle-/, (s) => m([0.05, 0.05, s * 0.9], [0, 0, 0.12 * s])],
   [/^glass-/, (s) => m([0, 0.35, s * 0.7])],
@@ -122,7 +169,7 @@ const PART_RULES: Rule[] = [
   [/^roof-bow-/, () => m([0, 0.2, 0])],
   [/^cross-car-beam$/, () => m([0.15, -0.3, 0])],
   // structure
-  [/^underbody$/, () => m([0, -0.8, 0])],
+  [/^underbody$/, () => m([0, -0.45, 0])],
   [/^arch-liner-/, (s) => m([0, 0.4, s * 0.8])],
   [/^sill-/, (s) => m([0, 0, s * 0.45])],
   [/^front-rail-/, (s) => m([0.45, 0.08, s * 0.18])],
@@ -208,16 +255,16 @@ const PART_RULES: Rule[] = [
   [/^front-disconnect$|^rear-park-lock$/, () => m([0, 0.22, 1.25])],
   [/-oil-pump$/, () => m([0, -0.28, 0.3])],
   [/-oil-cooler$/, (_s, c) => m([Math.sign(c[0]) * 0.25, 0.05, 0.35])],
-  [/-inverter$/, () => m([0, 0.45, 0])],
-  [/-phase-busbars$/, () => m([0, 0.56, 0.18])],
-  [/-inverter-busbars$/, () => m([0, 0.62, 0])],
-  [/-dc-link-capacitor$/, () => m([0, 0.7, -0.25])],
-  [/-power-module$/, () => m([0, 0.78, 0])],
-  [/^(front|rear)-current-sensor$/, () => m([0, 0.84, 0.22])],
-  [/-gate-driver$/, () => m([0, 0.94, 0])],
-  [/-control-board$/, () => m([0, 1.02, 0.18])],
+  [/-inverter$/, () => m([0, 0.3, 0])],
+  [/-phase-busbars$/, () => m([0, 0.38, 0.18])],
+  [/-inverter-busbars$/, () => m([0, 0.44, 0])],
+  [/-dc-link-capacitor$/, () => m([0, 0.5, -0.25])],
+  [/-power-module$/, () => m([0, 0.56, 0])],
+  [/^(front|rear)-current-sensor$/, () => m([0, 0.62, 0.22])],
+  [/-gate-driver$/, () => m([0, 0.7, 0])],
+  [/-control-board$/, () => m([0, 0.78, 0.18])],
   [/-hv-connector$/, (_s, c) => m([-Math.sign(c[0]) * 0.3, 0.55, -0.1])],
-  [/-inverter-lid$/, () => m([0, 1.15, 0])],
+  [/-inverter-lid$/, () => m([0, 0.9, 0])],
   [/-drive-unit-mount-3$/, (_s, c) => m([-Math.sign(c[0]) * 0.18, -0.3, 0])],
   [/-drive-unit-mount-/, () => m([0, -0.32, 0])],
   [/-halfshaft-/, (s) => m([0, 0, s * 0.55])],
@@ -256,20 +303,20 @@ const PART_RULES: Rule[] = [
   [/^hv-harness-front$/, () => m([0.35, -0.35, 0])],
   [/^hv-harness-rear$/, () => m([-0.35, -0.35, 0])],
   [/^lv-harness$/, () => m([0, 0.85, -0.7])],
-  // sensors travel with the panels they are mounted on, ending just outside them
-  [/^front-camera$/, () => m([0.6, 1.5, 0])],
-  [/^rear-camera$/, () => m([-1.3, 0.95, 0])],
-  [/^front-radar$/, () => m([1.3, 0.8, 0])],
-  [/^corner-radar-f/, (s) => m([1.0, 0.85, s * 0.5])],
-  [/^corner-radar-r/, (s) => m([-1.0, 0.85, s * 0.5])],
-  [/^lidar$/, () => m([0, 2.2, 0], [0, 0.2, 0])],
-  [/^gnss-antenna$/, () => m([0, 2.1, 0])],
+  // driving sensors rise with the exterior, then step out from where they mount
+  [/^front-camera$/, () => m([0.55, 0.62, 0])],
+  [/^rear-camera$/, () => m([-0.75, 0.3, 0])],
+  [/^front-radar$/, () => m([0.85, 0.12, 0])],
+  [/^corner-radar-f/, (s) => m([0.6, 0.12, s * 0.55])],
+  [/^corner-radar-r/, (s) => m([-0.6, 0.12, s * 0.55])],
+  [/^lidar$/, () => m([0.2, 0.75, 0], [0, 0.1, 0])],
+  [/^gnss-antenna$/, () => m([0, 0.72, 0])],
   // electronics
-  [/^ad-compute$/, () => m([-0.6, 1.0, 0.2])],
-  [/^vcu$/, () => m([0.15, 1.05, 0.05])],
-  [/^bcm$/, () => m([0.15, 0.95, -0.4])],
-  [/^gateway$/, () => m([0, 0.8, 0])],
-  [/^telematics$/, () => m([0, 1.4, 0])],
+  [/^ad-compute$/, () => m([-0.35, 0.15, 0.25])],
+  [/^vcu$/, () => m([0.2, 0.2, 0.1])],
+  [/^bcm$/, () => m([0.2, 0.15, -0.35])],
+  [/^gateway$/, () => m([0, 0.25, 0])],
+  [/^telematics$/, () => m([0, 0.35, 0])],
   // thermal
   [/^radiator$/, () => m([1.0, 0.1, 0])],
   [/^cooling-fan-/, (s) => m([0.75, 0.1, s * 0.2])],
@@ -296,11 +343,13 @@ const PART_RULES: Rule[] = [
 
 export function partMotion(part: Part, center: Vec3): Motion | null {
   const s = sideOf(part.id) || (Math.sign(Math.round(center[2] * 20)) as -1 | 0 | 1);
+  const k = LAYERS[layerOf(part.id)].parts;
+  const scale = (v: Vec3) => v.map((x) => x * k) as Vec3;
   for (const [re, f] of PART_RULES) {
     if (!re.test(part.id)) continue;
     const motion = f(s, center, part.id);
     // Unless a part has its own detail step, it finishes by moving a little further the same way.
-    return { ...motion, detail: motion.detail ?? (motion.offset.map((v) => v * 0.25) as Vec3) };
+    return { offset: scale(motion.offset), turn: motion.turn, detail: scale(motion.detail ?? (motion.offset.map((v) => v * 0.25) as Vec3)) };
   }
   return null;
 }
@@ -309,9 +358,9 @@ export function partMotion(part: Part, center: Vec3): Motion | null {
 
 /** Each tier has its own slice of the 0→1 progress; tiers overlap so the motion flows continuously. */
 const TIERS: [number, number][] = [
-  [0.0, 0.4], // 1: major assemblies (body, battery, drive units...)
-  [0.18, 0.62], // 2: sub-assemblies (doors, wheel ends...) and parts of major assemblies
-  [0.4, 0.82], // 3: parts of sub-assemblies
+  [0.0, 0.42], // 1: layers (exterior up, battery down...)
+  [0.2, 0.62], // 2: sub-assemblies (doors, wheel ends, drive units...)
+  [0.4, 0.82], // 3: parts
   [0.68, 1.0], // 4: fine detail
 ];
 
@@ -344,21 +393,17 @@ export function buildExplosionPlan(centers: Map<string, Vec3>): Map<string, Step
   // the ones that travel furthest set off first, so the outer layers lead.
   type Node = { key: string; tier: number; offset: Vec3; turn?: Vec3 };
   const nodes = new Map<string, Node>();
-  const depth = (asm: string): number => {
-    let d = 0;
-    for (let a = PARENT.get(asm); a; a = PARENT.get(a)) d++;
-    return d;
-  };
+  for (const [layer, { offset }] of Object.entries(LAYERS)) nodes.set(`l:${layer}`, { key: `l:${layer}`, tier: 1, offset });
   for (const part of PARTS) {
     const own = assemblyOf(part.id);
     for (let a: string | null = own; a && a !== "vehicle"; a = PARENT.get(a) ?? null) {
       if (nodes.has(`a:${a}`)) continue;
       const motion = assemblyMotion(a);
-      if (motion) nodes.set(`a:${a}`, { key: `a:${a}`, tier: Math.min(depth(a), 2), offset: motion.offset });
+      if (motion) nodes.set(`a:${a}`, { key: `a:${a}`, tier: 2, offset: motion.offset });
     }
     const motion = partMotion(part, centers.get(part.id)!);
     if (motion) {
-      nodes.set(`p:${part.id}`, { key: `p:${part.id}`, tier: Math.min(depth(own) + 1, 3), offset: motion.offset, turn: motion.turn });
+      nodes.set(`p:${part.id}`, { key: `p:${part.id}`, tier: 3, offset: motion.offset, turn: motion.turn });
       if (motion.detail) nodes.set(`d:${part.id}`, { key: `d:${part.id}`, tier: 4, offset: motion.detail });
     }
   }
@@ -368,17 +413,20 @@ export function buildExplosionPlan(centers: Map<string, Vec3>): Map<string, Step
     inTier.sort((a, b) => length(b.offset) - length(a.offset) || a.key.localeCompare(b.key));
     const [w0, w1] = TIERS[tier - 1];
     const span = w1 - w0;
+    // The few, long layer moves overlap more and take longer each, so nothing travels fast.
+    const stagger = tier === 1 ? 0.15 : 0.3;
     inTier.forEach((n, i) => {
       const lag = inTier.length > 1 ? i / (inTier.length - 1) : 0;
-      const start = w0 + lag * span * 0.3;
-      timing.set(n.key, [start, start + span * 0.7]);
+      const start = w0 + lag * span * stagger;
+      timing.set(n.key, [start, start + span * (1 - stagger)]);
     });
   }
   const plan = new Map<string, Step[]>();
   for (const part of PARTS) {
-    const keys: string[] = [];
-    for (let a: string | null = assemblyOf(part.id); a && a !== "vehicle"; a = PARENT.get(a) ?? null) keys.unshift(`a:${a}`);
-    keys.push(`p:${part.id}`, `d:${part.id}`);
+    const keys: string[] = [`l:${layerOf(part.id)}`];
+    const assemblies: string[] = [];
+    for (let a: string | null = assemblyOf(part.id); a && a !== "vehicle"; a = PARENT.get(a) ?? null) assemblies.unshift(`a:${a}`);
+    keys.push(...assemblies, `p:${part.id}`, `d:${part.id}`);
     const steps: Step[] = [];
     for (const k of keys) {
       const n = nodes.get(k);

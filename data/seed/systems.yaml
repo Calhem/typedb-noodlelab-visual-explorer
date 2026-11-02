@@ -164,7 +164,8 @@ systems:
     description: "Underbody, rails, sills, pillars and crash beams: carries loads and protects occupants in a crash."
     members: [underbody, sill-*, front-rail-*, rear-rail-*, front-crash-beam, rear-crash-beam, bulkhead, cabin-floor,
               floor-crossmember-*, "?-pillar-*", roof-rail-*, front-header, rear-header, roof-bow-*, cross-car-beam,
-              arch-liner-*, battery-enclosure]
+              arch-liner-*, battery-enclosure, front-floor-rail-*, front-tower-*, rear-tower-*, wheelhouse-*,
+              front-crash-box-*, rear-crash-box-*, front-end-carrier, rear-floor]
   - id: closures
     parent: body-and-structure
     name: "Doors and closures"

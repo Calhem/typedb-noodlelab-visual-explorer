@@ -1,10 +1,12 @@
 // Assembled ←→ Exploded control: a continuous slider plus a play button that runs the sequence
 // forwards or backwards. With reduced motion, the button jumps straight to the other end.
 
+import { exteriorLights, useExteriorLights } from "../scene/lights";
 import { progress, usePlayDirection, useProgress } from "../scene/progress";
 
 export function Scrubber({ reducedMotion }: { reducedMotion: boolean }) {
   const value = useProgress();
+  const lights = useExteriorLights();
   const direction = usePlayDirection();
   const towardsExploded = direction === 1 || (direction === 0 && value < 0.5);
   const onPlay = () => {
@@ -32,6 +34,10 @@ export function Scrubber({ reducedMotion }: { reducedMotion: boolean }) {
         style={{ "--fill": `${value * 100}%` } as React.CSSProperties}
       />
       <span className="scrub-end">Exploded</span>
+      <button type="button" className="scrub-play scrub-lights" onClick={() => exteriorLights.set(!lights)} aria-pressed={lights}>
+        <span aria-hidden className={lights ? "icon-lights on" : "icon-lights"} />
+        <span>Lights {lights ? "on" : "off"}</span>
+      </button>
     </div>
   );
 }

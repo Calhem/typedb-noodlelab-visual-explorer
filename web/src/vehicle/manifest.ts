@@ -5,9 +5,11 @@
 //
 // Tests keep the ids identical to TypeDB's. Ids never change once published.
 
-import { bodyLines, type PanelId } from "./body";
+import type { PanelId } from "./body";
 import { AXLE_Y, DRIVER_Z, FRONT_AXLE_X, REAR_AXLE_X, TRACK_HALF } from "./dimensions";
 import hardPoints from "./suspension.json";
+import exteriorStandIns from "./exterior-stand-ins.json";
+import structureStandIns from "./structure-stand-ins.json";
 import type { Shape, Vec3 } from "./shapes";
 
 export type MaterialId =
@@ -63,24 +65,30 @@ const panel = (id: PanelId, material: MaterialId): Part => ({ id, material, shap
 
 // ---- Parts --------------------------------------------------------------------------------------------
 
+// The body structure (blender/structure.py, D1.2) and the exterior's non-panel parts (blender/exterior_panels.py, D1.3)
+// are drawn from their Blender models; these boxes (each part's bounding box, written by the builds) only stand in
+// for them when the models are switched off. The exterior's panels fall back to the browser-built shell (body.ts).
+type StandIns = Record<string, { centre: number[]; size: number[] }>;
+const box = (table: StandIns, id: string, material: MaterialId): Part => {
+  const { centre, size } = table[id];
+  return { id, material, shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
+};
+const exteriorPart = (id: string): Part => box(exteriorStandIns as StandIns, id, "satin-black");
+/** Where the exterior model draws a part (sensors and mirrors keep their own fallback shapes there). */
+const exteriorAt = (id: string): Vec3 => (exteriorStandIns as StandIns)[id].centre as Vec3;
+const standIn = (id: string): Part => {
+  const { centre, size } = (structureStandIns as StandIns)[id];
+  return { id, material: "aluminium", shape: { kind: "box", size: size as Vec3, radius: 0.004 }, position: centre as Vec3 };
+};
+
 const body: Part[] = [
   panel("bonnet", "paint"),
   panel("front-bumper", "paint"),
-  { id: "grille", material: "gloss-black",
-    shape: { kind: "box", size: [0.04, 0.13, 1.02], radius: 0.03 }, position: [-0.012, 0.53, 0], attach: "front" },
+  exteriorPart("grille"),
   ...SIDES.map((s): Part => panel(`fender-${s.key}` as PanelId, "paint")),
-  ...SIDES.map((s): Part => ({
-    id: `headlamp-${s.key}`, material: "lamp",
-    shape: { kind: "box", size: [0.05, 0.032, 0.42], radius: 0.014 }, position: [-0.012, 0.8, s.z * 0.46], rotation: [0, s.z * 0.3, 0], attach: "front",
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `headlamp-lens-${s.key}`, material: "glass",
-    shape: { kind: "box", size: [0.012, 0.045, 0.44], radius: 0.004 }, position: [0.006, 0.8, s.z * 0.46], rotation: [0, s.z * 0.3, 0], attach: "front",
-  })),
-  { id: "bonnet-inner", material: "aluminium",
-    shape: { kind: "panel-inner", of: "bonnet" }, position: [0, -0.03, 0] },
-  { id: "tailgate-inner", material: "aluminium",
-    shape: { kind: "panel-inner", of: "tailgate" }, position: [0.035, 0, 0] },
+  ...SIDES.flatMap((s) => [`headlamp-${s.key}`, `headlamp-lens-${s.key}`].map(exteriorPart)),
+  exteriorPart("bonnet-inner"),
+  exteriorPart("tailgate-inner"),
   panel("windscreen", "glass"),
   panel("roof", "roof-glass"),
   ...SIDES.map((s): Part => panel(`body-side-${s.key}` as PanelId, "paint")),
@@ -91,44 +99,19 @@ const body: Part[] = [
   panel("rear-diffuser", "gloss-black"),
   ...SIDES.map((s): Part => panel(`quarter-${s.key}` as PanelId, "paint")),
   ...SIDES.map((s): Part => panel(`quarter-glass-${s.key}` as PanelId, "glass")),
-  ...SIDES.map((s): Part => ({
-    id: `tail-lamp-${s.key}`, material: "tail-lamp",
-    shape: { kind: "box", size: [0.06, 0.05, 0.36], radius: 0.018 }, position: [-0.014, 1.04, s.z * 0.55], rotation: [0, -s.z * 0.32, 0], attach: "rear",
-  })),
+  ...SIDES.map((s) => exteriorPart(`tail-lamp-${s.key}`)),
   ...CORNERS.map((c): Part => panel(`door-${c.key}` as PanelId, "paint")),
   ...CORNERS.map((c): Part => panel(`glass-${c.key}` as PanelId, "glass")),
   ...SIDES.map((s): Part => ({
     id: `mirror-${s.key}`, material: "gloss-black",
-    shape: { kind: "mirror" }, position: [0.7, 1.22, s.z * 1.04], rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
+    shape: { kind: "mirror" }, position: exteriorAt(`mirror-${s.key}`), rotation: [0, s.z > 0 ? 0 : Math.PI, 0],
   })),
 ];
 
 const structure: Part[] = [
   panel("underbody", "satin-black"),
-  ...CORNERS.map((c): Part => ({
-    id: `arch-liner-${c.key}`, material: "satin-black",
-    shape: { kind: "arch-liner" }, position: [c.x, AXLE_Y, c.z * 0.79],
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `sill-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [3.0, 0.11, 0.09], radius: 0.02 }, position: [-0.02, 0.4, s.z * 0.76],
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `front-rail-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [1.1, 0.1, 0.07], radius: 0.015 }, position: [1.78, 0.56, s.z * 0.5],
-  })),
-  ...SIDES.map((s): Part => ({
-    id: `rear-rail-${s.key}`, material: "aluminium",
-    shape: { kind: "box", size: [1.0, 0.1, 0.07], radius: 0.015 }, position: [-1.86, 0.56, s.z * 0.55],
-  })),
-  { id: "front-crash-beam", material: "aluminium",
-    shape: { kind: "tube", radius: 0.035, points: [[-0.06, 0, -0.78], [0.02, 0, -0.4], [0.04, 0, 0], [0.02, 0, 0.4], [-0.06, 0, 0.78]] },
-    position: [2.34, 0.52, 0] },
-  { id: "rear-crash-beam", material: "aluminium",
-    shape: { kind: "tube", radius: 0.035, points: [[0.06, 0, -0.78], [-0.02, 0, -0.4], [-0.04, 0, 0], [-0.02, 0, 0.4], [0.06, 0, 0.78]] },
-    position: [-2.38, 0.56, 0] },
-  { id: "bulkhead", material: "aluminium",
-    shape: { kind: "box", size: [0.02, 0.48, 1.42], radius: 0.008 }, position: [1.04, 0.66, 0], rotation: [0, 0, 0.12] },
+  ...CORNERS.map((c) => exteriorPart(`arch-liner-${c.key}`)),
+  ...Object.keys(structureStandIns).map(standIn),
 ];
 
 // Each axle has its own hard points (blender/corner.py, web/src/vehicle/suspension.json): a leading calliper at
@@ -363,43 +346,48 @@ const power: Part[] = [
   // unit, and the rear inverter through the pack's internal rear feed. The DC charge harness runs from the
   // charge port, under the rear-left drive shaft, to the pack's rear charging outlet.
   { id: "hv-harness-front", material: "hv-orange",
-    // up over the rear-left subframe mount, clear of the front-left tyre's sweep at full lock
-    ...absTube([[1.17, 0.29, -0.4], [1.21, 0.38, -0.4], [1.29, 0.6, -0.32], [1.36, 0.773, -0.17]], 0.014) },
+    // inboard of the front-left subframe mount and its body bracket (D1.2), up ahead of the subframe and the
+    // steering rack's mount, then over the rack to the inverter
+    ...absTube([[1.175, 0.29, -0.26], [1.19, 0.34, -0.25], [1.235, 0.42, -0.23], [1.24, 0.6, -0.21], [1.3, 0.72, -0.18], [1.36, 0.773, -0.17]], 0.014) },
   { id: "hv-harness-rear", material: "hv-orange",
     ...absTube([[-1.02, 0.3, 0.113], [-1.1, 0.345, 0.1], [-1.34, 0.345, -0.05], [-1.37, 0.6, -0.15], [-1.37, 0.762, -0.17]], 0.014) },
   { id: "hv-harness-aux", material: "hv-orange",
     ...absTube([[1.17, 0.29, -0.3], [1.25, 0.4, -0.29], [1.3, 0.75, -0.29], [1.45, 0.9, -0.28], [1.75, 0.92, -0.1], [1.84, 0.92, 0.15], [1.82, 0.8, 0.27], [1.83, 0.66, 0.27]], 0.012) },
   { id: "hv-harness-charge", material: "hv-orange",
-    ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.75, 0.47, -0.4], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
+    ...absTube([[-1.98, 0.86, -0.83], [-2.0, 0.62, -0.55], [-1.7, 0.48, -0.47], [-1.62, 0.4, -0.42], [-1.62, 0.345, -0.34], [-1.3, 0.345, -0.25],
       [-1.1, 0.345, -0.12], [-1.02, 0.3, -0.1]], 0.012) },
   { id: "lv-harness", material: "satin-black",
-    // along the left sill, then inboard of the rear-left damper and the upper arm's pivots, over the drive shaft, to
-    // the rear compartment
-    // high and inboard of the front-left spring and the upper arm's pivots, then down along the left sill
-    ...absTube([[1.95, 0.7, -0.17], [1.85, 0.78, -0.3], [1.3, 0.8, -0.33], [1.0, 0.75, -0.62], [0.6, 0.55, -0.68], [-0.4, 0.42, -0.68], [-1.0, 0.44, -0.6], [-1.2, 0.47, -0.42],
-      [-1.45, 0.52, -0.4], [-1.68, 0.53, -0.4], [-1.74, 0.56, -0.5], [-1.9, 0.62, -0.5]], 0.012) },
+    // high and inboard of the front-left spring and the upper arm's pivots, through the bulkhead's grommet, along the
+    // left sill over the floor crossmembers, up in front of the rear wheelhouse, over the boot floor beside it, and
+    // down through a grommet to the rear electrics (D1.2)
+    ...absTube([[1.95, 0.7, -0.17], [1.85, 0.78, -0.3], [1.3, 0.8, -0.33], [1.0, 0.75, -0.62], [0.75, 0.6, -0.675], [0.5, 0.47, -0.675],
+      [0.2, 0.47, -0.675], [-0.6, 0.47, -0.675], [-0.9, 0.47, -0.675], [-0.945, 0.55, -0.672], [-0.95, 0.885, -0.66], [-1.1, 0.885, -0.62], [-1.8, 0.885, -0.62], [-1.85, 0.8, -0.58],
+      [-1.88, 0.7, -0.52], [-1.9, 0.62, -0.5]], 0.012) },
 ];
 
 const sensors: Part[] = [
   { id: "front-camera", material: "electronics",
-    shape: { kind: "box", size: [0.07, 0.05, 0.16], radius: 0.012 }, position: [0.42, 1.43, 0] },
+    // behind the top of the windscreen, under the lidar pod
+    shape: { kind: "box", size: [0.07, 0.05, 0.16], radius: 0.012 }, position: [0.30, 1.435, 0] },
   { id: "rear-camera", material: "electronics",
-    shape: { kind: "cylinder", radius: 0.018, length: 0.04, axis: "x" }, position: [-0.008, 0.96, 0], attach: "rear" },
+    // in the tailgate under the light bar, its lens just proud of the skin (D1.4: placed on the new tail)
+    shape: { kind: "cylinder", radius: 0.018, length: 0.04, axis: "x" }, position: [-2.364, 0.955, 0] },
   ...SIDES.map((s): Part => ({
     id: `side-camera-${s.key}`, material: "electronics",
-    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: [0.7, 1.15, s.z * 1.08],
+    shape: { kind: "cylinder", radius: 0.014, length: 0.03, axis: "y" }, position: exteriorAt(`side-camera-${s.key}`), // in the mirror's underside
   })),
   { id: "front-radar", material: "electronics",
-    shape: { kind: "box", size: [0.035, 0.11, 0.13], radius: 0.01 }, position: [-0.04, 0.53, 0], attach: "front" },
+    // behind the fascia above the intake, on the bumper beam (D1.4: placed behind the new front, not in front of it)
+    shape: { kind: "box", size: [0.035, 0.11, 0.13], radius: 0.01 }, position: [2.31, 0.64, 0] },
   ...CORNERS.map((c): Part => ({
     id: `corner-radar-${c.key}`, material: "electronics",
     shape: { kind: "box", size: [0.03, 0.09, 0.1], radius: 0.01 },
     position: [c.front ? 2.18 : -2.22, 0.64, c.z * 0.7], rotation: [0, c.front ? -c.z * 0.75 : c.z * 0.75, 0],
   })),
   { id: "lidar", material: "electronics",
-    shape: { kind: "lidar" }, position: [0.18, 1.71, 0] },
+    shape: { kind: "lidar" }, position: exteriorAt("lidar") }, // in its pod on the roof's front edge
   { id: "gnss-antenna", material: "paint",
-    shape: { kind: "shark-fin" }, position: [-1.6, 1.68, 0] },
+    shape: { kind: "shark-fin" }, position: exteriorAt("gnss-antenna") }, // its fin on the roof
 ];
 
 const electronics: Part[] = [
@@ -426,15 +414,16 @@ const interior: Part[] = [
       { ...seat, id: `seat-frame-front-${s.key}`, material: "steel", shape: { kind: "seat", width: 0.52, piece: "frame" } },
     ];
   }),
+  // forward of the heel kick-up and narrower than the rear wheelhouses and the brake lines' rise (R6, D1.2)
   { id: "seat-rear", material: "leather",
-    shape: { kind: "seat", width: 1.3, piece: "cushion" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "cushion" }, position: [-0.8, 0.58, 0] },
   { id: "seat-back-rear", material: "leather",
-    shape: { kind: "seat", width: 1.3, piece: "back" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "back" }, position: [-0.8, 0.58, 0] },
   { id: "seat-frame-rear", material: "steel",
-    shape: { kind: "seat", width: 1.3, piece: "frame" }, position: [-0.95, 0.58, 0] },
+    shape: { kind: "seat", width: 1.18, piece: "frame" }, position: [-0.8, 0.58, 0] },
   ...SIDES.map((s): Part => ({
     id: `headrest-rear-${s.key}`, material: "leather",
-    shape: { kind: "seat", width: 0.52, piece: "headrest" }, position: [-0.95, 0.58, s.z * 0.38],
+    shape: { kind: "seat", width: 0.52, piece: "headrest" }, position: [-0.8, 0.58, s.z * 0.38],
   })),
   { id: "dashboard", material: "satin-black",
     shape: { kind: "box", size: [0.36, 0.2, 1.46], radius: 0.06 }, position: [0.74, 0.88, 0] },
@@ -442,58 +431,9 @@ const interior: Part[] = [
 
 // ---- Detail layers: what makes the exploded view read as an engineering assembly -----------------
 
-const { topLine: T, beltLine: B, halfWidth: W, roofHalfWidth: RW, bottomLine: Y } = bodyLines;
-const roofPt = (x: number, z: 1 | -1): Vec3 => [x, T(x) - 0.075, z * (RW(x) - 0.01)];
-const beltPt = (x: number, z: 1 | -1): Vec3 => [x, B(x) - 0.02, z * (W(x) - 0.11)];
-const sillPt = (x: number, z: 1 | -1): Vec3 => [x, Y(x) + 0.12, z * (W(x) - 0.08)];
-const frameTube = (id: string, points: Vec3[], radius = 0.026): Part => ({
-  id, material: "aluminium", ...absTube(points, radius),
-});
-
-const bodyFrame: Part[] = [
-  ...SIDES.flatMap((s): Part[] => [
-    frameTube(`a-pillar-${s.key}`, [beltPt(0.9, s.z), mid(beltPt(0.9, s.z), roofPt(0.2, s.z), 0.04), roofPt(0.2, s.z)]),
-    frameTube(`b-pillar-${s.key}`, [sillPt(-0.1, s.z), beltPt(-0.1, s.z), roofPt(-0.1, s.z)], 0.03),
-    frameTube(`c-pillar-${s.key}`, [beltPt(-1.27, s.z), roofPt(-1.27, s.z)]),
-    frameTube(`d-pillar-${s.key}`, [beltPt(-2.1, s.z), mid(beltPt(-2.1, s.z), roofPt(-1.95, s.z)), roofPt(-1.95, s.z)]),
-    frameTube(`roof-rail-${s.key}`, [0.2, -0.4, -1.0, -1.6, -1.95].map((x) => roofPt(x, s.z)), 0.024),
-  ]),
-  ...([[0.2, "front-header"], [-0.55, "roof-bow-1"], [-1.25, "roof-bow-2"], [-1.95, "rear-header"]] as const).map(([x, id]) =>
-    frameTube(id, [roofPt(x, -1), [x, T(x) - 0.06, 0], roofPt(x, 1)], 0.02)),
-  frameTube("cross-car-beam", [[0.8, 0.9, -0.78], [0.8, 0.94, 0], [0.8, 0.9, 0.78]], 0.032),
-];
-
-const floor: Part[] = [
-  { id: "cabin-floor", material: "satin-black",
-    shape: { kind: "box", size: [2.3, 0.012, 1.42], radius: 0.004 }, position: [-0.15, 0.39, 0] },
-  ...([[0.45, 1], [-0.55, 2]] as const).map(([x, n]): Part => ({
-    id: `floor-crossmember-${n}`, material: "aluminium",
-    shape: { kind: "box", size: [0.08, 0.06, 1.42], radius: 0.012 }, position: [x, 0.43, 0],
-  })),
-];
-
-const doorLayers: Part[] = CORNERS.flatMap((c): Part[] => {
-  const cx = c.front ? 0.4 : -0.63;
-  const len = c.front ? 1.0 : 1.06;
-  const w = W(cx);
-  return [
-    { id: `door-structure-${c.key}`, material: "aluminium",
-      shape: { kind: "box", size: [len * 0.92, 0.58, 0.03], radius: 0.012 }, position: [cx, 0.78, c.z * (w - 0.1)] },
-    { id: `window-regulator-${c.key}`, material: "steel",
-      shape: { kind: "regulator", height: 0.45 }, position: [cx, 0.86, c.z * (w - 0.14)] },
-    { id: `door-speaker-${c.key}`, material: "satin-black",
-      shape: { kind: "cylinder", radius: 0.075, length: 0.05, axis: "z" }, position: [cx + 0.28, 0.6, c.z * (w - 0.17)] },
-    { id: `door-trim-${c.key}`, material: "leather",
-      shape: { kind: "box", size: [len * 0.9, 0.56, 0.04], radius: 0.015 }, position: [cx, 0.8, c.z * (w - 0.21)] },
-    { id: `door-handle-${c.key}`, material: "gloss-black",
-      shape: { kind: "box", size: [0.15, 0.025, 0.03], radius: 0.01 }, position: [cx + 0.1, 1.0, c.z * (w + 0.0)] },
-    { id: `door-latch-${c.key}`, material: "steel",
-      shape: { kind: "box", size: [0.05, 0.09, 0.04], radius: 0.008 }, position: [cx - len / 2 + 0.05, 0.86, c.z * (w - 0.12)] },
-    { id: `door-seal-${c.key}`, material: "rubber",
-      ...absTube([[cx - len / 2 + 0.03, 0.5, 0], [cx + len / 2 - 0.03, 0.5, 0], [cx + len / 2 - 0.03, 1.12, 0], [cx - len / 2 + 0.03, 1.12, 0],
-        [cx - len / 2 + 0.03, 0.5, 0]].map(([px, py]) => [px, py, c.z * (w - 0.075)] as Vec3), 0.009) },
-  ];
-});
+// The doors' inner layers follow each door's own surface (blender/exterior_panels.py, D1.3).
+const doorLayers: Part[] = CORNERS.flatMap((c) =>
+  ["door-structure", "window-regulator", "door-speaker", "door-trim", "door-handle", "door-latch", "door-seal"].map((p) => exteriorPart(`${p}-${c.key}`)));
 
 const wheelDetail: Part[] = CORNERS.flatMap((c): Part[] => {
   const caliperAngle = (c.front ? hardPoints.front : hardPoints.rear).caliperAngle;
@@ -658,7 +598,7 @@ const cabin: Part[] = [
   { id: "centre-display", material: "gloss-black",
     shape: { kind: "box", size: [0.025, 0.2, 0.32], radius: 0.008 }, position: [0.8, 1.02, 0], rotation: [0, 0, -0.25] },
   { id: "headliner", material: "fabric",
-    shape: { kind: "box", size: [2.0, 0.01, 1.22], radius: 0.004 }, position: [-0.75, 1.52, 0] },
+    shape: { kind: "box", size: [1.5, 0.01, 1.2], radius: 0.004 }, position: [-0.7, 1.5, 0] }, // under the D1.3 roof
 ];
 
 export const PARTS: Part[] = [
@@ -675,8 +615,6 @@ export const PARTS: Part[] = [
   ...sensors,
   ...electronics,
   ...interior,
-  ...bodyFrame,
-  ...floor,
   ...doorLayers,
   ...wheelDetail,
   ...upperArms,
