@@ -1,9 +1,11 @@
 """The semantic HTTP API (FastAPI). Read-only: every endpoint is a GET, opens only READ transactions and runs
 only the named queries in explorer/queries.py. The browser never sends TypeQL and never sees credentials.
 
-Every answer has the shape {"data": ..., "typeql": [...], "timings-ms": [...]}: "typeql" lists the exact
-queries that produced it, in the order they ran (recorded as they ran, parameters included), and
-"timings-ms" how long each took in TypeDB, measured to its last answer.
+Every answer has the shape {"data": ..., "typeql": [...], "timings-ms": [...], "purposes": [...],
+"result-queries": [...], "processing": [...]}: "typeql" lists the exact queries that produced it, in the order
+they ran (recorded as they ran, parameters included); "timings-ms" how long each took in TypeDB, measured to its
+last answer; "purposes" what each was for; "result-queries" the indexes of the queries whose answers are the
+components the answer is about; and "processing" the steps the API did itself, in Python, with the answers.
 
 If TypeDB is unreachable, every endpoint answers 503 with {"error": "typedb-unavailable"}: there is no
 fallback data. The connection is opened on first use and reopened after a failure, so the API recovers
@@ -12,6 +14,7 @@ by itself when TypeDB comes back.
 
 import logging
 import threading
+import time
 from typing import Annotated
 
 from fastapi import FastAPI, Path
@@ -25,6 +28,8 @@ log = logging.getLogger("explorer.api")
 # Stable ids: lower-case words separated by single hyphens (the same rule the schema enforces).
 ID = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 Id = Annotated[str, Path(pattern=ID, max_length=64)]
+# Schema names: type labels (hyphens) and function names (underscores).
+Name = Annotated[str, Path(pattern=r"^[a-z0-9]+([-_][a-z0-9]+)*$", max_length=64)]
 
 UNAVAILABLE = "TypeDB is not reachable, so semantic information cannot be shown. The 3D model still works."
 QUERY_FAILED = "TypeDB could not answer this question. The API log has the details."
@@ -64,6 +69,19 @@ class Database:
                 self._driver = driver
             return self._driver
 
+    def schema(self):
+        """The database's schema as TypeDB writes it (one `define`), and how long reading it took in ms. This is a
+        driver call, not a TypeQL query."""
+        driver = self.driver()
+        start = time.perf_counter()
+        try:
+            text = driver.databases.get(self.name).schema()
+        except Exception as error:
+            log.warning("TypeDB schema read failed: %s", error)
+            self.reset()
+            raise Unavailable(UNAVAILABLE) from error
+        return text, round((time.perf_counter() - start) * 1000, 1)
+
     def reset(self):
         with self._lock:
             if self._driver is not None:
@@ -74,12 +92,12 @@ class Database:
                 self._driver = None
 
     def read(self, question, *args):
-        """Run one named question in a READ transaction; returns (answer, the queries that ran, their timings in ms)."""
+        """Run one named question in a READ transaction; returns (answer, the recording of the queries that ran)."""
         driver = self.driver()
         try:
             with driver.transaction(self.name, READ) as tx:
                 recorder = RecordingTransaction(tx)
-                return question(recorder, *args), recorder.queries, recorder.timings_ms
+                return question(recorder, *args), recorder
         except queries.NotFound:
             raise
         except Exception as error:
@@ -110,8 +128,9 @@ def create_app(db=None):
         return JSONResponse(status_code=404, content={"error": "not-found", "message": f"No {error} in TypeDB."})
 
     def answer(question, *args):
-        data, typeql, timings = db.read(question, *args)
-        return {"data": data, "typeql": typeql, "timings-ms": timings}
+        data, r = db.read(question, *args)
+        return {"data": data, "typeql": r.queries, "timings-ms": r.timings_ms, "purposes": r.purposes,
+                "result-queries": r.results, "processing": r.processing}
 
     @app.get("/api/health")
     def health():
@@ -163,7 +182,8 @@ def create_app(db=None):
 
     @app.get("/api/questions")
     def question_list():
-        return {"data": questions.question_list(None), "typeql": [], "timings-ms": []}
+        return {"data": questions.question_list(None), "typeql": [], "timings-ms": [], "purposes": [], "result-queries": [],
+                "processing": []}
 
     @app.get("/api/questions/{question_id}")
     def question(question_id: Id):
@@ -172,6 +192,15 @@ def create_app(db=None):
     @app.get("/api/assemblies/{assembly_id}")
     def assembly(assembly_id: Id):
         return answer(queries.assembly, assembly_id)
+
+    @app.get("/api/schema/{name}")
+    def schema(name: Name):
+        """A type's or function's definition (with its supertypes'), read from the database's schema. No TypeQL
+        query runs, so "typeql" is empty and "schema-ms" says how long the read took."""
+        text, ms = db.schema()
+        return {"data": queries.schema_definitions(text, name), "typeql": [], "timings-ms": [], "purposes": [],
+                "result-queries": [], "processing": ["Python cuts this definition from the schema text TypeDB returns."],
+                "schema-ms": ms, "source": "database.schema()"}
 
     @app.get("/api/systems")
     def systems():

@@ -5,7 +5,7 @@ the component ids to highlight in 3D, and (through the API) the exact TypeQL wit
 explanations below describe the questions, not the vehicle: every fact in an answer comes from TypeDB.
 """
 
-from explorer.db import fetch, rows
+from explorer.db import fetch, processing, rows
 from explorer.queries import NotFound, _label
 
 
@@ -19,8 +19,9 @@ def pack_energy(tx):
     r = rows(tx, """
         match $m isa battery-module, has energy-capacity-kwh $e, has nominal-voltage-v $v;
         reduce $kwh = sum($e), $volts = sum($v), $modules = count;
-    """)[0]
-    ids = fetch(tx, 'match $m isa battery-module; fetch { "id": $m.component-id };')
+    """, "sum energy and voltage over every battery module, in TypeDB")[0]
+    ids = fetch(tx, 'match $m isa battery-module; fetch { "id": $m.component-id };', "the battery modules, to highlight",
+                result=True)
     kwh, volts, n = _num(r, "kwh"), _num(r, "volts"), int(_num(r, "modules"))
     return {"summary": f"{kwh:g} kWh from {n} modules; {volts:g} V with the modules in series",
             "columns": ["Modules", "Energy (kWh)", "Voltage in series (V)"], "rows": [[n, kwh, volts]],
@@ -31,11 +32,11 @@ def drive_power(tx):
     r = rows(tx, """
         match $m isa electric-motor, has peak-power-kw $p, has peak-torque-nm $t;
         reduce $kw = sum($p), $nm = sum($t), $motors = count;
-    """)[0]
+    """, "sum peak power and torque over every electric motor, in TypeDB")[0]
     motors = fetch(tx, """
         match $m isa electric-motor, has peak-power-kw $p, has peak-torque-nm $t;
         fetch { "id": $m.component-id, "name": $m.name, "kw": $p, "nm": $t };
-    """)
+    """, "each motor's own figures", result=True)
     return {"summary": f"{_num(r, 'kw'):g} kW and {_num(r, 'nm'):g} N·m peak from {int(_num(r, 'motors'))} motors",
             "columns": ["Motor", "Peak power (kW)", "Peak torque (N·m)"],
             "rows": [[m["name"], m["kw"], m["nm"]] for m in sorted(motors, key=lambda m: m["name"])],
@@ -47,8 +48,9 @@ def sensors_by_type(tx):
         match $x isa sensor; $x isa! $type;
         reduce $n = count groupby $type;
         fetch { "type": $type, "n": $n };
-    """)
-    ids = fetch(tx, 'match $x isa sensor; fetch { "id": $x.component-id };')
+    """, "count sensors by most specific type, in TypeDB")
+    ids = fetch(tx, 'match $x isa sensor; fetch { "id": $x.component-id };', "every instance of the abstract type sensor",
+                result=True)
     table = sorted(([_label(c["type"]), c["n"]] for c in counts), key=lambda r: (-r[1], r[0]))
     return {"summary": f"{len(ids)} sensors of {len(table)} types, found with one query for the abstract type 'sensor'",
             "columns": ["Type", "Count"], "rows": table, "highlight": [i["id"] for i in ids]}
@@ -61,7 +63,7 @@ def multi_system(tx):
         match $n > 1;
         fetch { "id": $c.component-id, "name": $c.name, "systems": $n,
                 "names": [ match system-membership (system: $s2, member: $c); fetch { "name": $s2.name }; ] };
-    """)
+    """, "count each part's system memberships, keep those above one", result=True)
     found.sort(key=lambda f: (-f["systems"], f["name"]))
     return {"summary": f"{len(found)} parts serve more than one functional system",
             "columns": ["Part", "Systems"],
@@ -76,7 +78,7 @@ def shared_sensors(tx):
         match $n > 1;
         fetch { "id": $x.component-id, "name": $x.name, "loops": $n,
                 "names": [ match $l isa control-loop, links (sensor: $x); fetch { "name": $l.name }; ] };
-    """)
+    """, "count each sensor's control loops, keep those above one", result=True)
     found.sort(key=lambda f: f["name"])
     return {"summary": f"{len(found)} sensors feed more than one control loop",
             "columns": ["Sensor", "Control loops"],
@@ -89,7 +91,7 @@ def connections_by_kind(tx):
         match $r isa! $kind; $kind sub connection;
         reduce $n = count groupby $kind;
         fetch { "kind": $kind, "n": $n };
-    """)
+    """, "count connections by their most specific relation type")
     table = sorted(([_label(c["kind"]).replace("-connection", ""), c["n"]] for c in counts), key=lambda r: -r[1])
     return {"summary": f"{sum(r[1] for r in table)} connections of {len(table)} kinds (subtypes of one relation type)",
             "columns": ["Kind", "Count"], "rows": table, "highlight": []}
@@ -102,7 +104,8 @@ def battery_to_wheel(tx):
           let $c, $f, $p, $g in requirement_steps($end);
         fetch { "from": $c.component-id, "from-name": $c.name, "function": $f.function-name,
                 "to": $p.component-id, "to-name": $p.name, "needs": $g.function-name };
-    """)
+    """, "every requirement step behind the tyre, through the recursive function requirement_steps", result=True)
+    processing(tx, "Python searches the returned steps breadth first for the shortest chain to a battery module.")
     # Shortest chain of requirements from the tyre back to a battery module (breadth first).
     by_from = {}
     for e in edges:
@@ -153,7 +156,8 @@ def propulsion_single_points(tx):
         reduce $tyres = count groupby $start;
         match $tyres == 4;
         fetch { "id": $start.component-id, "name": $start.name };
-    """)
+    """, "parts needed by all four tyres whose loss takes drive torque from all four (requirement_steps, then lost_steps)",
+        result=True)
     found.sort(key=lambda f: f["name"])
     return {"summary": f"{len(found)} parts whose failure alone loses drive torque at all four wheels",
             "columns": ["Part"], "rows": [[f["name"]] for f in found], "highlight": [f["id"] for f in found]}
@@ -171,7 +175,8 @@ def load_path(tx):
             has dependency-kind "support";
         fetch { "from": $c.component-id, "from-name": $c.name, "function": $f.function-name,
                 "to": $p.component-id, "to-name": $p.name, "needs": $g.function-name };
-    """)
+    """, "the support dependencies behind the tyre, through the recursive function requirement_steps", result=True)
+    processing(tx, "Python follows the support steps from the tyre, breadth first, and names where they end.")
     by_from = {}
     for e in edges:
         by_from.setdefault(e["from"], []).append(e)
@@ -185,7 +190,8 @@ def load_path(tx):
                     seen.add(e["to"])
                     nxt.append(e["to"])
         frontier = nxt
-    structure = {r["id"] for r in fetch(tx, 'match $x isa structural-member; fetch { "id": $x.component-id };')}
+    structure = {r["id"] for r in fetch(tx, 'match $x isa structural-member; fetch { "id": $x.component-id };',
+                                        "the structural members, to name where the load path ends")}
     ends = sorted({e["to-name"] for e in steps if e["to"] in structure and e["to"] not in by_from})
     rows = [[i + 1, f"{e['from-name']}: {e['function']}", f"{e['to-name']}: {e['needs']}"] for i, e in enumerate(steps)]
     return {"summary": f"{len(steps)} support steps from the front-right tyre, ending in the body structure: {', '.join(ends)}",
